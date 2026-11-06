@@ -797,11 +797,9 @@ def perform_qr_login():
     pDialog = xbmcgui.DialogProgress()
     pDialog.create(
         "ورود با تلویزیون - ۳۰نما",
-        f"کد ورود اختصاصی شما:\n[COLOR gold][B]{code}[/B][/COLOR]\n\n"
-        f"۱. در مرورگر گوشی یا کامپیوتر وارد حساب کاربری ۳۰نما شوید.\n"
-        f"۲. صفحه زیر را باز کرده و روی «فعال‌سازی» بزنید:\n"
-        f"[B]{url}[/B]\n\n"
-        "در حال انتظار برای تأیید ورود از طرف شما..."
+        f"کد ورود شما: [COLOR gold][B]{code}[/B][/COLOR]\n"
+        f"در گوشی باز کنید: [COLOR lightblue][B]{url}[/B][/COLOR]\n"
+        "پس از باز کردن لینک، روی «فعال‌سازی» در گوشی بزنید..."
     )
 
     import time
