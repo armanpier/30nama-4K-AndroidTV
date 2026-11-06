@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+    <category label="Account &amp; API Configuration">
+        <setting id="base_url" type="text" label="Site Base URL" default="https://30nama.com"/>
+        <setting id="api_base_url" type="text" label="API Base URL" default="https://world.hana-api.com/api/v2/action"/>
+        <setting id="proxy_url" type="text" label="Proxy URL (Optional, for Iran/Bypass)" default="http://127.0.0.1:10808"/>
+        <setting id="c_token" type="text" label="Session Token (c-token)" default=""/>
+        <setting id="tv_api_key" type="text" label="TV API Key" default="VdapnkLG9EHsSmF8yeKcb4253RAuN6YX"/>
+        <setting id="desktop_api_key" type="text" label="Desktop API Key (4K Stream)" default="et7bRHdhmL468C5BcNrEMYTWGfz3a9vJ"/>
+    </category>
+    <category label="Subtitles &amp; 4K Playback">
+        <setting id="auto_start_on_boot" type="bool" label="Auto-Launch 30nama on Startup" default="true"/>
+        <setting id="sub_priority" type="enum" label="Primary Subtitle Language" values="Persian First (then English)|English First (then Persian)" default="0"/>
+        <setting id="auto_fix_persian_encoding" type="bool" label="Auto-Convert Persian CP1256 to UTF-8" default="true"/>
+    </category>
+</settings>

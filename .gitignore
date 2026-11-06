@@ -1,0 +1,50 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Android / APK Builds (Attached to GitHub Releases, not git tree)
+*.apk
+*.idsig
+*.zip
+*.jks
+*.keystore
+apk-extract/
+apk_chunks/
+temp_classes.jar
+
+# Reverse engineering artifacts and scratch dumps
+*.log
+*.dump
+*.txt
+*.xml
+*.html
+*.wav
+*.mp3
+*.db
+*.json
+*.ps1
+backend/
+android/
+docs/
+backup/
+backup_x8000h/
+restore*.bat
+
+# Ignore root scratch scripts & images
+*.py
+*.png
+!build_standalone_apk.py
+!download_and_build_arm.py
+!create_premium_art.py
+!generate_apk_branding.py
+
+# System / IDE
+.wrangler/
+.vscode/
+.idea/
+.DS_Store
+
+# Whitelist clean assets & addon
+!branding_assets/**
+!plugin.video.30nama/**
