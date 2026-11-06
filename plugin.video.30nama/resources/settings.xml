@@ -3,7 +3,7 @@
     <category label="Account &amp; API Configuration">
         <setting id="base_url" type="text" label="Site Base URL" default="https://30nama.com"/>
         <setting id="api_base_url" type="text" label="API Base URL" default="https://world.hana-api.com/api/v2/action"/>
-        <setting id="proxy_url" type="text" label="Proxy URL (Optional, for Iran/Bypass)" default="http://127.0.0.1:10808"/>
+        <setting id="proxy_url" type="text" label="Proxy URL (Optional, e.g. http://192.168.1.50:10808)" default=""/>
         <setting id="c_token" type="text" label="Session Token (c-token)" default=""/>
         <setting id="tv_api_key" type="text" label="TV API Key" default="VdapnkLG9EHsSmF8yeKcb4253RAuN6YX"/>
         <setting id="desktop_api_key" type="text" label="Desktop API Key (4K Stream)" default="et7bRHdhmL468C5BcNrEMYTWGfz3a9vJ"/>

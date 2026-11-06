@@ -11,6 +11,7 @@ import re
 import json
 import shutil
 import zipfile
+import socket
 import urllib.parse
 import requests
 import urllib3
@@ -70,11 +71,35 @@ def check_and_fix_persian_font():
     check_and_configure_kodi_proxy()
 
 
+def is_proxy_alive(proxy_url):
+    """Fast check whether a proxy host/port is accepting connections."""
+    if not proxy_url:
+        return False
+    try:
+        parsed = urllib.parse.urlparse(proxy_url)
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or 10808
+        s = socket.create_connection((host, port), timeout=1.2)
+        s.close()
+        return True
+    except Exception:
+        return False
+
+
 def check_and_configure_kodi_proxy():
-    """Ensures Kodi's native curl player routes video streams through the proxy if configured."""
+    """Ensures Kodi's native curl player routes video streams through the proxy only if proxy is alive."""
     try:
         proxy = get_setting("proxy_url")
-        if proxy and ("127.0.0.1" in proxy or "10.0.2.2" in proxy):
+        active_proxy = None
+        if proxy and is_proxy_alive(proxy):
+            active_proxy = proxy
+        elif not proxy and is_proxy_alive("http://127.0.0.1:10808"):
+            active_proxy = "http://127.0.0.1:10808"
+
+        if active_proxy:
+            parsed = urllib.parse.urlparse(active_proxy)
+            host = parsed.hostname or "127.0.0.1"
+            port = parsed.port or 10808
             xbmc.executeJSONRPC(json.dumps({
                 "jsonrpc": "2.0",
                 "method": "Settings.SetSettingValue",
@@ -84,19 +109,28 @@ def check_and_configure_kodi_proxy():
             xbmc.executeJSONRPC(json.dumps({
                 "jsonrpc": "2.0",
                 "method": "Settings.SetSettingValue",
-                "params": {"setting": "network.httpproxyserver", "value": "127.0.0.1"},
+                "params": {"setting": "network.httpproxyserver", "value": host},
                 "id": 1
             }))
             xbmc.executeJSONRPC(json.dumps({
                 "jsonrpc": "2.0",
                 "method": "Settings.SetSettingValue",
-                "params": {"setting": "network.httpproxyport", "value": 10808},
+                "params": {"setting": "network.httpproxyport", "value": port},
                 "id": 1
             }))
             xbmc.executeJSONRPC(json.dumps({
                 "jsonrpc": "2.0",
                 "method": "Settings.SetSettingValue",
                 "params": {"setting": "network.httpproxytype", "value": 0},
+                "id": 1
+            }))
+            log(f"Kodi HTTP proxy enabled: {host}:{port}")
+        else:
+            # Disable Kodi internal HTTP proxy to allow direct streaming and Android TUN/VPN routing
+            xbmc.executeJSONRPC(json.dumps({
+                "jsonrpc": "2.0",
+                "method": "Settings.SetSettingValue",
+                "params": {"setting": "network.usehttpproxy", "value": False},
                 "id": 1
             }))
     except Exception as exc:
@@ -130,10 +164,10 @@ def ensure_clean_sub_dir():
 def get_session(use_desktop_key=False):
     session = requests.Session()
     proxy = get_setting("proxy_url")
-    if not proxy or "10.0.2.2" in proxy:
-        proxy = "http://127.0.0.1:10808"
-    if proxy:
+    if proxy and is_proxy_alive(proxy):
         session.proxies = {"http": proxy, "https": proxy}
+    elif not proxy and is_proxy_alive("http://127.0.0.1:10808"):
+        session.proxies = {"http": "http://127.0.0.1:10808", "https": "http://127.0.0.1:10808"}
 
     api_key = get_setting("desktop_api_key", DEFAULT_DESKTOP_KEY) if use_desktop_key else get_setting("tv_api_key", DEFAULT_TV_KEY)
     c_token = get_setting("c_token") or DEFAULT_TOKEN
@@ -155,15 +189,31 @@ def api_request(action_path, params=None, method="GET", use_desktop_key=False):
     session, api_key, c_token = get_session(use_desktop_key=use_desktop_key)
     url = f"{API_BASE_URL}/{action_path.lstrip('/')}"
 
+    # First attempt (uses proxy if configured & responsive)
     try:
         if method.upper() == "POST":
-            resp = session.post(url, data=params or {}, timeout=15, verify=False)
+            resp = session.post(url, data=params or {}, timeout=12, verify=False)
         else:
-            resp = session.get(url, params=params or {}, timeout=15, verify=False)
+            resp = session.get(url, params=params or {}, timeout=12, verify=False)
         return resp.json()
     except Exception as exc:
-        log(f"API request failed for {url}: {exc}", xbmc.LOGWARNING)
-        return None
+        log(f"API attempt failed for {url}: {exc}", xbmc.LOGWARNING)
+
+    # Automatic fallback: if proxy was used and failed, retry directly
+    if session.proxies:
+        try:
+            log(f"Retrying API directly without proxy for {url}...", xbmc.LOGINFO)
+            direct_s = requests.Session()
+            direct_s.headers.update(session.headers)
+            if method.upper() == "POST":
+                resp = direct_s.post(url, data=params or {}, timeout=12, verify=False)
+            else:
+                resp = direct_s.get(url, params=params or {}, timeout=12, verify=False)
+            return resp.json()
+        except Exception as exc2:
+            log(f"Direct API retry failed for {url}: {exc2}", xbmc.LOGWARNING)
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -736,20 +786,22 @@ def perform_qr_login():
     check_and_fix_persian_font()
     data = api_request("qrlogin_code", method="POST", use_desktop_key=False)
     if not data or not data.get("success"):
-        xbmcgui.Dialog().ok("خطا در ورود", f"خطا در ایجاد کد ورود تلویزیون:\n{json.dumps(data, ensure_ascii=False)}")
+        err = data.get("msg") if isinstance(data, dict) and data.get("msg") else "عدم برقراری ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی نمایید."
+        xbmcgui.Dialog().ok("خطا در ورود", f"خطا در ایجاد کد ورود تلویزیون:\n{err}")
         return
 
     res = data.get("result", {})
     code = res.get("code")
-    url = res.get("url")
+    url = res.get("url") or f"https://30nama.com/auth/{code}"
 
     pDialog = xbmcgui.DialogProgress()
     pDialog.create(
         "ورود با تلویزیون - ۳۰نما",
-        f"کد ورود شما: [B]{code}[/B]\n\n"
-        f"۱. در گوشی یا مرورگر خود وارد حساب ۳۰نما شوید.\n"
-        f"۲. آدرس {url} را باز کرده و فعال سازی را بزنید.\n\n"
-        "در حال انتظار برای تأیید ورود..."
+        f"کد ورود اختصاصی شما:\n[COLOR gold][B]{code}[/B][/COLOR]\n\n"
+        f"۱. در مرورگر گوشی یا کامپیوتر وارد حساب کاربری ۳۰نما شوید.\n"
+        f"۲. صفحه زیر را باز کرده و روی «فعال‌سازی» بزنید:\n"
+        f"[B]{url}[/B]\n\n"
+        "در حال انتظار برای تأیید ورود از طرف شما..."
     )
 
     import time
@@ -772,7 +824,8 @@ def perform_qr_login():
 
     if token:
         ADDON.setSetting("c_token", str(token))
-        xbmcgui.Dialog().ok("ورود موفقیت‌آمیز", "ورود شما با موفقیت تأیید شد و توکن ذخیره گردید!")
+        xbmcgui.Dialog().ok("ورود موفقیت‌آمیز", "ورود شما با موفقیت تأیید شد و اشتراک VIP فعال گردید!")
+        xbmc.executebuiltin("Container.Refresh")
     else:
         xbmcgui.Dialog().notification("ورود", "زمان انتظار به پایان رسید یا لغو شد.", xbmcgui.NOTIFICATION_WARNING, 3000)
 
