@@ -1,0 +1,36 @@
+=> [Function #53302 "stream" of 109 bytes]: 3 params, frame size=13, strict=1, exc handler=0, debug info=0  @ offset 0x00a04b7d
+
+Bytecode listing:
+
+==> 00000000: <LoadParam>: <Reg8: 3, UInt8: 0>
+==> 00000003: <GetByIdShort>: <Reg8: 2, Reg8: 3, UInt8: 1, string_id: 116>  # String: 'log' (Identifier)
+==> 00000008: <LoadConstString>: <Reg8: 1, string_id: 166>  # String: 'info' (Identifier)
+==> 0000000c: <LoadConstString>: <Reg8: 0, string_id: 14604>  # String: 'Running action: stream' (String)
+==> 00000010: <Call3>: <Reg8: 0, Reg8: 2, Reg8: 3, Reg8: 1, Reg8: 0>
+==> 00000016: <GetEnvironment>: <Reg8: 0, UInt8: 0>
+==> 00000019: <LoadFromEnvironment>: <Reg8: 2, Reg8: 0, UInt8: 0>
+==> 0000001d: <LoadFromEnvironment>: <Reg8: 1, Reg8: 0, UInt8: 1>
+==> 00000021: <LoadConstZero>: <Reg8: 0>
+==> 00000023: <GetByVal>: <Reg8: 1, Reg8: 1, Reg8: 0>
+==> 00000027: <LoadConstUndefined>: <Reg8: 0>
+==> 00000029: <Call2>: <Reg8: 0, Reg8: 2, Reg8: 0, Reg8: 1>
+==> 0000002e: <GetByIdShort>: <Reg8: 2, Reg8: 0, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 00000033: <GetByIdShort>: <Reg8: 0, Reg8: 2, UInt8: 3, string_id: 162>  # String: 'prototype' (Identifier)
+==> 00000038: <CreateThis>: <Reg8: 1, Reg8: 0, Reg8: 2>
+==> 0000003c: <LoadConstString>: <Reg8: 5, string_id: 29879>  # String: 'stream' (Identifier)
+==> 00000040: <Mov>: <Reg8: 6, Reg8: 1>
+==> 00000043: <Mov>: <Reg8: 4, Reg8: 3>
+==> 00000046: <Construct>: <Reg8: 0, Reg8: 2, UInt8: 3>
+==> 0000004a: <SelectObject>: <Reg8: 2, Reg8: 1, Reg8: 0>
+==> 0000004e: <GetById>: <Reg8: 1, Reg8: 2, UInt8: 4, string_id: 29197>  # String: 'execute' (Identifier)
+==> 00000054: <NewObject>: <Reg8: 0>
+==> 00000056: <LoadParam>: <Reg8: 3, UInt8: 1>
+==> 00000059: <PutNewOwnById>: <Reg8: 0, Reg8: 3, string_id: 35654>  # String: 'post_id' (Identifier)
+==> 0000005e: <LoadParam>: <Reg8: 3, UInt8: 2>
+==> 00000061: <PutNewOwnById>: <Reg8: 0, Reg8: 3, string_id: 31372>  # String: 'free_stream' (Identifier)
+==> 00000066: <Call2>: <Reg8: 0, Reg8: 1, Reg8: 2, Reg8: 0>
+==> 0000006b: <Ret>: <Reg8: 0>
+
+
+===============
+

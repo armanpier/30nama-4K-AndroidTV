@@ -1,0 +1,177 @@
+--------- beginning of main
+10-30 18:14:03.000  3293  3355 D EGL_emulation: app_time_stats: avg=9.65ms min=1.61ms max=26.83ms count=60
+10-30 18:14:04.016  3293  3355 D EGL_emulation: app_time_stats: avg=15.15ms min=10.98ms max=32.03ms count=60
+10-30 18:14:05.032  3293  3355 D EGL_emulation: app_time_stats: avg=14.30ms min=8.38ms max=30.05ms count=60
+10-30 18:14:05.808   457  2619 D BufferPoolAccessor2.0: bufferpool2 0xe5d83a98 : 2(1969920 size) total buffers - 1(984960 size) used buffers - 32386/32409 (recycle/alloc) - 53/32408 (fetch/transfer)
+10-30 18:14:06.047  3293  3355 D EGL_emulation: app_time_stats: avg=14.74ms min=5.00ms max=25.93ms count=60
+10-30 18:14:07.064  3293  3355 D EGL_emulation: app_time_stats: avg=14.21ms min=10.31ms max=27.73ms count=60
+10-30 18:14:07.271  8808  8808 W BpBinder: Linking to death on android.gui.ISurfaceComposer but there are no threads (yet?) listening to incoming transactions. See ProcessState::startThreadPool and ProcessState::setThreadPoolMaxThreadCount. Generally you should setup the binder threadpool before other initialization steps.
+10-30 18:14:07.274  1190 30786 W MediaProvider: isAppCloneUserPair for user 0: false
+10-30 18:14:07.281  8808  8808 W ProcessState: Extra binder thread started, but 0 threads requested. Do not use *startThreadPool when zero threads are requested.
+10-30 18:14:07.303   155   155 I hwservicemanager: getTransport: Cannot find entry android.hardware.graphics.mapper@4.0::IMapper/default in either framework or device VINTF manifest.
+10-30 18:14:07.303  8808  8831 I Gralloc4: mapper 4.x is not supported
+--------- beginning of system
+10-30 18:14:07.418   533  1838 D ActivityManager: sync unfroze 1452 com.google.android.gms for 6
+10-30 18:14:07.459  1104  6930 I NetworkScheduler.Stats: (REDACTED) Task %s/%s started execution. cause:%s exec_start_elapsed_seconds: %s
+10-30 18:14:07.461   533   748 W ProcessStats: Tracking association SourceState{fffc959 com.google.android.gms.persistent/10085 ImpBg #1870} whose proc state 6 is better than process ProcessState{9218875 com.google.android.gms/10085 pkg=com.google.android.gms} proc state 14 (18 skipped)
+10-30 18:14:07.470  1452  8842 I GmscoreIpa: Starting mediastore instant index [CONTEXT service_id=255 ]
+10-30 18:14:07.501  1104 30808 I NetworkScheduler.Stats: (REDACTED) Task %s/%s finished executing. cause:%s result: %s elapsed_millis: %s uptime_millis: %s exec_start_elapsed_seconds: %s
+10-30 18:14:07.622  1104  8853 I NetworkScheduler.Stats: (REDACTED) Task %s/%s started execution. cause:%s exec_start_elapsed_seconds: %s
+10-30 18:14:07.644   533   843 I ActivityManager: Broadcasting: Intent { act=android.intent.action.MEDIA_SCANNER_SCAN_FILE dat=file:///... flg=0x400000 }
+10-30 18:14:07.645   533   843 I ActivityManager: Enqueued broadcast Intent { act=android.intent.action.MEDIA_SCANNER_SCAN_FILE dat=file:///... flg=0x400000 }: 0
+10-30 18:14:07.702   533   748 D ActivityManager: sync unfroze 2472 com.google.android.gms.unstable for 6
+10-30 18:14:07.713   533   570 I ActivityManager: Broadcast completed: result=0
+10-30 18:14:07.732  1190  1936 I MediaProvider: Begin Intent { act=android.intent.action.MEDIA_SCANNER_SCAN_FILE dat=file:///... flg=0x1400010 cmp=com.google.android.providers.media.module/com.android.providers.media.MediaService }
+10-30 18:14:07.774  1190  1936 I MediaProvider: End Intent { act=android.intent.action.MEDIA_SCANNER_SCAN_FILE dat=file:///... flg=0x1400010 cmp=com.google.android.providers.media.module/com.android.providers.media.MediaService }
+10-30 18:14:07.876  2472  2472 W binder:2472_B: type=1400 audit(0.0:120): avc:  denied  { read } for  name="u:object_r:system_adbd_prop:s0" dev="tmpfs" ino=292 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:system_adbd_prop:s0 tclass=file permissive=0 app=com.google.android.gms
+10-30 18:14:07.886  2472  8873 W libc    : Access denied finding property "persist.adb.tls_server.enable"
+10-30 18:14:07.884  2472  2472 W binder:2472_B: type=1400 audit(0.0:121): avc:  denied  { read } for  name="u:object_r:adbd_prop:s0" dev="tmpfs" ino=59 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:adbd_prop:s0 tclass=file permissive=0 app=com.google.android.gms
+10-30 18:14:07.893  2472  8873 W libc    : Access denied finding property "service.adb.tls.port"
+10-30 18:14:07.899  2472  8873 D TrafficStats: tagSocket(5) with statsTag=0x1809, statsUid=-1
+10-30 18:14:07.915  1104  1189 W GmsUrlRequestImpl: Content-Type header is overwritten.
+10-30 18:14:07.924  1104 30808 I NetworkScheduler.Stats: (REDACTED) Task %s/%s started execution. cause:%s exec_start_elapsed_seconds: %s
+10-30 18:14:07.939  1104  8902 I NetworkScheduler.Stats: (REDACTED) Task %s/%s finished executing. cause:%s result: %s elapsed_millis: %s uptime_millis: %s exec_start_elapsed_seconds: %s
+10-30 18:14:07.950  1104  2486 D TrafficStats: tagSocket(81) with statsTag=0x401, statsUid=10085
+10-30 18:14:08.084  3293  3355 D EGL_emulation: app_time_stats: avg=6.74ms min=1.51ms max=48.21ms count=57
+10-30 18:14:08.093  8897  8897 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-30 18:14:08.101  8897  8897 I AndroidRuntime: Using default boot image
+10-30 18:14:08.101  8897  8897 I AndroidRuntime: Leaving lock profiling enabled
+10-30 18:14:08.105  8897  8897 W app_process: Could not reserve sentinel fault page
+10-30 18:14:08.106  8897  8897 I app_process: Using CollectorTypeCC GC.
+10-30 18:14:08.210  8897  8897 D nativeloader: InitDefaultPublicLibraries for_preload=1: libandroid.so:libaaudio.so:libamidi.so:libbinder_ndk.so:libc.so:libcamera2ndk.so:libdl.so:libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libicu.so:libicui18n.so:libicuuc.so:libjnigraphics.so:liblog.so:libmediandk.so:libm.so:libnativehelper.so:libnativewindow.so:libOpenMAXAL.so:libOpenSLES.so:libRS.so:libstdc++.so:libsync.so:libvulkan.so:libwebviewchromium_plat_support.so:libz.so
+10-30 18:14:08.225  8897  8897 D app_process: Time zone APEX ICU file found: /apex/com.android.tzdata/etc/icu/icu_tzdata.dat
+10-30 18:14:08.225  8897  8897 D app_process: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt72l.dat
+10-30 18:14:08.234  8897  8897 W app_process: Unexpected CPU variant for x86: x86.
+10-30 18:14:08.234  8897  8897 W app_process: Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, tremont, kabylake, default
+10-30 18:14:08.237  8897  8897 W app_process: ClassLoaderContext shared library size mismatch. Expected=2, found=0 (PCL[]{PCL[/system/framework/android.test.base.jar*836642756]#PCL[/system/framework/android.test.mock.jar*3186112116]} | PCL[])
+10-30 18:14:08.238  8897  8897 W app_process: ClassLoaderContext classpath size mismatch. expected=0, found=1 (PCL[]{PCL[/system/framework/android.test.runner.jar*4168958247]{PCL[/system/framework/android.test.base.jar*836642756]#PCL[/system/framework/android.test.mock.jar*3186112116]}#PCL[/system/framework/android.test.base.jar*836642756]} | PCL[/system/framework/android.test.runner.jar*4168958247])
+10-30 18:14:08.271  8897  8897 W libc    : Access denied finding property "ro.product.name_for_attestation"
+10-30 18:14:08.271  8897  8897 W libc    : Access denied finding property "ro.product.brand_for_attestation"
+10-30 18:14:08.272  8897  8897 W libc    : Access denied finding property "ro.product.model_for_attestation"
+10-30 18:14:08.274  8897  8897 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-30 18:14:08.268  8897  8897 W main    : type=1400 audit(0.0:122): avc:  denied  { read } for  name="u:object_r:build_attestation_prop:s0" dev="tmpfs" ino=85 scontext=u:r:shell:s0 tcontext=u:object_r:build_attestation_prop:s0 tclass=file permissive=0
+10-30 18:14:08.268  8897  8897 W main    : type=1400 audit(0.0:123): avc:  denied  { read } for  name="u:object_r:build_attestation_prop:s0" dev="tmpfs" ino=85 scontext=u:r:shell:s0 tcontext=u:object_r:build_attestation_prop:s0 tclass=file permissive=0
+10-30 18:14:08.268  8897  8897 W main    : type=1400 audit(0.0:124): avc:  denied  { read } for  name="u:object_r:build_attestation_prop:s0" dev="tmpfs" ino=85 scontext=u:r:shell:s0 tcontext=u:object_r:build_attestation_prop:s0 tclass=file permissive=0
+10-30 18:14:08.282  8897  8897 D UiAutomationConnection: Created on user UserHandle{0}
+10-30 18:14:08.282  8897  8897 I UiAutomation: Initialized for user 0 on display 0
+10-30 18:14:08.282  8897  8897 W UiAutomation: Created with deprecatead constructor, assumes DEFAULT_DISPLAY
+10-30 18:14:08.285   533  1838 D AccessibilityManagerService: changeCurrentUserForTestAutomationIfNeededLocked(0): ignoring because device doesn't support visible background users
+10-30 18:14:08.285   533  1838 I UiAutomationManager: Registering UiTestAutomationService (id=com.android.server.accessibility/UiAutomation) when called by user 0
+10-30 18:14:08.299   533  1317 W WindowManager: Cannot find window which accessibility connection is added to
+10-30 18:14:08.306   533   533 D BatterySaverPolicy: accessibility changed to true, updating policy.
+10-30 18:14:08.338  1104  1189 W GLSUser : [AppCertManager] Exception while requesting key: 
+10-30 18:14:08.338  1104  1189 W GLSUser : java.util.concurrent.ExecutionException: accy: Parse Proto Exception.
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at bjwy.s(:com.google.android.gms@233515114@23.35.15 (180706-565551795):21)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at bjwy.get(:com.google.android.gms@233515114@23.35.15 (180706-565551795):14)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at lqa.b(:com.google.android.gms@233515114@23.35.15 (180706-565551795):468)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at lpy.b(:com.google.android.gms@233515114@23.35.15 (180706-565551795):31)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at lpt.a(:com.google.android.gms@233515114@23.35.15 (180706-565551795):1)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at lpw.a(:com.google.android.gms@233515114@23.35.15 (180706-565551795):55)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at jdw.call(:com.google.android.gms@233515114@23.35.15 (180706-565551795):56)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at qqx.c(:com.google.android.gms@233515114@23.35.15 (180706-565551795):50)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at qqx.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):76)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at qvz.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):8)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at java.lang.Thread.run(Thread.java:1012)
+10-30 18:14:08.338  1104  1189 W GLSUser : Caused by: accy: Parse Proto Exception.
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at acdw.c(:com.google.android.gms@233515114@23.35.15 (180706-565551795):62)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at acgi.onSucceeded(:com.google.android.gms@233515114@23.35.15 (180706-565551795):23)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at m.jf.onSucceeded(:com.google.android.gms.dynamite_cronetdynamite@233515114@23.35.15 (180706-0):3)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at m.ie.run(:com.google.android.gms.dynamite_cronetdynamite@233515114@23.35.15 (180706-0):25)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	... 6 more
+10-30 18:14:08.338  1104  1189 W GLSUser : Caused by: brqn: Protocol message contained an invalid tag (zero).
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at brnw.k(:com.google.android.gms@233515114@23.35.15 (180706-565551795):14)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at brro.c(:com.google.android.gms@233515114@23.35.15 (180706-565551795):409)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at brro.h(:com.google.android.gms@233515114@23.35.15 (180706-565551795):8)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at brpw.y(:com.google.android.gms@233515114@23.35.15 (180706-565551795):22)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at brpq.f(:com.google.android.gms@233515114@23.35.15 (180706-565551795):3)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at brns.d(:com.google.android.gms@233515114@23.35.15 (180706-565551795):1)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at brns.c(:com.google.android.gms@233515114@23.35.15 (180706-565551795):3)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at brns.n(:com.google.android.gms@233515114@23.35.15 (180706-565551795):1)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at acdw.h(:com.google.android.gms@233515114@23.35.15 (180706-565551795):92)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	at acdw.c(:com.google.android.gms@233515114@23.35.15 (180706-565551795):11)
+10-30 18:14:08.338  1104  1189 W GLSUser : 	... 9 more
+10-30 18:14:08.347  1104  8853 I NetworkScheduler.Stats: (REDACTED) Task %s/%s finished executing. cause:%s result: %s elapsed_millis: %s uptime_millis: %s exec_start_elapsed_seconds: %s
+10-30 18:14:09.098  3293  3355 D EGL_emulation: app_time_stats: avg=14.50ms min=8.93ms max=30.19ms count=60
+10-30 18:14:10.116  3293  3355 D EGL_emulation: app_time_stats: avg=14.56ms min=10.66ms max=31.48ms count=60
+10-30 18:14:10.858   457  2619 D BufferPoolAccessor2.0: bufferpool2 0xe5d83a98 : 2(1969920 size) total buffers - 1(984960 size) used buffers - 32659/32682 (recycle/alloc) - 54/32682 (fetch/transfer)
+10-30 18:14:11.132  3293  3355 D EGL_emulation: app_time_stats: avg=14.19ms min=11.18ms max=28.12ms count=60
+10-30 18:14:12.150  3293  3355 D EGL_emulation: app_time_stats: avg=7.06ms min=1.61ms max=23.17ms count=60
+10-30 18:14:12.825  1190  1377 D PickerSyncController: syncAllMedia
+10-30 18:14:12.826  1190  1377 D PickerSyncController: syncAllMediaFromProvider() LOCAL, auth=com.android.providers.media.photopicker, retry=true
+10-30 18:14:12.826  1190  1377 D PickerSyncController: getSyncRequestParams() LOCAL, auth=com.android.providers.media.photopicker
+10-30 18:14:12.829  1190  1377 D PickerSyncController:    Latest ID/Gen=1407:8e80eafd-3025-4f1c-b012-492bffa5dc4c:external_primary/46
+10-30 18:14:12.829  1190  1377 D PickerSyncController:    Cached ID/Gen=1407:8e80eafd-3025-4f1c-b012-492bffa5dc4c:external_primary/16
+10-30 18:14:12.829  1190  1377 D PickerSyncController:    RESULT=SyncRequestParams{type=MEDIA_INCREMENTAL, gen=16, latest=Bundle[{last_media_sync_generation=46, media_collection_id=1407:8e80eafd-3025-4f1c-b012-492bffa5dc4c:external_primary}]}
+10-30 18:14:12.829  1190  1377 I PickerSyncController: Executing SyncAdd. isLocal: true. authority: com.android.providers.media.photopicker
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: Failed to insert picker db media. ContentValues: standard_mime_type_extension=0 size_bytes=23327 orientation=0 height=1080 date_taken_ms=1793371395000 duration_ms=0 sync_generation=43 mime_type=image/png width=1920 is_favorite=0 local_id=1000000019 is_visible=1
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: android.database.sqlite.SQLiteConstraintException: UNIQUE constraint failed: media.local_id, media.is_visible (code 2067 SQLITE_CONSTRAINT_UNIQUE)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at android.database.sqlite.SQLiteConnection.nativeExecuteForLastInsertedRowId(Native Method)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at android.database.sqlite.SQLiteConnection.executeForLastInsertedRowId(SQLiteConnection.java:961)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at android.database.sqlite.SQLiteSession.executeForLastInsertedRowId(SQLiteSession.java:790)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at android.database.sqlite.SQLiteStatement.executeInsert(SQLiteStatement.java:89)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at android.database.DatabaseUtils.executeInsert(DatabaseUtils.java:199)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at android.database.sqlite.SQLiteQueryBuilder.insert(SQLiteQueryBuilder.java:629)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at com.android.providers.media.photopicker.data.PickerDbFacade$AddMediaOperation.insertMedia(PickerDbFacade.java:476)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at com.android.providers.media.photopicker.data.PickerDbFacade$AddMediaOperation.upsertMedia(PickerDbFacade.java:490)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at com.android.providers.media.photopicker.data.PickerDbFacade$AddMediaOperation.executeInternal(PickerDbFacade.java:450)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at com.android.providers.media.photopicker.data.PickerDbFacade$DbWriteOperation.execute(PickerDbFacade.java:335)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at com.android.providers.media.photopicker.PickerSyncController.executePagedSync(PickerSyncController.java:987)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at com.android.providers.media.photopicker.PickerSyncController.executeSyncAdd(PickerSyncController.java:719)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at com.android.providers.media.photopicker.PickerSyncController.syncAllMediaFromProvider(PickerSyncController.java:643)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at com.android.providers.media.photopicker.PickerSyncController.syncAllMediaFromLocalProvider(PickerSyncController.java:213)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at com.android.providers.media.photopicker.PickerSyncController.syncAllMedia(PickerSyncController.java:197)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at com.android.providers.media.photopicker.PickerSyncController$$ExternalSyntheticLambda0.run(R8$$SyntheticClass:0)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at android.os.Handler.handleCallback(Handler.java:958)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at android.os.Looper.loopOnce(Looper.java:205)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at android.os.Looper.loop(Looper.java:294)
+10-30 18:14:12.843  1190  1377 V PickerDbFacade: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+10-30 18:14:12.844  1190  1377 V PickerDbFacade: Retrying failed insert as update. ContentValues: standard_mime_type_extension=0 size_bytes=23327 orientation=0 height=1080 date_taken_ms=1793371395000 duration_ms=0 sync_generation=43 mime_type=image/png width=1920 is_favorite=0 local_id=1000000019 is_visible=1
+10-30 18:14:12.845  1190  1377 I PickerSyncController: Paged sync successful. QueryArgs: Bundle[{android.provider.extra.SYNC_GENERATION=16}]. Result count: 2. Cursor count: 2
+10-30 18:14:12.846  1190  1377 I PickerSyncController: Executing SyncRemove. isLocal: true. authority: com.android.providers.media.photopicker
+10-30 18:14:12.848  1190  1377 I PickerSyncController: Paged sync successful. QueryArgs: Bundle[{android.provider.extra.SYNC_GENERATION=16}]. Result count: 0. Cursor count: 0
+10-30 18:14:12.849  1190  1377 D PickerSyncController: syncAllMediaFromProvider() CLOUD, auth=null, retry=true
+10-30 18:14:12.849  1190  1377 D PickerSyncController: getSyncRequestParams() CLOUD, auth=null
+10-30 18:14:12.849  1190  1377 D PickerSyncController:    RESULT=SyncRequestParams{type=MEDIA_RESET, gen=0, latest=null}
+10-30 18:14:12.856  1190  1377 I PickerSyncController: Executing SyncReset. isLocal: false. authority: null
+10-30 18:14:12.856  1190  1377 I PickerSyncController: SyncReset. isLocal:false. authority: null. result count: 0
+10-30 18:14:12.856  1190  1377 D PickerSyncController: Ignoring cache media info for null authority with bundle: null
+10-30 18:14:12.856  1190  1377 I PickerSyncController: Executing SyncAlbumReset. isLocal: true. authority: com.android.providers.media.photopicker. albumId: null
+10-30 18:14:12.857  1190  1377 I PickerSyncController: Successfully executed SyncResetAlbum. authority: com.android.providers.media.photopicker. albumId: null. Result count: 0
+10-30 18:14:12.857  1190  1377 I PickerSyncController: Executing SyncAlbumReset. isLocal: false. authority: null. albumId: null
+10-30 18:14:12.858  1190  1377 I PickerSyncController: Successfully executed SyncResetAlbum. authority: null. albumId: null. Result count: 0
+10-30 18:14:13.164  3293  3355 D EGL_emulation: app_time_stats: avg=14.06ms min=7.45ms max=25.82ms count=60
+10-30 18:14:14.184  3293  3355 D EGL_emulation: app_time_stats: avg=4.74ms min=1.59ms max=22.16ms count=60
+10-30 18:14:15.200  3293  3355 D EGL_emulation: app_time_stats: avg=14.01ms min=1.55ms max=24.89ms count=58
+10-30 18:14:15.909   457  2619 D BufferPoolAccessor2.0: bufferpool2 0xe5d83a98 : 2(1969920 size) total buffers - 1(984960 size) used buffers - 32963/32986 (recycle/alloc) - 55/32986 (fetch/transfer)
+10-30 18:14:16.215  3293  3355 D EGL_emulation: app_time_stats: avg=14.33ms min=8.84ms max=29.07ms count=60
+10-30 18:14:17.231  3293  3355 D EGL_emulation: app_time_stats: avg=14.72ms min=10.39ms max=29.59ms count=60
+10-30 18:14:18.247  3293  3355 D EGL_emulation: app_time_stats: avg=13.70ms min=8.40ms max=26.08ms count=60
+10-30 18:14:18.356   533   748 D AccessibilityManagerService: restoreCurrentUserForTestAutomationIfNeededLocked(): ignoring because device doesn't support visible background users
+10-30 18:14:18.356  8897  8897 D AndroidRuntime: Shutting down VM
+10-30 18:14:18.362   533  1838 W WindowManager: Cannot find window which accessibility connection is added to
+10-30 18:14:18.363   533  1838 E WindowManager: Window Session Crash
+10-30 18:14:18.363   533  1838 E WindowManager: java.lang.IllegalArgumentException: Requested window android.os.BinderProxy@a115a9f does not exist
+10-30 18:14:18.363   533  1838 E WindowManager: 	at com.android.server.wm.WindowManagerService.windowForClientLocked(WindowManagerService.java:6042)
+10-30 18:14:18.363   533  1838 E WindowManager: 	at com.android.server.wm.WindowManagerService.windowForClientLocked(WindowManagerService.java:6034)
+10-30 18:14:18.363   533  1838 E WindowManager: 	at com.android.server.wm.WindowManagerService.reportKeepClearAreasChanged(WindowManagerService.java:4657)
+10-30 18:14:18.363   533  1838 E WindowManager: 	at com.android.server.wm.Session.reportKeepClearAreasChanged(Session.java:546)
+10-30 18:14:18.363   533  1838 E WindowManager: 	at android.view.IWindowSession$Stub.onTransact(IWindowSession.java:1056)
+10-30 18:14:18.363   533  1838 E WindowManager: 	at com.android.server.wm.Session.onTransact(Session.java:178)
+10-30 18:14:18.363   533  1838 E WindowManager: 	at android.os.Binder.execTransactInternal(Binder.java:1344)
+10-30 18:14:18.363   533  1838 E WindowManager: 	at android.os.Binder.execTransact(Binder.java:1275)
+10-30 18:14:18.363   533  1838 W Binder  : Caught a RuntimeException from the binder stub implementation.
+10-30 18:14:18.363   533  1838 W Binder  : java.lang.IllegalArgumentException: Requested window android.os.BinderProxy@a115a9f does not exist
+10-30 18:14:18.363   533  1838 W Binder  : 	at com.android.server.wm.WindowManagerService.windowForClientLocked(WindowManagerService.java:6042)
+10-30 18:14:18.363   533  1838 W Binder  : 	at com.android.server.wm.WindowManagerService.windowForClientLocked(WindowManagerService.java:6034)
+10-30 18:14:18.363   533  1838 W Binder  : 	at com.android.server.wm.WindowManagerService.reportKeepClearAreasChanged(WindowManagerService.java:4657)
+10-30 18:14:18.363   533  1838 W Binder  : 	at com.android.server.wm.Session.reportKeepClearAreasChanged(Session.java:546)
+10-30 18:14:18.363   533  1838 W Binder  : 	at android.view.IWindowSession$Stub.onTransact(IWindowSession.java:1056)
+10-30 18:14:18.363   533  1838 W Binder  : 	at com.android.server.wm.Session.onTransact(Session.java:178)
+10-30 18:14:18.363   533  1838 W Binder  : 	at android.os.Binder.execTransactInternal(Binder.java:1344)
+10-30 18:14:18.363   533  1838 W Binder  : 	at android.os.Binder.execTransact(Binder.java:1275)
+10-30 18:14:18.370   533   533 D BatterySaverPolicy: accessibility changed to false, updating policy.
+10-30 18:14:19.269  3293  3355 D EGL_emulation: app_time_stats: avg=14.70ms min=10.24ms max=24.13ms count=60

@@ -1,0 +1,1 @@
+avdmanager create avd --name "Android_TV_4K" --package "system-images;android-34;google_atv;x86_64" --device "tv_4k"

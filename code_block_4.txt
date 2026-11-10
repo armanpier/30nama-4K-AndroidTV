@@ -1,0 +1,19 @@
+.method public sendRequestInternal(Ljava/lang/String;Ljava/lang/String;ILcom/facebook/react/bridge/ReadableArray;Lcom/facebook/react/bridge/ReadableMap;Ljava/lang/String;ZIZ)V
+    .locals 8
+
+    # --- START PATCH: Swap API Key in URL if targeting stream endpoint ---
+    if-eqz p2, :cond_skip_url_patch
+
+    const-string v0, "stream"
+    invoke-virtual {p2, v0}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v0
+
+    if-eqz v0, :cond_skip_url_patch
+
+    const-string v0, "VdapnkLG9_YOUR_FULL_TV_KEY_HERE"
+    const-string v1, "et7bRH_YOUR_FULL_DESKTOP_KEY_HERE"
+    invoke-virtual {p2, v0, v1}, Ljava/lang/String;->replace(Ljava/lang/CharSequence;Ljava/lang/CharSequence;)Ljava/lang/String;
+    move-result-object p2
+
+    :cond_skip_url_patch
+    # --- END PATCH ---

@@ -1,0 +1,4 @@
+10-30 18:18:39.802  3293  3293 I ImeTracker: com.tv30namarn:fccbdf0b: onRequestHide at ORIGIN_CLIENT_HIDE_SOFT_INPUT reason HIDE_SOFT_INPUT
+10-30 18:18:39.818   533  1317 I ImeTracker: com.tv30namarn:fccbdf0b: onCancelled at PHASE_SERVER_SHOULD_HIDE
+10-30 18:18:42.674   349  2852 D android.hardware.audio@7.1-impl.ranchu: threadLoop: entering standby, frames: 2110720
+10-30 18:19:30.678  3293  3304 I com.tv30namarn: Background concurrent copying GC freed 429313(14MB) AllocSpace objects, 34(2084KB) LOS objects, 50% free, 16MB/33MB, paused 1.055ms,122us total 211.374ms

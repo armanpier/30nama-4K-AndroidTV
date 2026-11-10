@@ -1,0 +1,7 @@
+webView.setDownloadListener { url, userAgent, _, mimeType, _ ->
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(Uri.parse(url), "video/*")
+        putExtra("headers", arrayOf("User-Agent", userAgent))
+    }
+    startActivity(intent)
+}

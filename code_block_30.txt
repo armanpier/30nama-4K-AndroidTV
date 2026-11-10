@@ -1,0 +1,2 @@
+adb connect <YOUR_TV_IP>:5555
+adb push plugin.video.30nama.zip /sdcard/Download/

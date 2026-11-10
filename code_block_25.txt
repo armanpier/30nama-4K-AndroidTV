@@ -1,0 +1,13 @@
+val intent = Intent(Intent.ACTION_VIEW).apply {
+    setDataAndType(Uri.parse(mkv4kUrl), "video/*")
+    
+    // Pass both Persian and English .srt URLs/URIs to Vimu / MX Player / Just Player
+    val subUris = arrayOf(
+        Uri.parse(persianSrtUrl),
+        Uri.parse(englishSrtUrl)
+    )
+    putParcelableArrayListExtra("subs", ArrayList(subUris.toList()))
+    putExtra("subs.name", arrayOf("Persian (External)", "English (External)"))
+    putExtra("subs.enable", arrayOf(Uri.parse(persianSrtUrl))) // Auto-enable Persian by default
+}
+startActivity(intent)

@@ -1,0 +1,18 @@
+=> [Function #52652 "initialize" of 29 bytes]: 1 params, frame size=15, strict=1, exc handler=0, debug info=0  @ offset 0x009f0729
+
+Bytecode listing:
+
+==> 00000000: <GetEnvironment>: <Reg8: 0, UInt8: 0>
+==> 00000003: <LoadFromEnvironment>: <Reg8: 3, Reg8: 0, UInt8: 2>
+==> 00000007: <LoadParam>: <Reg8: 7, UInt8: 0>
+==> 0000000a: <CreateEnvironment>: <Reg8: 0>
+==> 0000000c: <CreateGeneratorClosure>: <Reg8: 4, Reg8: 0, function_id: 52653>  # Function: [#52653  of 9 bytes]: 1 params @ offset 0x009f0746
+==> 00000011: <LoadConstUndefined>: <Reg8: 8>
+==> 00000013: <LoadConstUndefined>: <Reg8: 6>
+==> 00000015: <LoadConstUndefined>: <Reg8: 5>
+==> 00000017: <Call>: <Reg8: 0, Reg8: 3, UInt8: 5>
+==> 0000001b: <Ret>: <Reg8: 0>
+
+
+===============
+

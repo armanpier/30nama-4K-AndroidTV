@@ -1,0 +1,19 @@
+.method public sendRequestInternal(Ljava/lang/String;Ljava/lang/String;ILcom/facebook/react/bridge/ReadableArray;Lcom/facebook/react/bridge/ReadableMap;Ljava/lang/String;ZIZ)V
+    .locals 8
+
+    # Evaluate whether p2 (URL) is non-null and targets the stream endpoint
+    if-eqz p2, :cond_skip_url_transform
+
+    const-string v0, "stream"
+    invoke-virtual {p2, v0}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v0
+
+    if-eqz v0, :cond_skip_url_transform
+
+    # Substitute default TV profile key with high-resolution profile key
+    const-string v0, "VdapnkLG9_DEFAULT_PROFILE_KEY"
+    const-string v1, "et7bRH_HIGH_RES_PROFILE_KEY"
+    invoke-virtual {p2, v0, v1}, Ljava/lang/String;->replace(Ljava/lang/CharSequence;Ljava/lang/CharSequence;)Ljava/lang/String;
+    move-result-object p2
+
+    :cond_skip_url_transform

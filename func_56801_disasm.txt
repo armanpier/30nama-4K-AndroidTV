@@ -1,0 +1,286 @@
+=> [Function #56801 "getPlayerDataByContinueWatching" of 1216 bytes]: 3 params, frame size=25, strict=0, exc handler=0, debug info=0  @ offset 0x00a62e3f
+
+Bytecode listing:
+
+==> 00000000: <CreateEnvironment>: <Reg8: 1>
+==> 00000002: <LoadParam>: <Reg8: 3, UInt8: 1>
+==> 00000005: <LoadParam>: <Reg8: 2, UInt8: 2>
+==> 00000008: <LoadConstString>: <Reg8: 10, string_id: 26468>  # String: '' (Identifier)
+==> 0000000c: <LoadConstUndefined>: <Reg8: 0>
+==> 0000000e: <LoadConstNull>: <Reg8: 9>
+==> 00000010: <JEqual>: <Addr8: 13, Reg8: 2, Reg8: 9>  # Address: 0000001d
+==> 00000014: <GetById>: <Reg8: 4, Reg8: 2, UInt8: 1, string_id: 29435>  # String: 'continue_watching' (Identifier)
+==> 0000001a: <JmpTrue>: <Addr8: 5, Reg8: 4>  # Address: 0000001f
+==> 0000001d: <Ret>: <Reg8: 0>
+==> 0000001f: <JmpTrueLong>: <Addr32: 493, Reg8: 3>  # Address: 0000020c
+==> 00000025: <GetById>: <Reg8: 5, Reg8: 2, UInt8: 2, string_id: 34123>  # String: 'hls' (Identifier)
+==> 0000002b: <LoadConstZero>: <Reg8: 4>
+==> 0000002d: <GetByVal>: <Reg8: 4, Reg8: 5, Reg8: 4>
+==> 00000031: <LoadConstUndefined>: <Reg8: 6>
+==> 00000033: <JEqual>: <Addr8: 40, Reg8: 2, Reg8: 9>  # Address: 0000005b
+==> 00000037: <GetById>: <Reg8: 7, Reg8: 2, UInt8: 3, string_id: 26670>  # String: 'image' (Identifier)
+==> 0000003d: <LoadConstUndefined>: <Reg8: 5>
+==> 0000003f: <JEqual>: <Addr8: 25, Reg8: 7, Reg8: 9>  # Address: 00000058
+==> 00000043: <GetById>: <Reg8: 8, Reg8: 7, UInt8: 4, string_id: 30482>  # String: 'cover' (Identifier)
+==> 00000049: <LoadConstUndefined>: <Reg8: 7>
+==> 0000004b: <JEqual>: <Addr8: 10, Reg8: 8, Reg8: 9>  # Address: 00000055
+==> 0000004f: <GetById>: <Reg8: 7, Reg8: 8, UInt8: 5, string_id: 31859>  # String: 'jpg' (Identifier)
+==> 00000055: <Mov>: <Reg8: 5, Reg8: 7>
+==> 00000058: <Mov>: <Reg8: 6, Reg8: 5>
+==> 0000005b: <JmpTrue>: <Addr8: 6, Reg8: 6>  # Address: 00000061
+==> 0000005e: <Mov>: <Reg8: 6, Reg8: 10>
+==> 00000061: <LoadConstUndefined>: <Reg8: 5>
+==> 00000063: <JEqual>: <Addr8: 40, Reg8: 2, Reg8: 9>  # Address: 0000008b
+==> 00000067: <GetById>: <Reg8: 8, Reg8: 2, UInt8: 3, string_id: 26670>  # String: 'image' (Identifier)
+==> 0000006d: <LoadConstUndefined>: <Reg8: 7>
+==> 0000006f: <JEqual>: <Addr8: 25, Reg8: 8, Reg8: 9>  # Address: 00000088
+==> 00000073: <GetById>: <Reg8: 11, Reg8: 8, UInt8: 4, string_id: 30482>  # String: 'cover' (Identifier)
+==> 00000079: <LoadConstUndefined>: <Reg8: 8>
+==> 0000007b: <JEqual>: <Addr8: 10, Reg8: 11, Reg8: 9>  # Address: 00000085
+==> 0000007f: <GetById>: <Reg8: 8, Reg8: 11, UInt8: 6, string_id: 30564>  # String: 'webp' (Identifier)
+==> 00000085: <Mov>: <Reg8: 7, Reg8: 8>
+==> 00000088: <Mov>: <Reg8: 5, Reg8: 7>
+==> 0000008b: <JmpTrue>: <Addr8: 6, Reg8: 5>  # Address: 00000091
+==> 0000008e: <Mov>: <Reg8: 5, Reg8: 10>
+==> 00000091: <NewObject>: <Reg8: 12>
+==> 00000093: <PutNewOwnById>: <Reg8: 12, Reg8: 6, string_id: 30482>  # String: 'cover' (Identifier)
+==> 00000098: <PutNewOwnById>: <Reg8: 12, Reg8: 5, string_id: 31146>  # String: 'cover_webp' (Identifier)
+==> 0000009d: <GetByIdShort>: <Reg8: 5, Reg8: 2, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 000000a2: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 8, string_id: 237>  # String: 'title' (Identifier)
+==> 000000a7: <GetById>: <Reg8: 13, Reg8: 5, UInt8: 9, string_id: 27238>  # String: 'local' (Identifier)
+==> 000000ad: <JmpTrue>: <Addr8: 19, Reg8: 13>  # Address: 000000c0
+==> 000000b0: <GetByIdShort>: <Reg8: 5, Reg8: 2, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 000000b5: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 8, string_id: 237>  # String: 'title' (Identifier)
+==> 000000ba: <GetById>: <Reg8: 13, Reg8: 5, UInt8: 10, string_id: 33650>  # String: 'english' (Identifier)
+==> 000000c0: <GetByIdShort>: <Reg8: 5, Reg8: 2, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 000000c5: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 8, string_id: 237>  # String: 'title' (Identifier)
+==> 000000ca: <GetById>: <Reg8: 8, Reg8: 5, UInt8: 9, string_id: 27238>  # String: 'local' (Identifier)
+==> 000000d0: <JmpTrue>: <Addr8: 19, Reg8: 8>  # Address: 000000e3
+==> 000000d3: <GetByIdShort>: <Reg8: 5, Reg8: 2, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 000000d8: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 8, string_id: 237>  # String: 'title' (Identifier)
+==> 000000dd: <GetById>: <Reg8: 8, Reg8: 5, UInt8: 10, string_id: 33650>  # String: 'english' (Identifier)
+==> 000000e3: <GetByIdShort>: <Reg8: 5, Reg8: 4, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 000000e8: <GetById>: <Reg8: 7, Reg8: 5, UInt8: 11, string_id: 34655>  # String: 'file_id' (Identifier)
+==> 000000ee: <GetByIdShort>: <Reg8: 5, Reg8: 2, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 000000f3: <GetById>: <Reg8: 6, Reg8: 5, UInt8: 12, string_id: 35654>  # String: 'post_id' (Identifier)
+==> 000000f9: <GetById>: <Reg8: 5, Reg8: 2, UInt8: 1, string_id: 29435>  # String: 'continue_watching' (Identifier)
+==> 000000ff: <GetById>: <Reg8: 5, Reg8: 5, UInt8: 13, string_id: 27265>  # String: 'time' (Identifier)
+==> 00000105: <NewObject>: <Reg8: 11>
+==> 00000107: <PutNewOwnByIdShort>: <Reg8: 11, Reg8: 13, string_id: 46>  # String: 'displayName' (Identifier)
+==> 0000010b: <PutNewOwnByIdShort>: <Reg8: 11, Reg8: 8, string_id: 237>  # String: 'title' (Identifier)
+==> 0000010f: <PutNewOwnById>: <Reg8: 11, Reg8: 7, string_id: 34655>  # String: 'file_id' (Identifier)
+==> 00000114: <PutNewOwnById>: <Reg8: 11, Reg8: 6, string_id: 35654>  # String: 'post_id' (Identifier)
+==> 00000119: <PutNewOwnById>: <Reg8: 11, Reg8: 3, string_id: 33740>  # String: 'isSeries' (Identifier)
+==> 0000011e: <PutNewOwnById>: <Reg8: 11, Reg8: 5, string_id: 27265>  # String: 'time' (Identifier)
+==> 00000123: <GetByIdShort>: <Reg8: 5, Reg8: 4, UInt8: 14, string_id: 88>  # String: 'options' (Identifier)
+==> 00000128: <GetById>: <Reg8: 15, Reg8: 5, UInt8: 15, string_id: 34597>  # String: 'intro_end' (Identifier)
+==> 0000012e: <GetByIdShort>: <Reg8: 5, Reg8: 4, UInt8: 14, string_id: 88>  # String: 'options' (Identifier)
+==> 00000133: <GetById>: <Reg8: 14, Reg8: 5, UInt8: 16, string_id: 33843>  # String: 'intro_start' (Identifier)
+==> 00000139: <GetByIdShort>: <Reg8: 5, Reg8: 4, UInt8: 14, string_id: 88>  # String: 'options' (Identifier)
+==> 0000013e: <GetById>: <Reg8: 13, Reg8: 5, UInt8: 17, string_id: 29498>  # String: 'previously_start' (Identifier)
+==> 00000144: <GetByIdShort>: <Reg8: 5, Reg8: 4, UInt8: 14, string_id: 88>  # String: 'options' (Identifier)
+==> 00000149: <GetById>: <Reg8: 7, Reg8: 5, UInt8: 18, string_id: 35686>  # String: 'previously_end' (Identifier)
+==> 0000014f: <GetByIdShort>: <Reg8: 5, Reg8: 4, UInt8: 14, string_id: 88>  # String: 'options' (Identifier)
+==> 00000154: <GetByIdShort>: <Reg8: 6, Reg8: 5, UInt8: 19, string_id: 129>  # String: 'end' (Identifier)
+==> 00000159: <GetByIdShort>: <Reg8: 5, Reg8: 4, UInt8: 14, string_id: 88>  # String: 'options' (Identifier)
+==> 0000015e: <GetById>: <Reg8: 5, Reg8: 5, UInt8: 20, string_id: 27083>  # String: 'token' (Identifier)
+==> 00000164: <NewObject>: <Reg8: 8>
+==> 00000166: <PutNewOwnById>: <Reg8: 8, Reg8: 15, string_id: 34597>  # String: 'intro_end' (Identifier)
+==> 0000016b: <PutNewOwnById>: <Reg8: 8, Reg8: 14, string_id: 33843>  # String: 'intro_start' (Identifier)
+==> 00000170: <PutNewOwnById>: <Reg8: 8, Reg8: 13, string_id: 29498>  # String: 'previously_start' (Identifier)
+==> 00000175: <PutNewOwnById>: <Reg8: 8, Reg8: 7, string_id: 35686>  # String: 'previously_end' (Identifier)
+==> 0000017a: <PutNewOwnByIdShort>: <Reg8: 8, Reg8: 6, string_id: 129>  # String: 'end' (Identifier)
+==> 0000017e: <PutNewOwnById>: <Reg8: 8, Reg8: 5, string_id: 27083>  # String: 'token' (Identifier)
+==> 00000183: <GetGlobalObject>: <Reg8: 5>
+==> 00000185: <TryGetById>: <Reg8: 13, Reg8: 5, UInt8: 21, string_id: 31>  # String: 'Object' (Identifier)
+==> 0000018b: <GetByIdShort>: <Reg8: 7, Reg8: 13, UInt8: 22, string_id: 78>  # String: 'assign' (Identifier)
+==> 00000190: <GetById>: <Reg8: 5, Reg8: 4, UInt8: 23, string_id: 26600>  # String: 'file' (Identifier)
+==> 00000196: <GetById>: <Reg8: 6, Reg8: 5, UInt8: 24, string_id: 29634>  # String: 'subtitle' (Identifier)
+==> 0000019c: <NewObject>: <Reg8: 5>
+==> 0000019e: <Call3>: <Reg8: 7, Reg8: 7, Reg8: 13, Reg8: 5, Reg8: 6>
+==> 000001a4: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 23, string_id: 26600>  # String: 'file' (Identifier)
+==> 000001aa: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 25, string_id: 32965>  # String: 'm3u8' (Identifier)
+==> 000001b0: <NewObject>: <Reg8: 6>
+==> 000001b2: <PutNewOwnById>: <Reg8: 6, Reg8: 4, string_id: 32965>  # String: 'm3u8' (Identifier)
+==> 000001b7: <GetEnvironment>: <Reg8: 13, UInt8: 0>
+==> 000001ba: <LoadFromEnvironment>: <Reg8: 4, Reg8: 13, UInt8: 7>
+==> 000001be: <Mov>: <Reg8: 5, Reg8: 10>
+==> 000001c1: <JEqual>: <Addr8: 43, Reg8: 4, Reg8: 9>  # Address: 000001ec
+==> 000001c5: <LoadFromEnvironment>: <Reg8: 4, Reg8: 13, UInt8: 7>
+==> 000001c9: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 26, string_id: 29641>  # String: 'vast2' (Identifier)
+==> 000001cf: <Mov>: <Reg8: 5, Reg8: 10>
+==> 000001d2: <JmpFalse>: <Addr8: 26, Reg8: 4>  # Address: 000001ec
+==> 000001d5: <LoadFromEnvironment>: <Reg8: 14, Reg8: 13, UInt8: 7>
+==> 000001d9: <LoadConstUndefined>: <Reg8: 4>
+==> 000001db: <JEqual>: <Addr8: 14, Reg8: 14, Reg8: 9>  # Address: 000001e9
+==> 000001df: <LoadFromEnvironment>: <Reg8: 13, Reg8: 13, UInt8: 7>
+==> 000001e3: <GetById>: <Reg8: 4, Reg8: 13, UInt8: 26, string_id: 29641>  # String: 'vast2' (Identifier)
+==> 000001e9: <Mov>: <Reg8: 5, Reg8: 4>
+==> 000001ec: <NewObject>: <Reg8: 4>
+==> 000001ee: <PutNewOwnById>: <Reg8: 4, Reg8: 12, string_id: 26670>  # String: 'image' (Identifier)
+==> 000001f3: <PutNewOwnByIdShort>: <Reg8: 4, Reg8: 11, string_id: 166>  # String: 'info' (Identifier)
+==> 000001f7: <PutNewOwnByIdShort>: <Reg8: 4, Reg8: 8, string_id: 88>  # String: 'options' (Identifier)
+==> 000001fb: <PutNewOwnById>: <Reg8: 4, Reg8: 7, string_id: 29634>  # String: 'subtitle' (Identifier)
+==> 00000200: <PutNewOwnById>: <Reg8: 4, Reg8: 6, string_id: 26600>  # String: 'file' (Identifier)
+==> 00000205: <PutNewOwnById>: <Reg8: 4, Reg8: 5, string_id: 29641>  # String: 'vast2' (Identifier)
+==> 0000020a: <Ret>: <Reg8: 4>
+==> 0000020c: <StoreToEnvironment>: <Reg8: 1, UInt8: 0, Reg8: 2>
+==> 00000210: <GetById>: <Reg8: 5, Reg8: 2, UInt8: 2, string_id: 34123>  # String: 'hls' (Identifier)
+==> 00000216: <GetById>: <Reg8: 4, Reg8: 5, UInt8: 27, string_id: 28932>  # String: 'find' (Identifier)
+==> 0000021c: <CreateClosure>: <Reg8: 1, Reg8: 1, function_id: 56802>  # Function: [#56802  of 47 bytes]: 2 params @ offset 0x00a632ff
+==> 00000221: <Call2>: <Reg8: 4, Reg8: 4, Reg8: 5, Reg8: 1>
+==> 00000226: <GetEnvironment>: <Reg8: 7, UInt8: 0>
+==> 00000229: <JmpTrue>: <Addr8: 55, Reg8: 4>  # Address: 00000260
+==> 0000022c: <GetById>: <Reg8: 1, Reg8: 2, UInt8: 2, string_id: 34123>  # String: 'hls' (Identifier)
+==> 00000232: <LoadConstZero>: <Reg8: 8>
+==> 00000234: <GetByVal>: <Reg8: 1, Reg8: 1, Reg8: 8>
+==> 00000238: <LoadFromEnvironment>: <Reg8: 6, Reg8: 7, UInt8: 3>
+==> 0000023c: <GetById>: <Reg8: 5, Reg8: 2, UInt8: 2, string_id: 34123>  # String: 'hls' (Identifier)
+==> 00000242: <GetByVal>: <Reg8: 5, Reg8: 5, Reg8: 8>
+==> 00000246: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 0000024b: <GetById>: <Reg8: 8, Reg8: 5, UInt8: 11, string_id: 34655>  # String: 'file_id' (Identifier)
+==> 00000251: <NewObject>: <Reg8: 5>
+==> 00000253: <PutNewOwnById>: <Reg8: 5, Reg8: 8, string_id: 34655>  # String: 'file_id' (Identifier)
+==> 00000258: <PutById>: <Reg8: 6, Reg8: 5, UInt8: 1, string_id: 32408>  # String: 'series' (Identifier)
+==> 0000025e: <Jmp>: <Addr8: 110>  # Address: 000002cc
+==> 00000260: <LoadFromEnvironment>: <Reg8: 6, Reg8: 7, UInt8: 3>
+==> 00000264: <GetByIdShort>: <Reg8: 5, Reg8: 4, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 00000269: <GetById>: <Reg8: 8, Reg8: 5, UInt8: 11, string_id: 34655>  # String: 'file_id' (Identifier)
+==> 0000026f: <NewObject>: <Reg8: 5>
+==> 00000271: <PutNewOwnById>: <Reg8: 5, Reg8: 8, string_id: 34655>  # String: 'file_id' (Identifier)
+==> 00000276: <PutById>: <Reg8: 6, Reg8: 5, UInt8: 1, string_id: 32408>  # String: 'series' (Identifier)
+==> 0000027c: <GetByIdShort>: <Reg8: 5, Reg8: 4, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 00000281: <GetById>: <Reg8: 5, Reg8: 5, UInt8: 28, string_id: 35312>  # String: 'season' (Identifier)
+==> 00000287: <Mov>: <Reg8: 1, Reg8: 4>
+==> 0000028a: <JmpFalse>: <Addr8: 66, Reg8: 5>  # Address: 000002cc
+==> 0000028d: <GetByIdShort>: <Reg8: 5, Reg8: 4, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 00000292: <GetById>: <Reg8: 5, Reg8: 5, UInt8: 29, string_id: 32522>  # String: 'episode_number' (Identifier)
+==> 00000298: <Mov>: <Reg8: 1, Reg8: 4>
+==> 0000029b: <JmpFalse>: <Addr8: 49, Reg8: 5>  # Address: 000002cc
+==> 0000029e: <LoadFromEnvironment>: <Reg8: 6, Reg8: 7, UInt8: 29>
+==> 000002a2: <GetByIdShort>: <Reg8: 5, Reg8: 4, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 000002a7: <GetById>: <Reg8: 11, Reg8: 5, UInt8: 28, string_id: 35312>  # String: 'season' (Identifier)
+==> 000002ad: <GetByIdShort>: <Reg8: 5, Reg8: 4, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 000002b2: <GetById>: <Reg8: 8, Reg8: 5, UInt8: 29, string_id: 32522>  # String: 'episode_number' (Identifier)
+==> 000002b8: <NewObject>: <Reg8: 5>
+==> 000002ba: <PutNewOwnById>: <Reg8: 5, Reg8: 11, string_id: 35312>  # String: 'season' (Identifier)
+==> 000002bf: <PutNewOwnById>: <Reg8: 5, Reg8: 8, string_id: 31523>  # String: 'episode' (Identifier)
+==> 000002c4: <Call2>: <Reg8: 5, Reg8: 6, Reg8: 0, Reg8: 5>
+==> 000002c9: <Mov>: <Reg8: 1, Reg8: 4>
+==> 000002cc: <LoadConstUndefined>: <Reg8: 5>
+==> 000002ce: <JEqual>: <Addr8: 40, Reg8: 2, Reg8: 9>  # Address: 000002f6
+==> 000002d2: <GetById>: <Reg8: 6, Reg8: 2, UInt8: 3, string_id: 26670>  # String: 'image' (Identifier)
+==> 000002d8: <LoadConstUndefined>: <Reg8: 4>
+==> 000002da: <JEqual>: <Addr8: 25, Reg8: 6, Reg8: 9>  # Address: 000002f3
+==> 000002de: <GetById>: <Reg8: 8, Reg8: 6, UInt8: 4, string_id: 30482>  # String: 'cover' (Identifier)
+==> 000002e4: <LoadConstUndefined>: <Reg8: 6>
+==> 000002e6: <JEqual>: <Addr8: 10, Reg8: 8, Reg8: 9>  # Address: 000002f0
+==> 000002ea: <GetById>: <Reg8: 6, Reg8: 8, UInt8: 5, string_id: 31859>  # String: 'jpg' (Identifier)
+==> 000002f0: <Mov>: <Reg8: 4, Reg8: 6>
+==> 000002f3: <Mov>: <Reg8: 5, Reg8: 4>
+==> 000002f6: <JmpTrue>: <Addr8: 6, Reg8: 5>  # Address: 000002fc
+==> 000002f9: <Mov>: <Reg8: 5, Reg8: 10>
+==> 000002fc: <LoadConstUndefined>: <Reg8: 4>
+==> 000002fe: <JEqual>: <Addr8: 40, Reg8: 2, Reg8: 9>  # Address: 00000326
+==> 00000302: <GetById>: <Reg8: 8, Reg8: 2, UInt8: 3, string_id: 26670>  # String: 'image' (Identifier)
+==> 00000308: <LoadConstUndefined>: <Reg8: 6>
+==> 0000030a: <JEqual>: <Addr8: 25, Reg8: 8, Reg8: 9>  # Address: 00000323
+==> 0000030e: <GetById>: <Reg8: 11, Reg8: 8, UInt8: 4, string_id: 30482>  # String: 'cover' (Identifier)
+==> 00000314: <LoadConstUndefined>: <Reg8: 8>
+==> 00000316: <JEqual>: <Addr8: 10, Reg8: 11, Reg8: 9>  # Address: 00000320
+==> 0000031a: <GetById>: <Reg8: 8, Reg8: 11, UInt8: 6, string_id: 30564>  # String: 'webp' (Identifier)
+==> 00000320: <Mov>: <Reg8: 6, Reg8: 8>
+==> 00000323: <Mov>: <Reg8: 4, Reg8: 6>
+==> 00000326: <JmpTrue>: <Addr8: 6, Reg8: 4>  # Address: 0000032c
+==> 00000329: <Mov>: <Reg8: 4, Reg8: 10>
+==> 0000032c: <NewObject>: <Reg8: 6>
+==> 0000032e: <PutNewOwnById>: <Reg8: 6, Reg8: 5, string_id: 30482>  # String: 'cover' (Identifier)
+==> 00000333: <PutNewOwnById>: <Reg8: 6, Reg8: 4, string_id: 31146>  # String: 'cover_webp' (Identifier)
+==> 00000338: <GetByIdShort>: <Reg8: 4, Reg8: 1, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 0000033d: <GetById>: <Reg8: 12, Reg8: 4, UInt8: 30, string_id: 33151>  # String: 'episode_name' (Identifier)
+==> 00000343: <JmpTrue>: <Addr8: 19, Reg8: 12>  # Address: 00000356
+==> 00000346: <GetByIdShort>: <Reg8: 4, Reg8: 2, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 0000034b: <GetByIdShort>: <Reg8: 4, Reg8: 4, UInt8: 8, string_id: 237>  # String: 'title' (Identifier)
+==> 00000350: <GetById>: <Reg8: 12, Reg8: 4, UInt8: 9, string_id: 27238>  # String: 'local' (Identifier)
+==> 00000356: <JmpTrue>: <Addr8: 19, Reg8: 12>  # Address: 00000369
+==> 00000359: <GetByIdShort>: <Reg8: 4, Reg8: 2, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 0000035e: <GetByIdShort>: <Reg8: 4, Reg8: 4, UInt8: 8, string_id: 237>  # String: 'title' (Identifier)
+==> 00000363: <GetById>: <Reg8: 12, Reg8: 4, UInt8: 10, string_id: 33650>  # String: 'english' (Identifier)
+==> 00000369: <GetByIdShort>: <Reg8: 4, Reg8: 1, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 0000036e: <GetById>: <Reg8: 11, Reg8: 4, UInt8: 30, string_id: 33151>  # String: 'episode_name' (Identifier)
+==> 00000374: <JmpTrue>: <Addr8: 19, Reg8: 11>  # Address: 00000387
+==> 00000377: <GetByIdShort>: <Reg8: 4, Reg8: 2, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 0000037c: <GetByIdShort>: <Reg8: 4, Reg8: 4, UInt8: 8, string_id: 237>  # String: 'title' (Identifier)
+==> 00000381: <GetById>: <Reg8: 11, Reg8: 4, UInt8: 9, string_id: 27238>  # String: 'local' (Identifier)
+==> 00000387: <JmpTrue>: <Addr8: 19, Reg8: 11>  # Address: 0000039a
+==> 0000038a: <GetByIdShort>: <Reg8: 4, Reg8: 2, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 0000038f: <GetByIdShort>: <Reg8: 4, Reg8: 4, UInt8: 8, string_id: 237>  # String: 'title' (Identifier)
+==> 00000394: <GetById>: <Reg8: 11, Reg8: 4, UInt8: 10, string_id: 33650>  # String: 'english' (Identifier)
+==> 0000039a: <GetByIdShort>: <Reg8: 4, Reg8: 1, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 0000039f: <GetById>: <Reg8: 8, Reg8: 4, UInt8: 11, string_id: 34655>  # String: 'file_id' (Identifier)
+==> 000003a5: <GetByIdShort>: <Reg8: 4, Reg8: 2, UInt8: 7, string_id: 166>  # String: 'info' (Identifier)
+==> 000003aa: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 12, string_id: 35654>  # String: 'post_id' (Identifier)
+==> 000003b0: <GetById>: <Reg8: 2, Reg8: 2, UInt8: 1, string_id: 29435>  # String: 'continue_watching' (Identifier)
+==> 000003b6: <GetById>: <Reg8: 2, Reg8: 2, UInt8: 13, string_id: 27265>  # String: 'time' (Identifier)
+==> 000003bc: <NewObject>: <Reg8: 5>
+==> 000003be: <PutNewOwnByIdShort>: <Reg8: 5, Reg8: 12, string_id: 46>  # String: 'displayName' (Identifier)
+==> 000003c2: <PutNewOwnByIdShort>: <Reg8: 5, Reg8: 11, string_id: 237>  # String: 'title' (Identifier)
+==> 000003c6: <PutNewOwnById>: <Reg8: 5, Reg8: 8, string_id: 34655>  # String: 'file_id' (Identifier)
+==> 000003cb: <PutNewOwnById>: <Reg8: 5, Reg8: 4, string_id: 35654>  # String: 'post_id' (Identifier)
+==> 000003d0: <PutNewOwnById>: <Reg8: 5, Reg8: 3, string_id: 33740>  # String: 'isSeries' (Identifier)
+==> 000003d5: <PutNewOwnById>: <Reg8: 5, Reg8: 2, string_id: 27265>  # String: 'time' (Identifier)
+==> 000003da: <GetByIdShort>: <Reg8: 2, Reg8: 1, UInt8: 14, string_id: 88>  # String: 'options' (Identifier)
+==> 000003df: <GetById>: <Reg8: 13, Reg8: 2, UInt8: 15, string_id: 34597>  # String: 'intro_end' (Identifier)
+==> 000003e5: <GetByIdShort>: <Reg8: 2, Reg8: 1, UInt8: 14, string_id: 88>  # String: 'options' (Identifier)
+==> 000003ea: <GetById>: <Reg8: 12, Reg8: 2, UInt8: 16, string_id: 33843>  # String: 'intro_start' (Identifier)
+==> 000003f0: <GetByIdShort>: <Reg8: 2, Reg8: 1, UInt8: 14, string_id: 88>  # String: 'options' (Identifier)
+==> 000003f5: <GetById>: <Reg8: 11, Reg8: 2, UInt8: 17, string_id: 29498>  # String: 'previously_start' (Identifier)
+==> 000003fb: <GetByIdShort>: <Reg8: 2, Reg8: 1, UInt8: 14, string_id: 88>  # String: 'options' (Identifier)
+==> 00000400: <GetById>: <Reg8: 8, Reg8: 2, UInt8: 18, string_id: 35686>  # String: 'previously_end' (Identifier)
+==> 00000406: <GetByIdShort>: <Reg8: 2, Reg8: 1, UInt8: 14, string_id: 88>  # String: 'options' (Identifier)
+==> 0000040b: <GetByIdShort>: <Reg8: 3, Reg8: 2, UInt8: 19, string_id: 129>  # String: 'end' (Identifier)
+==> 00000410: <GetByIdShort>: <Reg8: 2, Reg8: 1, UInt8: 14, string_id: 88>  # String: 'options' (Identifier)
+==> 00000415: <GetById>: <Reg8: 2, Reg8: 2, UInt8: 20, string_id: 27083>  # String: 'token' (Identifier)
+==> 0000041b: <NewObject>: <Reg8: 4>
+==> 0000041d: <PutNewOwnById>: <Reg8: 4, Reg8: 13, string_id: 34597>  # String: 'intro_end' (Identifier)
+==> 00000422: <PutNewOwnById>: <Reg8: 4, Reg8: 12, string_id: 33843>  # String: 'intro_start' (Identifier)
+==> 00000427: <PutNewOwnById>: <Reg8: 4, Reg8: 11, string_id: 29498>  # String: 'previously_start' (Identifier)
+==> 0000042c: <PutNewOwnById>: <Reg8: 4, Reg8: 8, string_id: 35686>  # String: 'previously_end' (Identifier)
+==> 00000431: <PutNewOwnByIdShort>: <Reg8: 4, Reg8: 3, string_id: 129>  # String: 'end' (Identifier)
+==> 00000435: <PutNewOwnById>: <Reg8: 4, Reg8: 2, string_id: 27083>  # String: 'token' (Identifier)
+==> 0000043a: <GetGlobalObject>: <Reg8: 2>
+==> 0000043c: <TryGetById>: <Reg8: 11, Reg8: 2, UInt8: 21, string_id: 31>  # String: 'Object' (Identifier)
+==> 00000442: <GetByIdShort>: <Reg8: 8, Reg8: 11, UInt8: 22, string_id: 78>  # String: 'assign' (Identifier)
+==> 00000447: <GetById>: <Reg8: 2, Reg8: 1, UInt8: 23, string_id: 26600>  # String: 'file' (Identifier)
+==> 0000044d: <GetById>: <Reg8: 3, Reg8: 2, UInt8: 24, string_id: 29634>  # String: 'subtitle' (Identifier)
+==> 00000453: <NewObject>: <Reg8: 2>
+==> 00000455: <Call3>: <Reg8: 3, Reg8: 8, Reg8: 11, Reg8: 2, Reg8: 3>
+==> 0000045b: <GetById>: <Reg8: 1, Reg8: 1, UInt8: 23, string_id: 26600>  # String: 'file' (Identifier)
+==> 00000461: <GetById>: <Reg8: 1, Reg8: 1, UInt8: 25, string_id: 32965>  # String: 'm3u8' (Identifier)
+==> 00000467: <NewObject>: <Reg8: 2>
+==> 00000469: <PutNewOwnById>: <Reg8: 2, Reg8: 1, string_id: 32965>  # String: 'm3u8' (Identifier)
+==> 0000046e: <LoadFromEnvironment>: <Reg8: 8, Reg8: 7, UInt8: 7>
+==> 00000472: <Mov>: <Reg8: 1, Reg8: 10>
+==> 00000475: <JEqual>: <Addr8: 43, Reg8: 8, Reg8: 9>  # Address: 000004a0
+==> 00000479: <LoadFromEnvironment>: <Reg8: 8, Reg8: 7, UInt8: 7>
+==> 0000047d: <GetById>: <Reg8: 8, Reg8: 8, UInt8: 26, string_id: 29641>  # String: 'vast2' (Identifier)
+==> 00000483: <Mov>: <Reg8: 1, Reg8: 10>
+==> 00000486: <JmpFalse>: <Addr8: 26, Reg8: 8>  # Address: 000004a0
+==> 00000489: <LoadFromEnvironment>: <Reg8: 8, Reg8: 7, UInt8: 7>
+==> 0000048d: <LoadConstUndefined>: <Reg8: 0>
+==> 0000048f: <JEqual>: <Addr8: 14, Reg8: 8, Reg8: 9>  # Address: 0000049d
+==> 00000493: <LoadFromEnvironment>: <Reg8: 7, Reg8: 7, UInt8: 7>
+==> 00000497: <GetById>: <Reg8: 0, Reg8: 7, UInt8: 26, string_id: 29641>  # String: 'vast2' (Identifier)
+==> 0000049d: <Mov>: <Reg8: 1, Reg8: 0>
+==> 000004a0: <NewObject>: <Reg8: 0>
+==> 000004a2: <PutNewOwnById>: <Reg8: 0, Reg8: 6, string_id: 26670>  # String: 'image' (Identifier)
+==> 000004a7: <PutNewOwnByIdShort>: <Reg8: 0, Reg8: 5, string_id: 166>  # String: 'info' (Identifier)
+==> 000004ab: <PutNewOwnByIdShort>: <Reg8: 0, Reg8: 4, string_id: 88>  # String: 'options' (Identifier)
+==> 000004af: <PutNewOwnById>: <Reg8: 0, Reg8: 3, string_id: 29634>  # String: 'subtitle' (Identifier)
+==> 000004b4: <PutNewOwnById>: <Reg8: 0, Reg8: 2, string_id: 26600>  # String: 'file' (Identifier)
+==> 000004b9: <PutNewOwnById>: <Reg8: 0, Reg8: 1, string_id: 29641>  # String: 'vast2' (Identifier)
+==> 000004be: <Ret>: <Reg8: 0>
+
+
+===============
+

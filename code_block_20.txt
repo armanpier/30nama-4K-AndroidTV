@@ -1,0 +1,2 @@
+adb connect <TV_IP>:5555
+adb shell am start -a android.intent.action.VIEW -d "https://server.com/path/movie_2160p.mkv" -t "video/x-matroska"

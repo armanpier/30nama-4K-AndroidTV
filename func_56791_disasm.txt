@@ -1,0 +1,20 @@
+=> [Function #56791 "" of 48 bytes]: 2 params, frame size=3, strict=0, exc handler=0, debug info=0  @ offset 0x00a627ff
+
+Bytecode listing:
+
+==> 00000000: <LoadParam>: <Reg8: 2, UInt8: 1>
+==> 00000003: <GetById>: <Reg8: 1, Reg8: 2, UInt8: 1, string_id: 31361>  # String: 'label' (Identifier)
+==> 00000009: <LoadConstString>: <Reg8: 0, string_id: 30217>  # String: 'Auto' (Identifier)
+==> 0000000d: <JStrictNotEqual>: <Addr8: 14, Reg8: 1, Reg8: 0>  # Address: 0000001b
+==> 00000011: <LoadConstString>: <Reg8: 0, string_id: 35904>  # String: 'خودکار' (Identifier)
+==> 00000015: <PutById>: <Reg8: 2, Reg8: 0, UInt8: 1, string_id: 31361>  # String: 'label' (Identifier)
+==> 0000001b: <GetEnvironment>: <Reg8: 0, UInt8: 0>
+==> 0000001e: <LoadFromEnvironment>: <Reg8: 1, Reg8: 0, UInt8: 0>
+==> 00000022: <GetById>: <Reg8: 0, Reg8: 2, UInt8: 1, string_id: 31361>  # String: 'label' (Identifier)
+==> 00000028: <PutByVal>: <Reg8: 1, Reg8: 0, Reg8: 2>
+==> 0000002c: <LoadConstUndefined>: <Reg8: 0>
+==> 0000002e: <Ret>: <Reg8: 0>
+
+
+===============
+

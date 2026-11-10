@@ -231,11 +231,11 @@ export default {
         rawMeta = await env.VPN_USERS.get('apk_meta');
       } catch (kvErr) {}
 
-      let version = "1.3.8";
-      let versionCode = 14;
-      let changelog = "حل مشکل نصب (App not installed) در شیائومی و هایپر او‌اس، ارتقای سرعت دانلود با بافر ۶۴ کیلوبایتی و لینک CDN پرسرعت، بازه استعلام ۱۰ دقیقه‌ای";
+      let version = "1.3.9";
+      let versionCode = 15;
+      let changelog = "اتصال مستقیم و پرسرعت به لبه آروان‌کلاد بدون قطعی و فیلترینگ، نمایش دقیق حجم و اعتبار و پایداری کامل اتصال";
       let totalSize = 60644407;
-      let githubUrl = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.8/AsanVPN-v1.3.8-universal.apk";
+      let githubUrl = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.9/AsanVPN-v1.3.9-universal.apk";
 
       if (rawMeta) {
         try {
@@ -281,7 +281,7 @@ export default {
 
       const urlObj = new URL(request.url);
       const forceKv = urlObj.searchParams.get('source') === 'kv';
-      const targetGithubUrl = (meta && meta.versionCode && meta.versionCode >= 14 && meta.github_url) || "https://github.com/armanpier/AsanVPN/releases/download/v1.3.8/AsanVPN-v1.3.8-universal.apk";
+      const targetGithubUrl = (meta && meta.versionCode && meta.versionCode >= 15 && meta.github_url) || "https://github.com/armanpier/AsanVPN/releases/download/v1.3.9/AsanVPN-v1.3.9-universal.apk";
 
       // If not explicitly forced to KV, 302 redirect for ultra-fast CDN download & zero KV usage
       if (!forceKv) {

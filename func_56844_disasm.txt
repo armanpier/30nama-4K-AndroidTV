@@ -1,0 +1,135 @@
+=> [Function #56844 "?anon_0_" of 441 bytes]: 2 params, frame size=21, strict=0, exc handler=0, debug info=0  @ offset 0x00a64359
+
+Bytecode listing:
+
+==> 00000000: <StartGenerator>: <>
+==> 00000001: <LoadParam>: <Reg8: 2, UInt8: 1>
+==> 00000004: <LoadConstUndefined>: <Reg8: 6>
+==> 00000006: <ResumeGenerator>: <Reg8: 0, Reg8: 1>
+==> 00000009: <JmpTrueLong>: <Addr32: 429, Reg8: 1>  # Address: 000001b6
+==> 0000000f: <GetEnvironment>: <Reg8: 9, UInt8: 2>
+==> 00000012: <LoadFromEnvironment>: <Reg8: 1, Reg8: 9, UInt8: 53>
+==> 00000016: <JmpTrue>: <Addr8: 6, Reg8: 1>  # Address: 0000001c
+==> 00000019: <CompleteGenerator>: <>
+==> 0000001a: <Ret>: <Reg8: 6>
+==> 0000001c: <GetGlobalObject>: <Reg8: 1>
+==> 0000001e: <TryGetById>: <Reg8: 3, Reg8: 1, UInt8: 1, string_id: 34941>  # String: 'clearTimeout' (Identifier)
+==> 00000024: <GetEnvironment>: <Reg8: 5, UInt8: 3>
+==> 00000027: <LoadFromEnvironment>: <Reg8: 1, Reg8: 5, UInt8: 27>
+==> 0000002b: <Call2>: <Reg8: 1, Reg8: 3, Reg8: 6, Reg8: 1>
+==> 00000030: <LoadFromEnvironment>: <Reg8: 1, Reg8: 9, UInt8: 55>
+==> 00000034: <Call2>: <Reg8: 1, Reg8: 1, Reg8: 6, Reg8: 2>
+==> 00000039: <LoadFromEnvironment>: <Reg8: 3, Reg8: 9, UInt8: 53>
+==> 0000003d: <LoadConstNull>: <Reg8: 11>
+==> 0000003f: <LoadConstUndefined>: <Reg8: 1>
+==> 00000041: <JEqual>: <Addr8: 13, Reg8: 3, Reg8: 11>  # Address: 0000004e
+==> 00000045: <LoadFromEnvironment>: <Reg8: 3, Reg8: 9, UInt8: 53>
+==> 00000049: <GetByIdShort>: <Reg8: 1, Reg8: 3, UInt8: 2, string_id: 127>  # String: 'duration' (Identifier)
+==> 0000004e: <Div>: <Reg8: 2, Reg8: 2, Reg8: 1>
+==> 00000052: <LoadConstUInt8>: <Reg8: 1, UInt8: 100>
+==> 00000055: <Mul>: <Reg8: 8, Reg8: 2, Reg8: 1>
+==> 00000059: <LoadFromEnvironment>: <Reg8: 1, Reg8: 5, UInt8: 28>
+==> 0000005d: <JmpFalse>: <Addr8: 114, Reg8: 1>  # Address: 000000cf
+==> 00000060: <LoadConstFalse>: <Reg8: 1>
+==> 00000062: <StoreNPToEnvironment>: <Reg8: 5, UInt8: 28, Reg8: 1>
+==> 00000066: <LoadFromEnvironment>: <Reg8: 1, Reg8: 5, UInt8: 25>
+==> 0000006a: <GetByIdShort>: <Reg8: 3, Reg8: 1, UInt8: 3, string_id: 119>  # String: 'default' (Identifier)
+==> 0000006f: <GetById>: <Reg8: 2, Reg8: 3, UInt8: 4, string_id: 27005>  # String: 'post' (Identifier)
+==> 00000075: <LoadFromEnvironment>: <Reg8: 4, Reg8: 9, UInt8: 53>
+==> 00000079: <LoadConstUndefined>: <Reg8: 1>
+==> 0000007b: <JEqual>: <Addr8: 14, Reg8: 4, Reg8: 11>  # Address: 00000089
+==> 0000007f: <LoadFromEnvironment>: <Reg8: 4, Reg8: 9, UInt8: 53>
+==> 00000083: <GetById>: <Reg8: 1, Reg8: 4, UInt8: 5, string_id: 31650>  # String: 'impression' (Identifier)
+==> 00000089: <Call2>: <Reg8: 1, Reg8: 2, Reg8: 3, Reg8: 1>
+==> 0000008e: <SaveGenerator>: <Addr8: 4>  # Address: 00000092
+==> 00000090: <Ret>: <Reg8: 1>
+==> 00000092: <ResumeGenerator>: <Reg8: 1, Reg8: 2>
+==> 00000095: <JmpTrueLong>: <Addr32: 286, Reg8: 2>  # Address: 000001b3
+==> 0000009b: <LoadFromEnvironment>: <Reg8: 2, Reg8: 5, UInt8: 25>
+==> 0000009f: <GetByIdShort>: <Reg8: 4, Reg8: 2, UInt8: 3, string_id: 119>  # String: 'default' (Identifier)
+==> 000000a4: <GetById>: <Reg8: 3, Reg8: 4, UInt8: 4, string_id: 27005>  # String: 'post' (Identifier)
+==> 000000aa: <LoadFromEnvironment>: <Reg8: 7, Reg8: 9, UInt8: 53>
+==> 000000ae: <LoadConstUndefined>: <Reg8: 2>
+==> 000000b0: <JEqual>: <Addr8: 13, Reg8: 7, Reg8: 11>  # Address: 000000bd
+==> 000000b4: <LoadFromEnvironment>: <Reg8: 7, Reg8: 9, UInt8: 53>
+==> 000000b8: <GetByIdShort>: <Reg8: 2, Reg8: 7, UInt8: 6, string_id: 37>  # String: 'start' (Identifier)
+==> 000000bd: <Call2>: <Reg8: 2, Reg8: 3, Reg8: 4, Reg8: 2>
+==> 000000c2: <SaveGenerator>: <Addr8: 4>  # Address: 000000c6
+==> 000000c4: <Ret>: <Reg8: 2>
+==> 000000c6: <ResumeGenerator>: <Reg8: 2, Reg8: 3>
+==> 000000c9: <JmpTrueLong>: <Addr32: 231, Reg8: 3>  # Address: 000001b0
+==> 000000cf: <LoadFromEnvironment>: <Reg8: 3, Reg8: 5, UInt8: 29>
+==> 000000d3: <JmpFalse>: <Addr8: 69, Reg8: 3>  # Address: 00000118
+==> 000000d6: <LoadConstUInt8>: <Reg8: 3, UInt8: 25>
+==> 000000d9: <JNotGreaterN>: <Addr8: 63, Reg8: 8, Reg8: 3>  # Address: 00000118
+==> 000000dd: <LoadConstFalse>: <Reg8: 3>
+==> 000000df: <StoreNPToEnvironment>: <Reg8: 5, UInt8: 29, Reg8: 3>
+==> 000000e3: <LoadFromEnvironment>: <Reg8: 3, Reg8: 5, UInt8: 25>
+==> 000000e7: <GetByIdShort>: <Reg8: 7, Reg8: 3, UInt8: 3, string_id: 119>  # String: 'default' (Identifier)
+==> 000000ec: <GetById>: <Reg8: 4, Reg8: 7, UInt8: 4, string_id: 27005>  # String: 'post' (Identifier)
+==> 000000f2: <LoadFromEnvironment>: <Reg8: 10, Reg8: 9, UInt8: 53>
+==> 000000f6: <LoadConstUndefined>: <Reg8: 3>
+==> 000000f8: <JEqual>: <Addr8: 14, Reg8: 10, Reg8: 11>  # Address: 00000106
+==> 000000fc: <LoadFromEnvironment>: <Reg8: 10, Reg8: 9, UInt8: 53>
+==> 00000100: <GetById>: <Reg8: 3, Reg8: 10, UInt8: 7, string_id: 35071>  # String: 'firstQuartile' (Identifier)
+==> 00000106: <Call2>: <Reg8: 3, Reg8: 4, Reg8: 7, Reg8: 3>
+==> 0000010b: <SaveGenerator>: <Addr8: 4>  # Address: 0000010f
+==> 0000010d: <Ret>: <Reg8: 3>
+==> 0000010f: <ResumeGenerator>: <Reg8: 3, Reg8: 4>
+==> 00000112: <JmpTrueLong>: <Addr32: 155, Reg8: 4>  # Address: 000001ad
+==> 00000118: <LoadFromEnvironment>: <Reg8: 4, Reg8: 5, UInt8: 30>
+==> 0000011c: <JmpFalse>: <Addr8: 66, Reg8: 4>  # Address: 0000015e
+==> 0000011f: <LoadConstUInt8>: <Reg8: 4, UInt8: 50>
+==> 00000122: <JNotGreaterN>: <Addr8: 60, Reg8: 8, Reg8: 4>  # Address: 0000015e
+==> 00000126: <LoadConstFalse>: <Reg8: 4>
+==> 00000128: <StoreNPToEnvironment>: <Reg8: 5, UInt8: 30, Reg8: 4>
+==> 0000012c: <LoadFromEnvironment>: <Reg8: 4, Reg8: 5, UInt8: 25>
+==> 00000130: <GetByIdShort>: <Reg8: 10, Reg8: 4, UInt8: 3, string_id: 119>  # String: 'default' (Identifier)
+==> 00000135: <GetById>: <Reg8: 7, Reg8: 10, UInt8: 4, string_id: 27005>  # String: 'post' (Identifier)
+==> 0000013b: <LoadFromEnvironment>: <Reg8: 12, Reg8: 9, UInt8: 53>
+==> 0000013f: <LoadConstUndefined>: <Reg8: 4>
+==> 00000141: <JEqual>: <Addr8: 14, Reg8: 12, Reg8: 11>  # Address: 0000014f
+==> 00000145: <LoadFromEnvironment>: <Reg8: 12, Reg8: 9, UInt8: 53>
+==> 00000149: <GetById>: <Reg8: 4, Reg8: 12, UInt8: 8, string_id: 33658>  # String: 'midpoint' (Identifier)
+==> 0000014f: <Call2>: <Reg8: 4, Reg8: 7, Reg8: 10, Reg8: 4>
+==> 00000154: <SaveGenerator>: <Addr8: 4>  # Address: 00000158
+==> 00000156: <Ret>: <Reg8: 4>
+==> 00000158: <ResumeGenerator>: <Reg8: 4, Reg8: 7>
+==> 0000015b: <JmpTrue>: <Addr8: 79, Reg8: 7>  # Address: 000001aa
+==> 0000015e: <LoadFromEnvironment>: <Reg8: 7, Reg8: 5, UInt8: 31>
+==> 00000162: <JmpFalse>: <Addr8: 66, Reg8: 7>  # Address: 000001a4
+==> 00000165: <LoadConstUInt8>: <Reg8: 7, UInt8: 75>
+==> 00000168: <JNotGreaterN>: <Addr8: 60, Reg8: 8, Reg8: 7>  # Address: 000001a4
+==> 0000016c: <LoadConstFalse>: <Reg8: 7>
+==> 0000016e: <StoreNPToEnvironment>: <Reg8: 5, UInt8: 31, Reg8: 7>
+==> 00000172: <LoadFromEnvironment>: <Reg8: 5, Reg8: 5, UInt8: 25>
+==> 00000176: <GetByIdShort>: <Reg8: 8, Reg8: 5, UInt8: 3, string_id: 119>  # String: 'default' (Identifier)
+==> 0000017b: <GetById>: <Reg8: 7, Reg8: 8, UInt8: 4, string_id: 27005>  # String: 'post' (Identifier)
+==> 00000181: <LoadFromEnvironment>: <Reg8: 10, Reg8: 9, UInt8: 53>
+==> 00000185: <LoadConstUndefined>: <Reg8: 5>
+==> 00000187: <JEqual>: <Addr8: 14, Reg8: 10, Reg8: 11>  # Address: 00000195
+==> 0000018b: <LoadFromEnvironment>: <Reg8: 9, Reg8: 9, UInt8: 53>
+==> 0000018f: <GetById>: <Reg8: 5, Reg8: 9, UInt8: 9, string_id: 32865>  # String: 'thirdQuartile' (Identifier)
+==> 00000195: <Call2>: <Reg8: 5, Reg8: 7, Reg8: 8, Reg8: 5>
+==> 0000019a: <SaveGenerator>: <Addr8: 4>  # Address: 0000019e
+==> 0000019c: <Ret>: <Reg8: 5>
+==> 0000019e: <ResumeGenerator>: <Reg8: 5, Reg8: 7>
+==> 000001a1: <JmpTrue>: <Addr8: 6, Reg8: 7>  # Address: 000001a7
+==> 000001a4: <CompleteGenerator>: <>
+==> 000001a5: <Ret>: <Reg8: 6>
+==> 000001a7: <CompleteGenerator>: <>
+==> 000001a8: <Ret>: <Reg8: 5>
+==> 000001aa: <CompleteGenerator>: <>
+==> 000001ab: <Ret>: <Reg8: 4>
+==> 000001ad: <CompleteGenerator>: <>
+==> 000001ae: <Ret>: <Reg8: 3>
+==> 000001b0: <CompleteGenerator>: <>
+==> 000001b1: <Ret>: <Reg8: 2>
+==> 000001b3: <CompleteGenerator>: <>
+==> 000001b4: <Ret>: <Reg8: 1>
+==> 000001b6: <CompleteGenerator>: <>
+==> 000001b7: <Ret>: <Reg8: 0>
+
+
+===============
+

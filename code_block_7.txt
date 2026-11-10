@@ -1,0 +1,1 @@
+apktool b <decompiled_folder> -o patched_unaligned.apk

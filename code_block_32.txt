@@ -1,0 +1,1 @@
+adb push Vazirmatn-Bold.ttf /sdcard/Android/data/org.xbmc.kodi/files/.kodi/userdata/Fonts/

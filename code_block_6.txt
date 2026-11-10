@@ -1,0 +1,26 @@
+    invoke-interface {p5, v2}, Lcom/facebook/react/bridge/ReadableMap;->getString(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v2
+
+    # --- START PATCH: Swap API Key in POST body if URL or body contains "stream" ---
+    if-eqz v2, :cond_skip_body_patch
+
+    # Check if the URL (p2) contains "stream"
+    const-string v3, "stream"
+    invoke-virtual {p2, v3}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v3
+    if-nez v3, :cond_do_body_swap
+
+    # Or check if the POST body itself (v2) contains "stream"
+    const-string v3, "stream"
+    invoke-virtual {v2, v3}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v3
+    if-eqz v3, :cond_skip_body_patch
+
+    :cond_do_body_swap
+    const-string v3, "VdapnkLG9_YOUR_FULL_TV_KEY_HERE"
+    const-string v4, "et7bRH_YOUR_FULL_DESKTOP_KEY_HERE"
+    invoke-virtual {v2, v3, v4}, Ljava/lang/String;->replace(Ljava/lang/CharSequence;Ljava/lang/CharSequence;)Ljava/lang/String;
+    move-result-object v2
+
+    :cond_skip_body_patch
+    # --- END PATCH ---

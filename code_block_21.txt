@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1, Movie Title (4K Direct Download)
+https://cdn.example.com/downloads/movie_4k_hevc.mkv

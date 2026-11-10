@@ -1,0 +1,45 @@
+=> [Function #53990 "detectPlatform" of 180 bytes]: 1 params, frame size=14, strict=0, exc handler=0, debug info=0  @ offset 0x00a1a839
+
+Bytecode listing:
+
+==> 00000000: <LoadThisNS>: <Reg8: 2>
+==> 00000002: <GetGlobalObject>: <Reg8: 0>
+==> 00000004: <TryGetById>: <Reg8: 1, Reg8: 0, UInt8: 1, string_id: 26687>  # String: 'navigator' (Identifier)
+==> 0000000a: <GetById>: <Reg8: 5, Reg8: 1, UInt8: 2, string_id: 35863>  # String: 'userAgent' (Identifier)
+==> 00000010: <JmpTrue>: <Addr8: 15, Reg8: 5>  # Address: 0000001f
+==> 00000013: <TryGetById>: <Reg8: 1, Reg8: 0, UInt8: 1, string_id: 26687>  # String: 'navigator' (Identifier)
+==> 00000019: <GetById>: <Reg8: 5, Reg8: 1, UInt8: 3, string_id: 30808>  # String: 'vendor' (Identifier)
+==> 0000001f: <JmpTrue>: <Addr8: 15, Reg8: 5>  # Address: 0000002e
+==> 00000022: <TryGetById>: <Reg8: 0, Reg8: 0, UInt8: 4, string_id: 251>  # String: 'window' (Identifier)
+==> 00000028: <GetById>: <Reg8: 5, Reg8: 0, UInt8: 5, string_id: 27353>  # String: 'opera' (Identifier)
+==> 0000002e: <LoadConstUndefined>: <Reg8: 0>
+==> 00000030: <JStrictEqual>: <Addr8: 111, Reg8: 5, Reg8: 0>  # Address: 0000009f
+==> 00000034: <CreateRegExp>: <Reg8: 3, string_id: 20164, string_id: 26468, UInt32: 182>  # String: 'iPad|iPhone|iPod' (String)  # String: '' (Identifier)
+==> 00000042: <GetByIdShort>: <Reg8: 1, Reg8: 3, UInt8: 6, string_id: 59>  # String: 'test' (Identifier)
+==> 00000047: <Call2>: <Reg8: 3, Reg8: 1, Reg8: 3, Reg8: 5>
+==> 0000004c: <GetEnvironment>: <Reg8: 1, UInt8: 1>
+==> 0000004f: <JmpTrue>: <Addr8: 62, Reg8: 3>  # Address: 0000008d
+==> 00000052: <CreateRegExp>: <Reg8: 4, string_id: 29025, string_id: 26471, UInt32: 183>  # String: 'android' (Identifier)  # String: 'i' (Identifier)
+==> 00000060: <GetByIdShort>: <Reg8: 3, Reg8: 4, UInt8: 6, string_id: 59>  # String: 'test' (Identifier)
+==> 00000065: <Call2>: <Reg8: 4, Reg8: 3, Reg8: 4, Reg8: 5>
+==> 0000006a: <LoadFromEnvironment>: <Reg8: 3, Reg8: 1, UInt8: 6>
+==> 0000006e: <JmpTrue>: <Addr8: 17, Reg8: 4>  # Address: 0000007f
+==> 00000071: <GetById>: <Reg8: 4, Reg8: 3, UInt8: 7, string_id: 30530>  # String: 'WEB' (Identifier)
+==> 00000077: <PutById>: <Reg8: 2, Reg8: 4, UInt8: 1, string_id: 28092>  # String: 'platform' (Identifier)
+==> 0000007d: <Jmp>: <Addr8: 53>  # Address: 000000b2
+==> 0000007f: <GetById>: <Reg8: 3, Reg8: 3, UInt8: 8, string_id: 30221>  # String: 'WEB_ANDROID' (Identifier)
+==> 00000085: <PutById>: <Reg8: 2, Reg8: 3, UInt8: 1, string_id: 28092>  # String: 'platform' (Identifier)
+==> 0000008b: <Jmp>: <Addr8: 39>  # Address: 000000b2
+==> 0000008d: <LoadFromEnvironment>: <Reg8: 1, Reg8: 1, UInt8: 6>
+==> 00000091: <GetById>: <Reg8: 1, Reg8: 1, UInt8: 9, string_id: 30119>  # String: 'WEB_IOS' (Identifier)
+==> 00000097: <PutById>: <Reg8: 2, Reg8: 1, UInt8: 1, string_id: 28092>  # String: 'platform' (Identifier)
+==> 0000009d: <Jmp>: <Addr8: 21>  # Address: 000000b2
+==> 0000009f: <GetEnvironment>: <Reg8: 1, UInt8: 1>
+==> 000000a2: <LoadFromEnvironment>: <Reg8: 1, Reg8: 1, UInt8: 6>
+==> 000000a6: <GetById>: <Reg8: 1, Reg8: 1, UInt8: 10, string_id: 27415>  # String: 'UNKNOWN' (Identifier)
+==> 000000ac: <PutById>: <Reg8: 2, Reg8: 1, UInt8: 1, string_id: 28092>  # String: 'platform' (Identifier)
+==> 000000b2: <Ret>: <Reg8: 0>
+
+
+===============
+

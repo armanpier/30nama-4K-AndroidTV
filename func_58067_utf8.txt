@@ -1,0 +1,23 @@
+=> [Function #58067 "onPress" of 59 bytes]: 1 params, frame size=16, strict=0, exc handler=0, debug info=0  @ offset 0x00a83e27
+
+Bytecode listing:
+
+==> 00000000: <GetEnvironment>: <Reg8: 0, UInt8: 1>
+==> 00000003: <LoadFromEnvironment>: <Reg8: 1, Reg8: 0, UInt8: 5>
+==> 00000007: <GetGlobalObject>: <Reg8: 0>
+==> 00000009: <TryGetById>: <Reg8: 5, Reg8: 0, UInt8: 1, string_id: 31>  # String: 'Object' (Identifier)
+==> 0000000f: <GetByIdShort>: <Reg8: 4, Reg8: 5, UInt8: 2, string_id: 78>  # String: 'assign' (Identifier)
+==> 00000014: <GetById>: <Reg8: 3, Reg8: 1, UInt8: 3, string_id: 27674>  # String: 'video' (Identifier)
+==> 0000001a: <GetEnvironment>: <Reg8: 0, UInt8: 0>
+==> 0000001d: <LoadFromEnvironment>: <Reg8: 0, Reg8: 0, UInt8: 0>
+==> 00000021: <NewObject>: <Reg8: 2>
+==> 00000023: <PutNewOwnById>: <Reg8: 2, Reg8: 0, string_id: 28582>  # String: 'quality' (Identifier)
+==> 00000028: <NewObject>: <Reg8: 0>
+==> 0000002a: <Call4>: <Reg8: 0, Reg8: 4, Reg8: 5, Reg8: 0, Reg8: 3, Reg8: 2>
+==> 00000031: <PutById>: <Reg8: 1, Reg8: 0, UInt8: 1, string_id: 27674>  # String: 'video' (Identifier)
+==> 00000037: <LoadConstUndefined>: <Reg8: 0>
+==> 00000039: <Ret>: <Reg8: 0>
+
+
+===============
+

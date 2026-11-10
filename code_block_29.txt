@@ -1,0 +1,671 @@
+# -*- coding: utf-8 -*-
+import os
+import re
+import sys
+import json
+import shutil
+import zipfile
+import urllib.parse
+import requests
+
+import xbmc
+import xbmcgui
+import xbmcplugin
+import xbmcaddon
+import xbmcvfs
+
+ADDON = xbmcaddon.Addon()
+ADDON_ID = ADDON.getAddonInfo('id')
+HANDLE = int(sys.argv[1])
+BASE_PLUGIN_URL = sys.argv[0]
+
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/128.0.0.0 Safari/537.36"
+)
+
+# Temp directory inside Kodi for extracted .srt files
+TEMP_SUB_DIR = xbmcvfs.translatePath("special://temp/30nama_subs/")
+
+
+def log(msg, level=xbmc.LOGINFO):
+    xbmc.log(f"[{ADDON_ID}] {msg}", level)
+
+
+def get_setting(key, default=""):
+    val = ADDON.getSetting(key)
+    return val.strip() if val else default
+
+
+def build_url(query):
+    return f"{BASE_PLUGIN_URL}?{urllib.parse.urlencode(query)}"
+
+
+def ensure_clean_sub_dir():
+    if os.path.exists(TEMP_SUB_DIR):
+        shutil.rmtree(TEMP_SUB_DIR, ignore_errors=True)
+    os.makedirs(TEMP_SUB_DIR, exist_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# NETWORK & DUAL-KEY API CLIENT
+# ---------------------------------------------------------------------------
+
+def get_session(use_desktop_key=False):
+    session = requests.Session()
+    base_url = get_setting("base_url", "https://30nama.com").rstrip("/")
+    c_token = get_setting("c_token")
+    web_cookie = get_setting("web_cookie")
+    api_key = get_setting("desktop_api_key") if use_desktop_key else get_setting("tv_api_key")
+
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json, text/plain, */*",
+        "Referer": f"{base_url}/",
+        "Origin": base_url,
+    }
+    if c_token:
+        headers["c-token"] = c_token
+        headers["Authorization"] = f"Bearer {c_token}"
+    if api_key:
+        headers["x-api-key"] = api_key
+        headers["api-key"] = api_key
+    if web_cookie:
+        headers["Cookie"] = web_cookie
+
+    session.headers.update(headers)
+    return session, base_url, api_key, c_token
+
+
+def api_request(action_path, params=None, method="GET", use_desktop_key=False):
+    """
+    Calls the backend action endpoint.
+    Uses TV API Key for catalog/user/qrlogin, and Desktop API Key for stream/4K.
+    """
+    session, base_url, api_key, c_token = get_session(use_desktop_key=use_desktop_key)
+    api_base = get_setting("api_base_url")
+    if not api_base:
+        api_base = f"{base_url}/api/v1"
+    api_base = api_base.rstrip("/")
+
+    url = f"{api_base}/{action_path.lstrip('/')}"
+    req_params = dict(params or {})
+    if api_key and "key" not in req_params:
+        req_params["key"] = api_key
+    if c_token and "c_token" not in req_params:
+        req_params["c_token"] = c_token
+
+    try:
+        if method.upper() == "POST":
+            resp = session.post(url, json=req_params, timeout=15)
+        else:
+            resp = session.get(url, params=req_params, timeout=15)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as exc:
+        log(f"API request failed for {url}: {exc}", xbmc.LOGWARNING)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# PERSIAN & ENGLISH SUBTITLE DOWNLOADER, UNZIPPER & UTF-8 FIXER
+# ---------------------------------------------------------------------------
+
+def is_persian_text(text):
+    """Checks if text contains Persian/Arabic Unicode characters."""
+    return bool(re.search(r"[\u0600-\u06FF]", text))
+
+
+def convert_sub_to_utf8(file_path):
+    """
+    Converts legacy Windows-1256 (Arabic/Persian) or UTF-16 .srt files to clean UTF-8
+    so Kodi on Android TV renders Persian text properly without gibberish.
+    """
+    if get_setting("auto_fix_persian_encoding", "true").lower() != "true":
+        return file_path
+
+    try:
+        with open(file_path, "rb") as f:
+            raw = f.read()
+
+        # Check BOMs first
+        if raw.startswith(b"\xef\xbb\xbf"):
+            text = raw.decode("utf-8-sig")
+        elif raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+            text = raw.decode("utf-16")
+        else:
+            try:
+                text = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                # Fallback to Windows-1256 (standard encoding for Persian subtitles)
+                text = raw.decode("cp1256", errors="replace")
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(text)
+    except Exception as exc:
+        log(f"Subtitle UTF-8 conversion warning on {file_path}: {exc}", xbmc.LOGWARNING)
+
+    return file_path
+
+
+def classify_subtitle_language(file_path):
+    """
+    Returns 'fa' for Persian, 'en' for English, or 'other'.
+    Checks filename first, then inspects file contents for Persian characters.
+    """
+    fname = os.path.basename(file_path).lower()
+    if any(tag in fname for tag in [".fa.", "_fa.", "persian", "farsi", "per."]):
+        return "fa"
+    if any(tag in fname for tag in [".en.", "_en.", "english", "eng."]):
+        return "en"
+
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            sample = f.read(4096)
+            if is_persian_text(sample):
+                return "fa"
+            return "en"
+    except Exception:
+        return "other"
+
+
+def fetch_and_prepare_subtitles(sub_urls):
+    """
+    Downloads .srt / .ass / .zip subtitle URLs, extracts archives into special://temp/30nama_subs/,
+    fixes Persian CP1256 encoding to UTF-8, and sorts Persian & English according to user preference.
+    """
+    if not sub_urls:
+        return []
+
+    ensure_clean_sub_dir()
+    session, _, _, _ = get_session(use_desktop_key=False)
+    extracted_files = []
+
+    for idx, sub_url in enumerate(sub_urls):
+        if not sub_url:
+            continue
+        try:
+            resp = session.get(sub_url, timeout=15)
+            if resp.status_code != 200:
+                continue
+
+            lower_url = sub_url.lower().split("?")[0]
+            if lower_url.endswith(".zip") or resp.content[:4] == b"PK\x03\x04":
+                zip_path = os.path.join(TEMP_SUB_DIR, f"sub_{idx}.zip")
+                with open(zip_path, "wb") as zf:
+                    zf.write(resp.content)
+
+                with zipfile.ZipFile(zip_path, "r") as archive:
+                    for member in archive.namelist():
+                        if member.lower().endswith((".srt", ".ass", ".ssa", ".vtt", ".sub")):
+                            safe_name = os.path.basename(member)
+                            if not safe_name:
+                                continue
+                            target_path = os.path.join(TEMP_SUB_DIR, f"{idx}_{safe_name}")
+                            with open(target_path, "wb") as out_f:
+                                out_f.write(archive.read(member))
+                            convert_sub_to_utf8(target_path)
+                            extracted_files.append(target_path)
+            else:
+                ext = ".srt"
+                for candidate in (".srt", ".ass", ".vtt"):
+                    if lower_url.endswith(candidate):
+                        ext = candidate
+                        break
+                lang_hint = "fa" if ("fa" in lower_url or "per" in lower_url) else f"track_{idx}"
+                target_path = os.path.join(TEMP_SUB_DIR, f"sub_{lang_hint}_{idx}{ext}")
+                with open(target_path, "wb") as out_f:
+                    out_f.write(resp.content)
+                convert_sub_to_utf8(target_path)
+                extracted_files.append(target_path)
+
+        except Exception as exc:
+            log(f"Failed downloading subtitle {sub_url}: {exc}", xbmc.LOGWARNING)
+
+    # Sort subtitles so Persian (fa) and English (en) are ordered per user preference
+    fa_subs, en_subs, other_subs = [], [], []
+    for path in extracted_files:
+        lang = classify_subtitle_language(path)
+        # Rename with explicit .fa.srt or .en.srt suffix so Kodi OSD displays "Persian" / "English"
+        base, ext = os.path.splitext(path)
+        if not base.endswith(f".{lang}") and lang in ("fa", "en"):
+            new_path = f"{base}.{lang}{ext}"
+            try:
+                os.replace(path, new_path)
+                path = new_path
+            except OSError:
+                pass
+
+        if lang == "fa":
+            fa_subs.append(path)
+        elif lang == "en":
+            en_subs.append(path)
+        else:
+            other_subs.append(path)
+
+    persian_first = get_setting("sub_priority", "0") == "0"
+    if persian_first:
+        return fa_subs + en_subs + other_subs
+    return en_subs + fa_subs + other_subs
+
+
+# ---------------------------------------------------------------------------
+# 4K DIRECT DOWNLOAD & STREAM LINK EXTRACTOR
+# ---------------------------------------------------------------------------
+
+def scrape_direct_download_links_and_subs(movie_id_or_url):
+    """
+    Combines:
+    1) Desktop API key (/action/stream) for 4K 2160p streaming profiles
+    2) Direct download links (.mkv / .mp4) & subtitle (.srt / .zip) links from API or HTML page
+    """
+    streams = []
+    sub_urls = []
+    session, base_url, _, _ = get_session(use_desktop_key=True)
+
+    # 1. Query /action/stream using Desktop API Key (et7bRH...) for 2160p / 4K streams
+    if not str(movie_id_or_url).startswith("http"):
+        data = api_request("action/stream", params={"id": movie_id_or_url}, use_desktop_key=True)
+        if isinstance(data, dict):
+            # Parse standard stream & download arrays from API payload
+            raw_items = (
+                data.get("streams")
+                or data.get("links")
+                or data.get("downloads")
+                or data.get("data", {}).get("streams", [])
+                or []
+            )
+            if isinstance(raw_items, list):
+                for item in raw_items:
+                    url = item.get("url") or item.get("src") or item.get("link")
+                    if not url:
+                        continue
+                    quality = str(item.get("quality") or item.get("res") or item.get("label") or "Stream")
+                    info = item.get("info") or item.get("encoder") or item.get("size") or ""
+                    label = f"[{quality}] {info}".strip()
+                    streams.append({"label": label, "url": url, "quality": quality})
+
+            # Extract any subtitle URLs returned by API
+            raw_subs = data.get("subtitles") or data.get("subs") or data.get("data", {}).get("subtitles", [])
+            if isinstance(raw_subs, list):
+                for s in raw_subs:
+                    if isinstance(s, str):
+                        sub_urls.append(s)
+                    elif isinstance(s, dict):
+                        s_url = s.get("url") or s.get("src") or s.get("link")
+                        if s_url:
+                            sub_urls.append(s_url)
+
+    # 2. If a page URL (or movie path) is available, also extract direct .mkv/.mp4 download links & .zip/.srt subs
+    page_url = (
+        movie_id_or_url
+        if str(movie_id_or_url).startswith("http")
+        else f"{base_url}/movie/{movie_id_or_url}"
+    )
+    try:
+        resp = session.get(page_url, timeout=15)
+        if resp.status_code == 200:
+            html = resp.text
+            # Match direct .mkv and .mp4 download links
+            dl_pattern = re.compile(
+                r'href=["\'](https?://[^"\']+\.(?:mkv|mp4)(?:\?[^"\']*)?)["\']',
+                re.IGNORECASE,
+            )
+            for match in dl_pattern.finditer(html):
+                dl_url = match.group(1)
+                fname = urllib.parse.unquote(dl_url.split("?")[0].split("/")[-1])
+                quality = "2160p 4K" if ("2160p" in fname.lower() or "4k" in fname.lower()) else (
+                    "1080p" if "1080p" in fname.lower() else "Direct DL"
+                )
+                streams.append({
+                    "label": f"[{quality} Direct MKV/MP4] {fname}",
+                    "url": dl_url,
+                    "quality": quality,
+                })
+
+            # Match direct .srt and .zip subtitle links on the page
+            sub_pattern = re.compile(
+                r'href=["\'](https?://[^"\']+\.(?:srt|zip|ass|vtt)(?:\?[^"\']*)?)["\']',
+                re.IGNORECASE,
+            )
+            for match in sub_pattern.finditer(html):
+                s_url = match.group(1)
+                if s_url not in sub_urls:
+                    sub_urls.append(s_url)
+    except Exception as exc:
+        log(f"HTML direct link check skipped/failed: {exc}", xbmc.LOGDEBUG)
+
+    # Deduplicate streams by URL and sort 2160p/4K to top if enabled
+    seen = set()
+    unique_streams = []
+    for s in streams:
+        if s["url"] not in seen:
+            seen.add(s["url"])
+            unique_streams.append(s)
+
+    if get_setting("prefer_4k_sort", "true").lower() == "true":
+        def sort_key(item):
+            q = (item.get("quality", "") + " " + item.get("label", "")).lower()
+            if "2160" in q or "4k" in q or "uhd" in q:
+                return 0
+            if "1080" in q:
+                return 1
+            if "720" in q:
+                return 2
+            return 3
+        unique_streams.sort(key=sort_key)
+
+    return unique_streams, sub_urls
+
+
+def format_kodi_playable_url(raw_url):
+    """
+    Appends Kodi's |User-Agent=...&Referer=...&Cookie=... protocol options
+    so Kodi's internal CURL player streams protected 4K direct download files without 403 errors.
+    """
+    if "|" in raw_url:
+        return raw_url
+
+    base_url = get_setting("base_url", "https://30nama.com").rstrip("/")
+    web_cookie = get_setting("web_cookie")
+    c_token = get_setting("c_token")
+
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Referer": f"{base_url}/",
+    }
+    if web_cookie:
+        headers["Cookie"] = web_cookie
+    elif c_token:
+        headers["Cookie"] = f"c-token={c_token}"
+
+    encoded_headers = "&".join(
+        f"{k}={urllib.parse.quote(v, safe='')}" for k, v in headers.items()
+    )
+    return f"{raw_url}|{encoded_headers}"
+
+
+# ---------------------------------------------------------------------------
+# KODI UI MENUS & ACTIONS
+# ---------------------------------------------------------------------------
+
+def list_main_menu():
+    xbmcplugin.setPluginCategory(HANDLE, "30nama 4K")
+    items = [
+        ("Home / Latest Releases (4K & 1080p)", {"action": "browse", "endpoint": "action/home"}, True),
+        ("Search Movies & Series", {"action": "search"}, True),
+        ("Play Direct 4K Download URL (.mkv / .mp4) + Subtitles", {"action": "direct_url"}, True),
+        ("QR Code Login (Bind TV Session Token)", {"action": "qr_login"}, False),
+        ("Addon Settings (API Keys, Domain & Subtitle Priority)", {"action": "open_settings"}, False),
+    ]
+
+    for title, query, is_folder in items:
+        li = xbmcgui.ListItem(label=title)
+        li.setInfo("video", {"title": title, "plot": title})
+        xbmcplugin.addDirectoryItem(
+            handle=HANDLE,
+            url=build_url(query),
+            listitem=li,
+            isFolder=is_folder,
+        )
+    xbmcplugin.endOfDirectory(HANDLE)
+
+
+def browse_catalog(endpoint="action/home", query_str=""):
+    xbmcplugin.setPluginCategory(HANDLE, "Catalog")
+    xbmcplugin.setContent(HANDLE, "movies")
+
+    params = {"q": query_str} if query_str else {}
+    # Always use the TV API key for catalog/home/search so session validation succeeds
+    data = api_request(endpoint, params=params, use_desktop_key=False)
+
+    movies = []
+    if isinstance(data, dict):
+        movies = (
+            data.get("items")
+            or data.get("movies")
+            or data.get("results")
+            or data.get("data", {}).get("items", [])
+            or []
+        )
+        # Handle nested home sections/rows if returned by /action/home
+        if not movies and isinstance(data.get("rows") or data.get("sections"), list):
+            for section in (data.get("rows") or data.get("sections")):
+                movies.extend(section.get("items", []))
+    elif isinstance(data, list):
+        movies = data
+
+    if not movies:
+        xbmcgui.Dialog().notification(
+            "30nama 4K",
+            "No items returned. Check Base URL / Session Token in Settings.",
+            xbmcgui.NOTIFICATION_WARNING,
+            4000,
+        )
+        xbmcplugin.endOfDirectory(HANDLE)
+        return
+
+    for m in movies:
+        if not isinstance(m, dict):
+            continue
+        m_id = str(m.get("id") or m.get("slug") or m.get("url") or "")
+        title = m.get("title") or m.get("name") or "Untitled"
+        year = m.get("year")
+        plot = m.get("plot") or m.get("description") or m.get("story") or ""
+        poster = m.get("poster") or m.get("image") or m.get("cover") or ""
+        fanart = m.get("backdrop") or m.get("fanart") or poster
+        rating = m.get("imdb") or m.get("rating") or 0.0
+
+        display_title = f"{title} ({year})" if year else title
+        li = xbmcgui.ListItem(label=display_title)
+        li.setArt({"poster": poster, "thumb": poster, "fanart": fanart})
+
+        info_tag = {
+            "title": title,
+            "plot": plot,
+            "mediatype": "movie",
+        }
+        if year and str(year).isdigit():
+            info_tag["year"] = int(year)
+        try:
+            info_tag["rating"] = float(rating)
+        except (ValueError, TypeError):
+            pass
+        li.setInfo("video", info_tag)
+
+        url = build_url({
+            "action": "list_streams",
+            "id": m_id,
+            "title": display_title,
+            "poster": poster,
+        })
+        xbmcplugin.addDirectoryItem(handle=HANDLE, url=url, listitem=li, isFolder=True)
+
+    xbmcplugin.endOfDirectory(HANDLE)
+
+
+def list_streams_for_movie(movie_id, title="", poster=""):
+    """
+    Lists all 4K (2160p), 1080p, and direct .mkv/.mp4 download streams for the selected movie.
+    """
+    xbmcplugin.setPluginCategory(HANDLE, title or "Select Quality")
+    xbmcplugin.setContent(HANDLE, "videos")
+
+    streams, sub_urls = scrape_direct_download_links_and_subs(movie_id)
+    if not streams:
+        xbmcgui.Dialog().notification(
+            "30nama 4K",
+            "No streams or direct download links found for this item.",
+            xbmcgui.NOTIFICATION_WARNING,
+            4000,
+        )
+        xbmcplugin.endOfDirectory(HANDLE)
+        return
+
+    subs_json = json.dumps(sub_urls)
+    for s in streams:
+        label = f"{s['label']}  —  {title}" if title else s["label"]
+        li = xbmcgui.ListItem(label=label)
+        if poster:
+            li.setArt({"poster": poster, "thumb": poster})
+        li.setInfo("video", {"title": label, "mediatype": "video"})
+        li.setProperty("IsPlayable", "true")
+
+        play_url = build_url({
+            "action": "play",
+            "video_url": s["url"],
+            "subs": subs_json,
+            "title": title or s["label"],
+        })
+        xbmcplugin.addDirectoryItem(handle=HANDLE, url=play_url, listitem=li, isFolder=False)
+
+    xbmcplugin.endOfDirectory(HANDLE)
+
+
+def play_stream(video_url, subs_json="[]", title="Video"):
+    """
+    Downloads & prepares Persian/English .srt subtitles (including extracting .zip files
+    and converting CP1256 to UTF-8), attaches them to the ListItem, and starts 4K playback.
+    """
+    try:
+        sub_urls = json.loads(subs_json) if subs_json else []
+    except Exception:
+        sub_urls = []
+
+    local_subs = fetch_and_prepare_subtitles(sub_urls)
+    playable_path = format_kodi_playable_url(video_url)
+
+    play_item = xbmcgui.ListItem(label=title, path=playable_path)
+    play_item.setInfo("video", {"title": title})
+
+    # Enable HTTP byte-range seeking and chapters on large 4K MKV files
+    if ".m3u8" in video_url.lower():
+        play_item.setMimeType("application/vnd.apple.mpegurl")
+    elif ".mp4" in video_url.lower():
+        play_item.setMimeType("video/mp4")
+    else:
+        play_item.setMimeType("video/x-matroska")
+
+    if local_subs:
+        play_item.setSubtitles(local_subs)
+        xbmcgui.Dialog().notification(
+            "Subtitles Ready",
+            f"Attached {len(local_subs)} Persian/English subtitle track(s)",
+            xbmcgui.NOTIFICATION_INFO,
+            2500,
+        )
+
+    xbmcplugin.setResolvedUrl(HANDLE, True, listitem=play_item)
+
+
+def prompt_direct_url():
+    """
+    Lets you paste or test any direct 4K .mkv/.mp4 download link + optional .srt/.zip subtitle URL
+    or Movie Page URL right from the TV screen.
+    """
+    dialog = xbmcgui.Dialog()
+    target = dialog.input("Enter Movie Page URL or Direct 4K .mkv/.mp4 URL", type=xbmcgui.INPUT_ALPHANUM)
+    if not target:
+        return
+
+    # If the user entered a direct .mkv / .mp4 / .m3u8 link, ask for optional subtitle .zip/.srt URL
+    if any(ext in target.lower() for ext in (".mkv", ".mp4", ".m3u8")):
+        sub_url = dialog.input("Optional: Enter .srt or .zip Subtitle URL (Leave blank for embedded SoftSub)", type=xbmcgui.INPUT_ALPHANUM)
+        subs_list = [sub_url] if sub_url else []
+        local_subs = fetch_and_prepare_subtitles(subs_list)
+        playable_path = format_kodi_playable_url(target)
+        li = xbmcgui.ListItem(label="Direct 4K Stream", path=playable_path)
+        if local_subs:
+            li.setSubtitles(local_subs)
+        xbmc.Player().play(playable_path, li)
+    else:
+        # Otherwise treat it as a movie page URL / ID and scrape all 4K download links + subtitles
+        list_streams_for_movie(target, title="Direct Page Links")
+
+
+def perform_qr_login():
+    """
+    Requests a QR login code using the TV API key (action/qrlogin_code),
+    displays the code on your TV, and saves the resulting c-token into Addon Settings.
+    """
+    data = api_request("action/qrlogin_code", use_desktop_key=False)
+    if not data:
+        xbmcgui.Dialog().ok(
+            "QR Login",
+            "Could not reach /action/qrlogin_code.\nYou can also enter your c-token directly in Addon Settings.",
+        )
+        return
+
+    code = data.get("code") or data.get("qr_code") or data.get("data", {}).get("code")
+    token_temp = data.get("token") or data.get("hash") or code
+    if not code:
+        xbmcgui.Dialog().ok("QR Login Response", json.dumps(data))
+        return
+
+    confirmed = xbmcgui.Dialog().yesno(
+        "QR Login — Authorize on Phone/PC",
+        f"Your TV Login Code is: [B]{code}[/B]\n\n"
+        "1. Authorize this code in your browser/phone.\n"
+        "2. Then press 'Yes' below to verify and save your token.",
+        nolabel="Cancel",
+        yeslabel="I Authorized It",
+    )
+    if not confirmed:
+        return
+
+    login_res = api_request("action/qrlogin_login", params={"code": code, "token": token_temp}, use_desktop_key=False)
+    c_token = None
+    if isinstance(login_res, dict):
+        c_token = (
+            login_res.get("c_token")
+            or login_res.get("c-token")
+            or login_res.get("token")
+            or login_res.get("data", {}).get("c_token")
+        )
+
+    if c_token:
+        ADDON.setSetting("c_token", str(c_token))
+        xbmcgui.Dialog().notification("30nama 4K", "Login token saved!", xbmcgui.NOTIFICATION_INFO, 4000)
+    else:
+        xbmcgui.Dialog().ok("QR Login", f"Could not extract token. Raw response:\n{json.dumps(login_res)}")
+
+
+# ---------------------------------------------------------------------------
+# ROUTER
+# ---------------------------------------------------------------------------
+
+def router(paramstring):
+    params = dict(urllib.parse.parse_qsl(paramstring))
+    action = params.get("action")
+
+    if not action:
+        list_main_menu()
+    elif action == "browse":
+        browse_catalog(endpoint=params.get("endpoint", "action/home"))
+    elif action == "search":
+        query = xbmcgui.Dialog().input("Search Movies / Series", type=xbmcgui.INPUT_ALPHANUM)
+        if query:
+            browse_catalog(endpoint="action/search", query_str=query)
+    elif action == "list_streams":
+        list_streams_for_movie(
+            movie_id=params.get("id", ""),
+            title=params.get("title", ""),
+            poster=params.get("poster", ""),
+        )
+    elif action == "play":
+        play_stream(
+            video_url=params.get("video_url", ""),
+            subs_json=params.get("subs", "[]"),
+            title=params.get("title", "Video"),
+        )
+    elif action == "direct_url":
+        prompt_direct_url()
+    elif action == "qr_login":
+        perform_qr_login()
+    elif action == "open_settings":
+        ADDON.openSettings()
+
+
+if __name__ == "__main__":
+    router(sys.argv[2][1:])

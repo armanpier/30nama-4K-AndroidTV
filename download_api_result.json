@@ -1,0 +1,149 @@
+{
+  "status": 200,
+  "success": true,
+  "error": false,
+  "msg": "دانلود مستقیم",
+  "result": {
+    "seasons": [
+      1
+    ],
+    "total_seasons": 1,
+    "download": {
+      "s1": [
+        {
+          "id": 122831,
+          "season": 1,
+          "season_int": 1,
+          "season_name": null,
+          "first_episode": 1,
+          "last_episode": 6,
+          "total_episode": 6,
+          "quality": "WEB-DL 1080p",
+          "size": "843 MB",
+          "encoder": "30nama",
+          "note": null,
+          "persian_subtitle": false,
+          "tags": [],
+          "link": [
+            {
+              "id": 7217251228312065696,
+              "dl": "https://eu-download-storage-12.hailey-cdn.com/download/2/12/807206/2065696/721725/2a13:7c00:9:16:f816:3eff:fec5:3597/1796036589/3030c11b9ac5e5176648ec7d7f94c013c51f8f7e8ea3143fe02a0bb358/series/4_blocks_zero/4_Blocks_Zero_S01E01_1080p_WEB-DL_30nama_30NAMA.mkv",
+              "episode": 1,
+              "mediainfo": "https://world.hana-api.com/api/v2/action/fileinfo/file/L21lZGlhaW5mby9zZXJpZXMvMTIvNF9ibG9ja3NfemVyby80X0Jsb2Nrc19aZXJvX1MwMUUwMV8xMDgwcF9XRUItRExfMzBuYW1hXzMwTkFNQS5ta3YuaHRtbA==",
+              "persian_subtitle": null,
+              "source": "4 blocks zero s01 1080p web h264 9minus5in"
+            },
+            {
+              "id": 7217251228312065697,
+              "dl": "https://eu-download-storage-12.hailey-cdn.com/download/2/12/807206/2065697/721725/2a13:7c00:9:16:f816:3eff:fec5:3597/1796036589/30bfb25605e3a8ff00d9e1d13ee771e2db03bc30914be2f1c34628a480/series/4_blocks_zero/4_Blocks_Zero_S01E02_1080p_WEB-DL_30nama_30NAMA.mkv",
+              "episode": 2,
+              "mediainfo": "https://world.hana-api.com/api/v2/action/fileinfo/file/L21lZGlhaW5mby9zZXJpZXMvMTIvNF9ibG9ja3NfemVyby80X0Jsb2Nrc19aZXJvX1MwMUUwMl8xMDgwcF9XRUItRExfMzBuYW1hXzMwTkFNQS5ta3YuaHRtbA==",
+              "persian_subtitle": null,
+              "source": "4 blocks zero s01 1080p web h264 9minus5in"
+            },
+            {
+              "id": 7217251228312065698,
+              "dl": "https://eu-download-storage-12.hailey-cdn.com/download/2/12/807206/2065698/721725/2a13:7c00:9:16:f816:3eff:fec5:3597/1796036589/30a9318e6bee5b9c7621bc7c5a73435bd15349449e5ddb8fc203868b84/series/4_blocks_zero/4_Blocks_Zero_S01E03_1080p_WEB-DL_30nama_30NAMA.mkv",
+              "episode": 3,
+              "mediainfo": "https://world.hana-api.com/api/v2/action/fileinfo/file/L21lZGlhaW5mby9zZXJpZXMvMTIvNF9ibG9ja3NfemVyby80X0Jsb2Nrc19aZXJvX1MwMUUwM18xMDgwcF9XRUItRExfMzBuYW1hXzMwTkFNQS5ta3YuaHRtbA==",
+              "persian_subtitle": null,
+              "source": "4 blocks zero s01 1080p web h264 9minus5in"
+            },
+            {
+              "id": 7217251228312065699,
+              "dl": "https://eu-download-storage-12.hailey-cdn.com/download/2/12/807206/2065699/721725/2a13:7c00:9:16:f816:3eff:fec5:3597/1796036589/302ddaf7396db00c12dffc9ded17c98265d83a6618fc10691a16e0813f/series/4_blocks_zero/4_Blocks_Zero_S01E04_1080p_WEB-DL_30nama_30NAMA.mkv",
+              "episode": 4,
+              "mediainfo": "https://world.hana-api.com/api/v2/action/fileinfo/file/L21lZGlhaW5mby9zZXJpZXMvMTIvNF9ibG9ja3NfemVyby80X0Jsb2Nrc19aZXJvX1MwMUUwNF8xMDgwcF9XRUItRExfMzBuYW1hXzMwTkFNQS5ta3YuaHRtbA==",
+              "persian_subtitle": null,
+              "source": "4 blocks zero s01 1080p web h264 9minus5in"
+            },
+            {
+              "id": 7217251228312065700,
+              "dl": "https://eu-download-storage-12.hailey-cdn.com/download/2/12/807206/2065700/721725/2a13:7c00:9:16:f816:3eff:fec5:3597/1796036589/30cf9fa3e0b86a4d7a237a85cab216d904b7f108bb663dfb835dfa27bf/series/4_blocks_zero/4_Blocks_Zero_S01E05_1080p_WEB-DL_30nama_30NAMA.mkv",
+              "episode": 5,
+              "mediainfo": "https://world.hana-api.com/api/v2/action/fileinfo/file/L21lZGlhaW5mby9zZXJpZXMvMTIvNF9ibG9ja3NfemVyby80X0Jsb2Nrc19aZXJvX1MwMUUwNV8xMDgwcF9XRUItRExfMzBuYW1hXzMwTkFNQS5ta3YuaHRtbA==",
+              "persian_subtitle": null,
+              "source": "4 blocks zero s01 1080p web h264 9minus5in"
+            },
+            {
+              "id": 7217251228312070217,
+              "dl": "https://eu-download-storage-12.hailey-cdn.com/download/2/12/807206/2070217/721725/2a13:7c00:9:16:f816:3eff:fec5:3597/1796036589/3064629bfdb5fcdbea519cdb66667c01d760aed0c164b385804d742dc6/series/4_blocks_zero/4_Blocks_Zero_S01E06_1080p_WEB-DL_30nama_30NAMA.mkv",
+              "episode": 6,
+              "mediainfo": "https://world.hana-api.com/api/v2/action/fileinfo/file/L21lZGlhaW5mby9zZXJpZXMvMTIvNF9ibG9ja3NfemVyby80X0Jsb2Nrc19aZXJvX1MwMUUwNl8xMDgwcF9XRUItRExfMzBuYW1hXzMwTkFNQS5ta3YuaHRtbA==",
+              "persian_subtitle": null,
+              "source": "4 Blocks Zero S01E06 Devil 1080p AMZN WEB DL DUAL DDP5 1 H 264 RAWR"
+            }
+          ]
+        },
+        {
+          "id": 122832,
+          "season": 1,
+          "season_int": 1,
+          "season_name": null,
+          "first_episode": 1,
+          "last_episode": 6,
+          "total_episode": 6,
+          "quality": "WEB-DL 720p",
+          "size": "410 MB",
+          "encoder": "30nama",
+          "note": null,
+          "persian_subtitle": false,
+          "tags": [],
+          "link": [
+            {
+              "id": 7217251228322065691,
+              "dl": "https://eu-download-storage-12.hailey-cdn.com/download/2/12/807206/2065691/721725/2a13:7c00:9:16:f816:3eff:fec5:3597/1796036589/30bb5c38c284f984bd802e78a39993a097768abf04a92a1931be804dd7/series/4_blocks_zero/4_Blocks_Zero_S01E01_720p_WEB-DL_30nama_30NAMA.mkv",
+              "episode": 1,
+              "mediainfo": "https://world.hana-api.com/api/v2/action/fileinfo/file/L21lZGlhaW5mby9zZXJpZXMvMTIvNF9ibG9ja3NfemVyby80X0Jsb2Nrc19aZXJvX1MwMUUwMV83MjBwX1dFQi1ETF8zMG5hbWFfMzBOQU1BLm1rdi5odG1s",
+              "persian_subtitle": null,
+              "source": "4 blocks zero s01 1080p web h264 9minus5in"
+            },
+            {
+              "id": 7217251228322065692,
+              "dl": "https://eu-download-storage-12.hailey-cdn.com/download/2/12/807206/2065692/721725/2a13:7c00:9:16:f816:3eff:fec5:3597/1796036589/3098f8d86e9dba7cdaa643026b5243e0100ea8e6818c8923faa6c741e3/series/4_blocks_zero/4_Blocks_Zero_S01E02_720p_WEB-DL_30nama_30NAMA.mkv",
+              "episode": 2,
+              "mediainfo": "https://world.hana-api.com/api/v2/action/fileinfo/file/L21lZGlhaW5mby9zZXJpZXMvMTIvNF9ibG9ja3NfemVyby80X0Jsb2Nrc19aZXJvX1MwMUUwMl83MjBwX1dFQi1ETF8zMG5hbWFfMzBOQU1BLm1rdi5odG1s",
+              "persian_subtitle": null,
+              "source": "4 blocks zero s01 1080p web h264 9minus5in"
+            },
+            {
+              "id": 7217251228322065693,
+              "dl": "https://eu-download-storage-12.hailey-cdn.com/download/2/12/807206/2065693/721725/2a13:7c00:9:16:f816:3eff:fec5:3597/1796036589/30a5aaa53710f6f770e906a5d184fa9f2b1efe17af334ab418a3bc5a96/series/4_blocks_zero/4_Blocks_Zero_S01E03_720p_WEB-DL_30nama_30NAMA.mkv",
+              "episode": 3,
+              "mediainfo": "https://world.hana-api.com/api/v2/action/fileinfo/file/L21lZGlhaW5mby9zZXJpZXMvMTIvNF9ibG9ja3NfemVyby80X0Jsb2Nrc19aZXJvX1MwMUUwM183MjBwX1dFQi1ETF8zMG5hbWFfMzBOQU1BLm1rdi5odG1s",
+              "persian_subtitle": null,
+              "source": "4 blocks zero s01 1080p web h264 9minus5in"
+            },
+            {
+              "id": 7217251228322065694,
+              "dl": "https://eu-download-storage-12.hailey-cdn.com/download/2/12/807206/2065694/721725/2a13:7c00:9:16:f816:3eff:fec5:3597/1796036589/30c548fed13f9d4327677591182aa0edfe460daea59bfa2e2e9f88c978/series/4_blocks_zero/4_Blocks_Zero_S01E04_720p_WEB-DL_30nama_30NAMA.mkv",
+              "episode": 4,
+              "mediainfo": "https://world.hana-api.com/api/v2/action/fileinfo/file/L21lZGlhaW5mby9zZXJpZXMvMTIvNF9ibG9ja3NfemVyby80X0Jsb2Nrc19aZXJvX1MwMUUwNF83MjBwX1dFQi1ETF8zMG5hbWFfMzBOQU1BLm1rdi5odG1s",
+              "persian_subtitle": null,
+              "source": "4 blocks zero s01 1080p web h264 9minus5in"
+            },
+            {
+              "id": 7217251228322065695,
+              "dl": "https://eu-download-storage-12.hailey-cdn.com/download/2/12/807206/2065695/721725/2a13:7c00:9:16:f816:3eff:fec5:3597/1796036589/30676d4eefcc350b935af9a6da0dfe7b74f36a7d8b28d559a26f935ef3/series/4_blocks_zero/4_Blocks_Zero_S01E05_720p_WEB-DL_30nama_30NAMA.mkv",
+              "episode": 5,
+              "mediainfo": "https://world.hana-api.com/api/v2/action/fileinfo/file/L21lZGlhaW5mby9zZXJpZXMvMTIvNF9ibG9ja3NfemVyby80X0Jsb2Nrc19aZXJvX1MwMUUwNV83MjBwX1dFQi1ETF8zMG5hbWFfMzBOQU1BLm1rdi5odG1s",
+              "persian_subtitle": null,
+              "source": "4 blocks zero s01 1080p web h264 9minus5in"
+            },
+            {
+              "id": 7217251228322070216,
+              "dl": "https://eu-download-storage-12.hailey-cdn.com/download/2/12/807206/2070216/721725/2a13:7c00:9:16:f816:3eff:fec5:3597/1796036589/3073cbebcf2bf24653fb8d7c987ac088894791fd9523b1d5680180b379/series/4_blocks_zero/4_Blocks_Zero_S01E06_720p_WEB-DL_30nama_30NAMA.mkv",
+              "episode": 6,
+              "mediainfo": "https://world.hana-api.com/api/v2/action/fileinfo/file/L21lZGlhaW5mby9zZXJpZXMvMTIvNF9ibG9ja3NfemVyby80X0Jsb2Nrc19aZXJvX1MwMUUwNl83MjBwX1dFQi1ETF8zMG5hbWFfMzBOQU1BLm1rdi5odG1s",
+              "persian_subtitle": null,
+              "source": "4 Blocks Zero S01E06 Devil 1080p AMZN WEB DL DUAL DDP5 1 H 264 RAWR"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "action": null,
+  "seo": null,
+  "timestamp": 1793444589
+}

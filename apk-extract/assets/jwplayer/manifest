@@ -1,0 +1,18 @@
+# This file must contain an HTML file with a div named 'container' for the player to load
+# Please find the file jwplayer-core/README.md inside for more detail in the process of upgrading.
+local-sdk://jwplayer_container.html
+local-sdk://mobile_workarounds.js
+local-player://jwplayer.js
+local-player://jwplayer.core.js
+local-player://jwpsrv.js
+local-player://vast.js
+local-sdk://html5_provider_mobile.js
+local-sdk://native_provider_pool.js
+local-sdk://native-playlistItem-callback.js
+local-sdk://related-sdk.js
+local-sdk://dai-plugin-sdk.js
+local-sdk://ima-plugin-sdk.js
+local-sdk://casting-plugin-sdk.js
+local-sdk://casting-provider-sdk.js
+local-sdk://skippable-ad-vmap-extension.js
+# All CSS files will be copied to the /css directory

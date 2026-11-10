@@ -1,0 +1,7 @@
+<advancedsettings>
+    <cache>
+        <buffermode>1</buffermode>
+        <memorysize>134217728</memorysize> <!-- 128 MB RAM cache for 4K HTTP MKVs -->
+        <readfactor>4.0</readfactor>
+    </cache>
+</advancedsettings>

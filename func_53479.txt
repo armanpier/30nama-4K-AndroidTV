@@ -1,0 +1,27 @@
+=> [Function #53479 "set language" of 77 bytes]: 2 params, frame size=13, strict=0, exc handler=0, debug info=0  @ offset 0x00a08e70
+
+Bytecode listing:
+
+==> 00000000: <LoadParam>: <Reg8: 4, UInt8: 1>
+==> 00000003: <GetEnvironment>: <Reg8: 0, UInt8: 0>
+==> 00000006: <LoadFromEnvironment>: <Reg8: 0, Reg8: 0, UInt8: 0>
+==> 0000000a: <GetById>: <Reg8: 1, Reg8: 0, UInt8: 1, string_id: 32302>  # String: 'language' (Identifier)
+==> 00000010: <GetByIdShort>: <Reg8: 0, Reg8: 1, UInt8: 2, string_id: 194>  # String: 'set' (Identifier)
+==> 00000015: <Call2>: <Reg8: 0, Reg8: 0, Reg8: 1, Reg8: 4>
+==> 0000001a: <GetEnvironment>: <Reg8: 0, UInt8: 1>
+==> 0000001d: <LoadFromEnvironment>: <Reg8: 2, Reg8: 0, UInt8: 0>
+==> 00000021: <LoadFromEnvironment>: <Reg8: 1, Reg8: 0, UInt8: 1>
+==> 00000025: <LoadConstUInt8>: <Reg8: 0, UInt8: 1>
+==> 00000028: <GetByVal>: <Reg8: 1, Reg8: 1, Reg8: 0>
+==> 0000002c: <LoadConstUndefined>: <Reg8: 0>
+==> 0000002e: <Call2>: <Reg8: 1, Reg8: 2, Reg8: 0, Reg8: 1>
+==> 00000033: <GetById>: <Reg8: 3, Reg8: 1, UInt8: 3, string_id: 27915>  # String: 'API' (Identifier)
+==> 00000039: <GetById>: <Reg8: 2, Reg8: 3, UInt8: 4, string_id: 32471>  # String: 'setConfig' (Identifier)
+==> 0000003f: <NewObject>: <Reg8: 1>
+==> 00000041: <PutNewOwnById>: <Reg8: 1, Reg8: 4, string_id: 32302>  # String: 'language' (Identifier)
+==> 00000046: <Call2>: <Reg8: 1, Reg8: 2, Reg8: 3, Reg8: 1>
+==> 0000004b: <Ret>: <Reg8: 0>
+
+
+===============
+

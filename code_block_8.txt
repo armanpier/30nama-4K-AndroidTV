@@ -1,0 +1,1 @@
+& "$env:LOCALAPPDATA\Android\Sdk\build-tools\<version>\zipalign.exe" -p -f -v 4 patched_unaligned.apk patched_aligned.apk

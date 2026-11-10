@@ -1,0 +1,1 @@
+& "$env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat" --list | Select-String "tv"

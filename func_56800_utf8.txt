@@ -1,0 +1,96 @@
+=> [Function #56800 "?anon_0_" of 378 bytes]: 1 params, frame size=21, strict=0, exc handler=0, debug info=0  @ offset 0x00a62cc5
+
+Bytecode listing:
+
+==> 00000000: <StartGenerator>: <>
+==> 00000001: <ResumeGenerator>: <Reg8: 0, Reg8: 1>
+==> 00000004: <JmpTrueLong>: <Addr32: 371, Reg8: 1>  # Address: 00000177
+==> 0000000a: <LoadConstUndefined>: <Reg8: 1>
+==> 0000000c: <LoadConstUndefined>: <Reg8: 3>
+==> 0000000e: <GetArgumentsLength>: <Reg8: 4, Reg8: 3>
+==> 00000011: <LoadConstZero>: <Reg8: 5>
+==> 00000013: <LoadConstTrue>: <Reg8: 2>
+==> 00000015: <JNotGreater>: <Addr8: 18, Reg8: 4, Reg8: 5>  # Address: 00000027
+==> 00000019: <GetArgumentsPropByVal>: <Reg8: 4, Reg8: 5, Reg8: 3>
+==> 0000001d: <LoadConstTrue>: <Reg8: 2>
+==> 0000001f: <JStrictEqual>: <Addr8: 8, Reg8: 4, Reg8: 1>  # Address: 00000027
+==> 00000023: <GetArgumentsPropByVal>: <Reg8: 2, Reg8: 5, Reg8: 3>
+==> 00000027: <JmpFalse>: <Addr8: 14, Reg8: 2>  # Address: 00000035
+==> 0000002a: <GetEnvironment>: <Reg8: 2, UInt8: 2>
+==> 0000002d: <LoadFromEnvironment>: <Reg8: 2, Reg8: 2, UInt8: 67>
+==> 00000031: <Call1>: <Reg8: 2, Reg8: 2, Reg8: 1>
+==> 00000035: <GetEnvironment>: <Reg8: 2, UInt8: 2>
+==> 00000038: <LoadFromEnvironment>: <Reg8: 3, Reg8: 2, UInt8: 21>
+==> 0000003c: <JmpFalseLong>: <Addr32: 312, Reg8: 3>  # Address: 00000174
+==> 00000042: <GetGlobalObject>: <Reg8: 3>
+==> 00000044: <TryGetById>: <Reg8: 7, Reg8: 3, UInt8: 1, string_id: 31>  # String: 'Object' (Identifier)
+==> 0000004a: <GetByIdShort>: <Reg8: 6, Reg8: 7, UInt8: 2, string_id: 172>  # String: 'keys' (Identifier)
+==> 0000004f: <LoadFromEnvironment>: <Reg8: 4, Reg8: 2, UInt8: 21>
+==> 00000053: <Call2>: <Reg8: 4, Reg8: 6, Reg8: 7, Reg8: 4>
+==> 00000058: <GetByIdShort>: <Reg8: 4, Reg8: 4, UInt8: 3, string_id: 178>  # String: 'length' (Identifier)
+==> 0000005d: <JNotGreaterLong>: <Addr32: 279, Reg8: 4, Reg8: 5>  # Address: 00000174
+==> 00000064: <LoadFromEnvironment>: <Reg8: 5, Reg8: 2, UInt8: 21>
+==> 00000068: <LoadFromEnvironment>: <Reg8: 4, Reg8: 2, UInt8: 3>
+==> 0000006c: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 4, string_id: 27674>  # String: 'video' (Identifier)
+==> 00000072: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 5, string_id: 28582>  # String: 'quality' (Identifier)
+==> 00000078: <GetByVal>: <Reg8: 4, Reg8: 5, Reg8: 4>
+==> 0000007c: <JmpTrue>: <Addr8: 52, Reg8: 4>  # Address: 000000b0
+==> 0000007f: <LoadFromEnvironment>: <Reg8: 5, Reg8: 2, UInt8: 24>
+==> 00000083: <LoadFromEnvironment>: <Reg8: 4, Reg8: 2, UInt8: 21>
+==> 00000087: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 6, string_id: 35904>  # String: 'خودکار' (Identifier)
+==> 0000008d: <GetByIdShort>: <Reg8: 4, Reg8: 4, UInt8: 7, string_id: 119>  # String: 'default' (Identifier)
+==> 00000092: <Call2>: <Reg8: 4, Reg8: 5, Reg8: 1, Reg8: 4>
+==> 00000097: <LoadFromEnvironment>: <Reg8: 5, Reg8: 2, UInt8: 3>
+==> 0000009b: <NewObjectWithBuffer>: <Reg8: 4, UInt16: 2, UInt16: 2, UInt16: 5669, UInt16: 2404>  # Object: {'quality': 'خودکار', 'audio': 'default'}
+==> 000000a5: <PutById>: <Reg8: 5, Reg8: 4, UInt8: 1, string_id: 27674>  # String: 'video' (Identifier)
+==> 000000ab: <JmpLong>: <Addr32: 168>  # Address: 00000153
+==> 000000b0: <LoadFromEnvironment>: <Reg8: 5, Reg8: 2, UInt8: 21>
+==> 000000b4: <LoadFromEnvironment>: <Reg8: 4, Reg8: 2, UInt8: 3>
+==> 000000b8: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 4, string_id: 27674>  # String: 'video' (Identifier)
+==> 000000be: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 5, string_id: 28582>  # String: 'quality' (Identifier)
+==> 000000c4: <GetByVal>: <Reg8: 5, Reg8: 5, Reg8: 4>
+==> 000000c8: <LoadFromEnvironment>: <Reg8: 4, Reg8: 2, UInt8: 3>
+==> 000000cc: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 4, string_id: 27674>  # String: 'video' (Identifier)
+==> 000000d2: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 8, string_id: 31857>  # String: 'audio' (Identifier)
+==> 000000d8: <GetByVal>: <Reg8: 6, Reg8: 5, Reg8: 4>
+==> 000000dc: <LoadFromEnvironment>: <Reg8: 4, Reg8: 2, UInt8: 24>
+==> 000000e0: <LoadFromEnvironment>: <Reg8: 7, Reg8: 2, UInt8: 21>
+==> 000000e4: <LoadFromEnvironment>: <Reg8: 5, Reg8: 2, UInt8: 3>
+==> 000000e8: <GetById>: <Reg8: 5, Reg8: 5, UInt8: 4, string_id: 27674>  # String: 'video' (Identifier)
+==> 000000ee: <GetById>: <Reg8: 5, Reg8: 5, UInt8: 5, string_id: 28582>  # String: 'quality' (Identifier)
+==> 000000f4: <GetByVal>: <Reg8: 5, Reg8: 7, Reg8: 5>
+==> 000000f8: <JmpTrue>: <Addr8: 66, Reg8: 6>  # Address: 0000013a
+==> 000000fb: <GetByIdShort>: <Reg8: 6, Reg8: 5, UInt8: 7, string_id: 119>  # String: 'default' (Identifier)
+==> 00000100: <Call2>: <Reg8: 6, Reg8: 4, Reg8: 1, Reg8: 6>
+==> 00000105: <LoadFromEnvironment>: <Reg8: 6, Reg8: 2, UInt8: 3>
+==> 00000109: <TryGetById>: <Reg8: 10, Reg8: 3, UInt8: 1, string_id: 31>  # String: 'Object' (Identifier)
+==> 0000010f: <GetByIdShort>: <Reg8: 9, Reg8: 10, UInt8: 9, string_id: 78>  # String: 'assign' (Identifier)
+==> 00000114: <LoadFromEnvironment>: <Reg8: 3, Reg8: 2, UInt8: 3>
+==> 00000118: <GetById>: <Reg8: 8, Reg8: 3, UInt8: 4, string_id: 27674>  # String: 'video' (Identifier)
+==> 0000011e: <NewObject>: <Reg8: 7>
+==> 00000120: <LoadConstString>: <Reg8: 3, string_id: 119>  # String: 'default' (Identifier)
+==> 00000124: <PutNewOwnById>: <Reg8: 7, Reg8: 3, string_id: 31857>  # String: 'audio' (Identifier)
+==> 00000129: <NewObject>: <Reg8: 3>
+==> 0000012b: <Call4>: <Reg8: 3, Reg8: 9, Reg8: 10, Reg8: 3, Reg8: 8, Reg8: 7>
+==> 00000132: <PutById>: <Reg8: 6, Reg8: 3, UInt8: 1, string_id: 27674>  # String: 'video' (Identifier)
+==> 00000138: <Jmp>: <Addr8: 27>  # Address: 00000153
+==> 0000013a: <LoadFromEnvironment>: <Reg8: 3, Reg8: 2, UInt8: 3>
+==> 0000013e: <GetById>: <Reg8: 3, Reg8: 3, UInt8: 4, string_id: 27674>  # String: 'video' (Identifier)
+==> 00000144: <GetById>: <Reg8: 3, Reg8: 3, UInt8: 8, string_id: 31857>  # String: 'audio' (Identifier)
+==> 0000014a: <GetByVal>: <Reg8: 3, Reg8: 5, Reg8: 3>
+==> 0000014e: <Call2>: <Reg8: 3, Reg8: 4, Reg8: 1, Reg8: 3>
+==> 00000153: <LoadFromEnvironment>: <Reg8: 3, Reg8: 2, UInt8: 25>
+==> 00000157: <LoadFromEnvironment>: <Reg8: 4, Reg8: 2, UInt8: 21>
+==> 0000015b: <LoadFromEnvironment>: <Reg8: 2, Reg8: 2, UInt8: 3>
+==> 0000015f: <GetById>: <Reg8: 2, Reg8: 2, UInt8: 4, string_id: 27674>  # String: 'video' (Identifier)
+==> 00000165: <GetById>: <Reg8: 2, Reg8: 2, UInt8: 5, string_id: 28582>  # String: 'quality' (Identifier)
+==> 0000016b: <GetByVal>: <Reg8: 2, Reg8: 4, Reg8: 2>
+==> 0000016f: <Call2>: <Reg8: 2, Reg8: 3, Reg8: 1, Reg8: 2>
+==> 00000174: <CompleteGenerator>: <>
+==> 00000175: <Ret>: <Reg8: 1>
+==> 00000177: <CompleteGenerator>: <>
+==> 00000178: <Ret>: <Reg8: 0>
+
+
+===============
+

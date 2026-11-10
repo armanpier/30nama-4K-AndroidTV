@@ -1,0 +1,47 @@
+=> [Function #55888 "?anon_0_" of 115 bytes]: 1 params, frame size=13, strict=0, exc handler=1, debug info=0  @ offset 0x00a49cfb
+  [Exception handlers: [start=0x2e, end=0x51, target=0x57] ]
+
+Bytecode listing:
+
+==> 00000000: <StartGenerator>: <>
+==> 00000001: <LoadThisNS>: <Reg8: 4>
+==> 00000003: <ResumeGenerator>: <Reg8: 0, Reg8: 1>
+==> 00000006: <JmpTrue>: <Addr8: 106, Reg8: 1>  # Address: 00000070
+==> 00000009: <GetEnvironment>: <Reg8: 1, UInt8: 3>
+==> 0000000c: <LoadFromEnvironment>: <Reg8: 2, Reg8: 1, UInt8: 10>
+==> 00000010: <JmpFalse>: <Addr8: 25, Reg8: 2>  # Address: 00000029
+==> 00000013: <LoadFromEnvironment>: <Reg8: 2, Reg8: 1, UInt8: 8>
+==> 00000017: <GetByIdShort>: <Reg8: 2, Reg8: 2, UInt8: 1, string_id: 34>  # String: 'Platform' (Identifier)
+==> 0000001c: <GetByIdShort>: <Reg8: 3, Reg8: 2, UInt8: 2, string_id: 30>  # String: 'OS' (Identifier)
+==> 00000021: <LoadConstString>: <Reg8: 2, string_id: 29025>  # String: 'android' (Identifier)
+==> 00000025: <JStrictEqual>: <Addr8: 9, Reg8: 3, Reg8: 2>  # Address: 0000002e
+==> 00000029: <LoadConstUndefined>: <Reg8: 2>
+==> 0000002b: <CompleteGenerator>: <>
+==> 0000002c: <Ret>: <Reg8: 2>
+==> 0000002e: <LoadFromEnvironment>: <Reg8: 3, Reg8: 1, UInt8: 10>
+==> 00000032: <GetById>: <Reg8: 2, Reg8: 3, UInt8: 3, string_id: 35183>  # String: 'getQualityLevels' (Identifier)
+==> 00000038: <GetById>: <Reg8: 1, Reg8: 4, UInt8: 4, string_id: 35185>  # String: 'getRNJWPlayerBridgeHandle' (Identifier)
+==> 0000003e: <Call1>: <Reg8: 1, Reg8: 1, Reg8: 4>
+==> 00000042: <Call2>: <Reg8: 1, Reg8: 2, Reg8: 3, Reg8: 1>
+==> 00000047: <SaveGenerator>: <Addr8: 4>  # Address: 0000004b
+==> 00000049: <Ret>: <Reg8: 1>
+==> 0000004b: <ResumeGenerator>: <Reg8: 1, Reg8: 2>
+==> 0000004e: <JmpTrue>: <Addr8: 6, Reg8: 2>  # Address: 00000054
+==> 00000051: <CompleteGenerator>: <>
+==> 00000052: <Ret>: <Reg8: 1>
+==> 00000054: <CompleteGenerator>: <>
+==> 00000055: <Ret>: <Reg8: 1>
+==> 00000057: <Catch>: <Reg8: 3>
+==> 00000059: <GetGlobalObject>: <Reg8: 1>
+==> 0000005b: <TryGetById>: <Reg8: 2, Reg8: 1, UInt8: 5, string_id: 110>  # String: 'console' (Identifier)
+==> 00000061: <GetByIdShort>: <Reg8: 1, Reg8: 2, UInt8: 6, string_id: 131>  # String: 'error' (Identifier)
+==> 00000066: <Call2>: <Reg8: 1, Reg8: 1, Reg8: 2, Reg8: 3>
+==> 0000006b: <LoadConstNull>: <Reg8: 1>
+==> 0000006d: <CompleteGenerator>: <>
+==> 0000006e: <Ret>: <Reg8: 1>
+==> 00000070: <CompleteGenerator>: <>
+==> 00000071: <Ret>: <Reg8: 0>
+
+
+===============
+

@@ -1,0 +1,1 @@
+& "$env:LOCALAPPDATA\Android\Sdk\build-tools\<version>\apksigner.bat" sign --ks debug.keystore --ks-pass pass:android patched_aligned.apk

@@ -1,0 +1,8 @@
+<settings version="2">
+    <setting id="c_token">eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJraWQiOiI2NzA5MGRjYWUwOGEwMTI5MTc3YTEyYjY5NDBmNTFlZGNiMjMwNzRiIiwidWlkIjo4MDcyMDZ9.utKE6Lihr20qmT42ejwRJ-77VNv0WdQwKM0FfCbPn0M</setting>
+    <setting id="proxy_url">http://127.0.0.1:10808</setting>
+    <setting id="tv_api_key">VdapnkLG9EHsSmF8yeKcb4253RAuN6YX</setting>
+    <setting id="desktop_api_key">et7bRHdhmL468C5BcNrEMYTWGfz3a9vJ</setting>
+    <setting id="auto_fix_persian_encoding">true</setting>
+    <setting id="sub_priority">0</setting>
+</settings>

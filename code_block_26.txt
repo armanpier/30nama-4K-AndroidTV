@@ -1,0 +1,5 @@
+plugin.video.30nama/
+├── addon.xml
+├── default.py
+└── resources/
+    └── settings.xml

@@ -1,0 +1,9 @@
+const-string v2, "string"
+
+invoke-interface {p5, v2}, Lcom/facebook/react/bridge/ReadableMap;->hasKey(Ljava/lang/String;)Z
+move-result v3
+
+if-eqz v3, :cond_...
+
+invoke-interface {p5, v2}, Lcom/facebook/react/bridge/ReadableMap;->getString(Ljava/lang/String;)Ljava/lang/String;
+move-result-object v2

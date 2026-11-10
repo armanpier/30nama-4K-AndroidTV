@@ -1,0 +1,14 @@
+{
+  "streams": [
+    {
+      "name": "4K 2160p HEVC",
+      "title": "2160p BluRay 10bit x265 - 14.2 GB (Direct Download Stream)",
+      "url": "https://cdn.example.com/dl/.../Movie.2026.2160p.mkv"
+    },
+    {
+      "name": "1080p",
+      "title": "1080p BluRay x264 - 3.5 GB",
+      "url": "https://cdn.example.com/dl/.../Movie.2026.1080p.mkv"
+    }
+  ]
+}

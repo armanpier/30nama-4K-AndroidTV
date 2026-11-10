@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+    <category label="Account &amp; API Configuration">
+        <setting id="base_url" type="text" label="Site Base URL (e.g. https://30nama.com)" default="https://30nama.com"/>
+        <setting id="api_base_url" type="text" label="API Base URL (leave blank to use Site Base URL + /api/v1)" default=""/>
+        <setting id="c_token" type="text" label="Session Token (c-token)" default=""/>
+        <setting id="web_cookie" type="text" label="Optional Web Cookie (for direct HTML download scraping)" default=""/>
+        <setting id="tv_api_key" type="text" label="TV API Key (for User/Home/Login)" default="VdapnkLG9"/>
+        <setting id="desktop_api_key" type="text" label="Desktop API Key (for 4K Stream Endpoint)" default="et7bRH"/>
+    </category>
+    <category label="Subtitles &amp; 4K Playback">
+        <setting id="sub_priority" type="enum" label="Primary Subtitle Language" values="Persian First (then English)|English First (then Persian)" default="0"/>
+        <setting id="auto_fix_persian_encoding" type="bool" label="Auto-Convert Persian CP1256 Subtitles to UTF-8" default="true"/>
+        <setting id="prefer_4k_sort" type="bool" label="Sort 4K (2160p) Links to Top of List" default="true"/>
+    </category>
+</settings>

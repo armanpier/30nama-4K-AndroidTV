@@ -1,0 +1,1 @@
+& "C:\Users\Arman\.android\bin\android-cli.exe" sdk install "system-images;android-34;google_atv;x86_64"

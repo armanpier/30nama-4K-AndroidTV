@@ -1,0 +1,11 @@
+NetworkingModule.setCustomClientBuilder(builder -> {
+    builder.addInterceptor(chain -> {
+        Request original = chain.request();
+        String url = original.url().toString();
+        if (url.contains("stream")) {
+            String updatedUrl = url.replace("VdapnkLG9_DEFAULT_PROFILE_KEY", "et7bRH_HIGH_RES_PROFILE_KEY");
+            original = original.newBuilder().url(updatedUrl).build();
+        }
+        return chain.proceed(original);
+    });
+});

@@ -49,8 +49,15 @@ object PingTester {
     ) = withContext(Dispatchers.IO) {
         if (nodes.isEmpty()) return@withContext
         if (nodes.size == 1) {
-            onFirstOkNode(nodes[0])
-            onFastestNodeFound(nodes[0])
+            val single = nodes[0]
+            val delay = measureRealDelay(single, 5000L)
+            if (delay > 0) {
+                single.latencyMs = delay
+                onFirstOkNode(single)
+                onFastestNodeFound(single)
+            } else {
+                AppLogger.logUser("⚠️ سرور [${single.remark}] پاسخ نداد.")
+            }
             return@withContext
         }
 

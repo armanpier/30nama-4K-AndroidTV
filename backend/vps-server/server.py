@@ -24,9 +24,9 @@ BACKUP_PATH = "/etc/asanvpn/data.json"
 ADMIN_PASSWORD = "Arman4237340"
 SUPPORT_PHONE = "+989120000000"
 SUPPORT_TELEGRAM = "AsanSupport"
-APP_VERSION = "1.3.8"
-APP_VERSION_CODE = 14
-GITHUB_APK_URL = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.8/AsanVPN-v1.3.8-universal.apk"
+APP_VERSION = "1.3.9"
+APP_VERSION_CODE = 15
+GITHUB_APK_URL = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.9/AsanVPN-v1.3.9-universal.apk"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 

@@ -254,9 +254,10 @@ class VpnRepository(private val context: Context) {
     // Obfuscated endpoints to prevent static string extraction
     private val workerEndpoints by lazy {
         listOf(
-            sec("Mi4uKilgdXU7KTs0LCo0dy01KDE/KHQyM3c+Pyo2NSN0LTUoMT8oKXQ+Pyw="),
-            sec("Mi4uKilgdXUpKjsoPzU0P3QzOS8="),
-            sec("Mi4uKilgdXU1NC4yPyo1MzQudDYzLD8=")
+            sec("Mi4uKilgdXU7KTs0LCo0dz47KTI4NTsoPnQ7KDc7NCozPyh3NSIsKCJ0OygsOzQ/Pj0/dDMo"), // ArvanCloud Edge Gateway (Iran Direct - Unblocked)
+            sec("Mi4uKilgdXU7KTs0LCo0dy01KDE/KHQyM3c+Pyo2NSN0LTUoMT8oKXQ+Pyw="), // Cloudflare Worker (Fallback 1)
+            sec("Mi4uKilgdXUpKjsoPzU0P3QzOS8="), // spareone.icu (Fallback 2)
+            sec("Mi4uKilgdXU1NC4yPyo1MzQudDYzLD8=") // onthepoint.live (Fallback 3)
         )
     }
 

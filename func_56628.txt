@@ -1,0 +1,58 @@
+=> [Function #56628 "useSDK" of 233 bytes]: 1 params, frame size=20, strict=0, exc handler=0, debug info=0  @ offset 0x00a5a7f8
+
+Bytecode listing:
+
+==> 00000000: <CreateEnvironment>: <Reg8: 1>
+==> 00000002: <GetEnvironment>: <Reg8: 5, UInt8: 0>
+==> 00000005: <LoadFromEnvironment>: <Reg8: 0, Reg8: 5, UInt8: 3>
+==> 00000009: <GetByIdShort>: <Reg8: 2, Reg8: 0, UInt8: 1, string_id: 119>  # String: 'default' (Identifier)
+==> 0000000e: <LoadConstUndefined>: <Reg8: 0>
+==> 00000010: <Call1>: <Reg8: 2, Reg8: 2, Reg8: 0>
+==> 00000014: <StoreToEnvironment>: <Reg8: 1, UInt8: 0, Reg8: 2>
+==> 00000018: <LoadFromEnvironment>: <Reg8: 3, Reg8: 5, UInt8: 0>
+==> 0000001c: <LoadFromEnvironment>: <Reg8: 4, Reg8: 5, UInt8: 1>
+==> 00000020: <LoadConstUInt8>: <Reg8: 2, UInt8: 5>
+==> 00000023: <GetByVal>: <Reg8: 2, Reg8: 4, Reg8: 2>
+==> 00000027: <Call2>: <Reg8: 2, Reg8: 3, Reg8: 0, Reg8: 2>
+==> 0000002c: <GetById>: <Reg8: 2, Reg8: 2, UInt8: 2, string_id: 33546>  # String: 'useSettingsStore' (Identifier)
+==> 00000032: <Call1>: <Reg8: 6, Reg8: 2, Reg8: 0>
+==> 00000036: <LoadConstUInt8>: <Reg8: 2, UInt8: 6>
+==> 00000039: <GetByVal>: <Reg8: 7, Reg8: 4, Reg8: 2>
+==> 0000003d: <Call2>: <Reg8: 7, Reg8: 3, Reg8: 0, Reg8: 7>
+==> 00000042: <GetById>: <Reg8: 8, Reg8: 7, UInt8: 3, string_id: 27915>  # String: 'API' (Identifier)
+==> 00000048: <GetById>: <Reg8: 7, Reg8: 8, UInt8: 4, string_id: 32471>  # String: 'setConfig' (Identifier)
+==> 0000004e: <LoadFromEnvironment>: <Reg8: 9, Reg8: 5, UInt8: 4>
+==> 00000052: <GetByIdShort>: <Reg8: 9, Reg8: 9, UInt8: 1, string_id: 119>  # String: 'default' (Identifier)
+==> 00000057: <Call1>: <Reg8: 11, Reg8: 9, Reg8: 0>
+==> 0000005b: <GetById>: <Reg8: 10, Reg8: 6, UInt8: 5, string_id: 32302>  # String: 'language' (Identifier)
+==> 00000061: <LoadConstUInt8>: <Reg8: 6, UInt8: 7>
+==> 00000064: <GetByVal>: <Reg8: 6, Reg8: 4, Reg8: 6>
+==> 00000068: <Call2>: <Reg8: 6, Reg8: 3, Reg8: 0, Reg8: 6>
+==> 0000006d: <GetById>: <Reg8: 6, Reg8: 6, UInt8: 6, string_id: 35214>  # String: 'getUserAgent' (Identifier)
+==> 00000073: <Call1>: <Reg8: 9, Reg8: 6, Reg8: 0>
+==> 00000077: <NewObjectWithBuffer>: <Reg8: 6, UInt16: 7, UInt16: 6, UInt16: 5310, UInt16: 4367>  # Object: {'endpoint': null, 'language': null, 'platform': 'ANDROIDTV', 'version': '1.0.0', 'requestRetries': 2, 'debug': false}
+==> 00000081: <PutById>: <Reg8: 6, Reg8: 11, UInt8: 1, string_id: 28343>  # String: 'endpoint' (Identifier)
+==> 00000087: <PutById>: <Reg8: 6, Reg8: 10, UInt8: 2, string_id: 32302>  # String: 'language' (Identifier)
+==> 0000008d: <PutNewOwnById>: <Reg8: 6, Reg8: 9, string_id: 35863>  # String: 'userAgent' (Identifier)
+==> 00000092: <Call2>: <Reg8: 6, Reg8: 7, Reg8: 8, Reg8: 6>
+==> 00000097: <GetByVal>: <Reg8: 6, Reg8: 4, Reg8: 2>
+==> 0000009b: <Call2>: <Reg8: 6, Reg8: 3, Reg8: 0, Reg8: 6>
+==> 000000a0: <GetById>: <Reg8: 7, Reg8: 6, UInt8: 3, string_id: 27915>  # String: 'API' (Identifier)
+==> 000000a6: <GetById>: <Reg8: 6, Reg8: 7, UInt8: 7, string_id: 33157>  # String: 'setAPIStore' (Identifier)
+==> 000000ac: <LoadFromEnvironment>: <Reg8: 5, Reg8: 5, UInt8: 2>
+==> 000000b0: <GetByIdShort>: <Reg8: 8, Reg8: 5, UInt8: 1, string_id: 119>  # String: 'default' (Identifier)
+==> 000000b5: <CreateGeneratorClosure>: <Reg8: 5, Reg8: 1, function_id: 56629>  # Function: [#56629  of 9 bytes]: 1 params @ offset 0x00a5a8e1
+==> 000000ba: <Call2>: <Reg8: 5, Reg8: 8, Reg8: 0, Reg8: 5>
+==> 000000bf: <Call2>: <Reg8: 5, Reg8: 6, Reg8: 7, Reg8: 5>
+==> 000000c4: <GetByVal>: <Reg8: 2, Reg8: 4, Reg8: 2>
+==> 000000c8: <Call2>: <Reg8: 2, Reg8: 3, Reg8: 0, Reg8: 2>
+==> 000000cd: <GetById>: <Reg8: 3, Reg8: 2, UInt8: 3, string_id: 27915>  # String: 'API' (Identifier)
+==> 000000d3: <GetById>: <Reg8: 2, Reg8: 3, UInt8: 8, string_id: 35526>  # String: 'setAPIEmmiter' (Identifier)
+==> 000000d9: <CreateClosure>: <Reg8: 1, Reg8: 1, function_id: 56631>  # Function: [#56631  of 37 bytes]: 1 params @ offset 0x00a5a904
+==> 000000de: <Call1>: <Reg8: 1, Reg8: 1, Reg8: 0>
+==> 000000e2: <Call2>: <Reg8: 1, Reg8: 2, Reg8: 3, Reg8: 1>
+==> 000000e7: <Ret>: <Reg8: 0>
+
+
+===============
+

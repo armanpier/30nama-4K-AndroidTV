@@ -1,0 +1,9 @@
+Intent intent = new Intent(Intent.ACTION_VIEW);
+intent.setDataAndType(Uri.parse(directDownload4kUrl), "video/*");
+// Optional: pass custom HTTP headers if the download server checks Referer or Cookies
+Bundle headers = new Bundle();
+headers.putString("User-Agent", "Mozilla/5.0 ...");
+headers.putString("Cookie", "c-token=...");
+intent.putExtra("android.media.intent.extra.HTTP_HEADERS", headers);
+intent.putExtra("headers", new String[]{"User-Agent", "Mozilla/5.0 ...", "Cookie", "c-token=..."}); // MX/Vimu format
+startActivity(intent);

@@ -1,0 +1,12 @@
+import xbmcgui, xbmcplugin
+
+play_item = xbmcgui.ListItem(path=mkv_4k_download_url)
+
+# Attach both Persian and English external .srt URLs scraped from the movie page
+# (If the site gives a .zip, the Python script unzips it in RAM/temp and passes both .srt files)
+play_item.setSubtitles([
+    persian_srt_path_or_url,
+    english_srt_path_or_url
+])
+
+xbmcplugin.setResolvedUrl(addon_handle, True, listitem=play_item)

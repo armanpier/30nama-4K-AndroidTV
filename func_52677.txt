@@ -1,0 +1,69 @@
+=> [Function #52677 "?anon_0_" of 234 bytes]: 1 params, frame size=18, strict=1, exc handler=0, debug info=0  @ offset 0x009f0dcb
+
+Bytecode listing:
+
+==> 00000000: <StartGenerator>: <>
+==> 00000001: <LoadParam>: <Reg8: 1, UInt8: 0>
+==> 00000004: <LoadConstString>: <Reg8: 2, string_id: 26468>  # String: '' (Identifier)
+==> 00000008: <LoadConstString>: <Reg8: 3, string_id: 27183>  # String: 'true' (Identifier)
+==> 0000000c: <ResumeGenerator>: <Reg8: 0, Reg8: 4>
+==> 0000000f: <JmpTrueLong>: <Addr32: 216, Reg8: 4>  # Address: 000000e7
+==> 00000015: <GetById>: <Reg8: 9, Reg8: 1, UInt8: 1, string_id: 27083>  # String: 'token' (Identifier)
+==> 0000001b: <GetById>: <Reg8: 8, Reg8: 1, UInt8: 2, string_id: 31037>  # String: 'overrideSession' (Identifier)
+==> 00000021: <JmpTrue>: <Addr8: 29, Reg8: 8>  # Address: 0000003e
+==> 00000024: <GetById>: <Reg8: 4, Reg8: 1, UInt8: 3, string_id: 26781>  # String: 'store' (Identifier)
+==> 0000002a: <Call1>: <Reg8: 4, Reg8: 4, Reg8: 1>
+==> 0000002e: <SaveGenerator>: <Addr8: 4>  # Address: 00000032
+==> 00000030: <Ret>: <Reg8: 4>
+==> 00000032: <ResumeGenerator>: <Reg8: 4, Reg8: 5>
+==> 00000035: <Mov>: <Reg8: 8, Reg8: 4>
+==> 00000038: <JmpFalse>: <Addr8: 6, Reg8: 5>  # Address: 0000003e
+==> 0000003b: <CompleteGenerator>: <>
+==> 0000003c: <Ret>: <Reg8: 4>
+==> 0000003e: <JmpTrue>: <Addr8: 6, Reg8: 8>  # Address: 00000044
+==> 00000041: <Mov>: <Reg8: 8, Reg8: 2>
+==> 00000044: <GetByIdShort>: <Reg8: 4, Reg8: 1, UInt8: 4, string_id: 108>  # String: 'config' (Identifier)
+==> 00000049: <GetById>: <Reg8: 7, Reg8: 4, UInt8: 5, string_id: 26778>  # String: 'version' (Identifier)
+==> 0000004f: <GetByIdShort>: <Reg8: 4, Reg8: 1, UInt8: 4, string_id: 108>  # String: 'config' (Identifier)
+==> 00000054: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 6, string_id: 29407>  # String: 'debug' (Identifier)
+==> 0000005a: <Mov>: <Reg8: 6, Reg8: 2>
+==> 0000005d: <JmpFalse>: <Addr8: 6, Reg8: 4>  # Address: 00000063
+==> 00000060: <Mov>: <Reg8: 6, Reg8: 3>
+==> 00000063: <GetByIdShort>: <Reg8: 4, Reg8: 1, UInt8: 4, string_id: 108>  # String: 'config' (Identifier)
+==> 00000068: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 6, string_id: 29407>  # String: 'debug' (Identifier)
+==> 0000006e: <Mov>: <Reg8: 5, Reg8: 2>
+==> 00000071: <JmpFalse>: <Addr8: 6, Reg8: 4>  # Address: 00000077
+==> 00000074: <Mov>: <Reg8: 5, Reg8: 3>
+==> 00000077: <GetByIdShort>: <Reg8: 3, Reg8: 1, UInt8: 4, string_id: 108>  # String: 'config' (Identifier)
+==> 0000007c: <GetById>: <Reg8: 4, Reg8: 3, UInt8: 7, string_id: 32302>  # String: 'language' (Identifier)
+==> 00000082: <GetByIdShort>: <Reg8: 1, Reg8: 1, UInt8: 4, string_id: 108>  # String: 'config' (Identifier)
+==> 00000087: <GetById>: <Reg8: 3, Reg8: 1, UInt8: 8, string_id: 35863>  # String: 'userAgent' (Identifier)
+==> 0000008d: <NewObject>: <Reg8: 1>
+==> 0000008f: <LoadConstString>: <Reg8: 10, string_id: 16844>  # String: 'application/x-www-form-urlencoded' (String)
+==> 00000093: <PutNewOwnById>: <Reg8: 1, Reg8: 10, string_id: 30159>  # String: 'Content-Type' (Identifier)
+==> 00000098: <PutNewOwnById>: <Reg8: 1, Reg8: 9, string_id: 33035>  # String: 'c-api-key' (Identifier)
+==> 0000009d: <PutNewOwnById>: <Reg8: 1, Reg8: 8, string_id: 34911>  # String: 'c-token' (Identifier)
+==> 000000a2: <PutNewOwnById>: <Reg8: 1, Reg8: 7, string_id: 33310>  # String: 'c-version-number' (Identifier)
+==> 000000a7: <PutNewOwnById>: <Reg8: 1, Reg8: 6, string_id: 33946>  # String: 'c-bypass-limits' (Identifier)
+==> 000000ac: <PutNewOwnById>: <Reg8: 1, Reg8: 5, string_id: 33947>  # String: 'c-return-requests' (Identifier)
+==> 000000b1: <PutNewOwnById>: <Reg8: 1, Reg8: 4, string_id: 31915>  # String: 'c-language' (Identifier)
+==> 000000b6: <PutNewOwnById>: <Reg8: 1, Reg8: 3, string_id: 30874>  # String: 'user-agent' (Identifier)
+==> 000000bb: <PutNewOwnById>: <Reg8: 1, Reg8: 2, string_id: 33376>  # String: 'c-ssr-user-ip' (Identifier)
+==> 000000c0: <Mov>: <Reg8: 5, Reg8: 1>
+==> 000000c3: <GetPNameList>: <Reg8: 6, Reg8: 5, Reg8: 4, Reg8: 3>
+==> 000000c8: <JmpUndefined>: <Addr8: 28, Reg8: 6>  # Address: 000000e4
+==> 000000cb: <GetNextPName>: <Reg8: 2, Reg8: 6, Reg8: 5, Reg8: 4, Reg8: 3>
+==> 000000d1: <JmpUndefined>: <Addr8: 19, Reg8: 2>  # Address: 000000e4
+==> 000000d4: <Mov>: <Reg8: 7, Reg8: 2>
+==> 000000d7: <GetByVal>: <Reg8: 8, Reg8: 1, Reg8: 7>
+==> 000000db: <JmpTrue>: <Addr8: -16, Reg8: 8>  # Address: 000000cb
+==> 000000de: <DelByVal>: <Reg8: 7, Reg8: 1, Reg8: 7>
+==> 000000e2: <Jmp>: <Addr8: -23>  # Address: 000000cb
+==> 000000e4: <CompleteGenerator>: <>
+==> 000000e5: <Ret>: <Reg8: 1>
+==> 000000e7: <CompleteGenerator>: <>
+==> 000000e8: <Ret>: <Reg8: 0>
+
+
+===============
+

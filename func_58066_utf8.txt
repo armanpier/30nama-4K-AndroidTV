@@ -1,0 +1,74 @@
+=> [Function #58066 "" of 278 bytes]: 2 params, frame size=25, strict=0, exc handler=0, debug info=0  @ offset 0x00a83d11
+
+Bytecode listing:
+
+==> 00000000: <CreateEnvironment>: <Reg8: 8>
+==> 00000002: <LoadParam>: <Reg8: 4, UInt8: 1>
+==> 00000005: <GetEnvironment>: <Reg8: 0, UInt8: 1>
+==> 00000008: <LoadFromEnvironment>: <Reg8: 2, Reg8: 0, UInt8: 0>
+==> 0000000c: <LoadFromEnvironment>: <Reg8: 1, Reg8: 0, UInt8: 1>
+==> 00000010: <LoadConstUInt8>: <Reg8: 6, UInt8: 9>
+==> 00000013: <GetByVal>: <Reg8: 1, Reg8: 1, Reg8: 6>
+==> 00000017: <LoadConstUndefined>: <Reg8: 3>
+==> 00000019: <Call2>: <Reg8: 1, Reg8: 2, Reg8: 3, Reg8: 1>
+==> 0000001e: <GetByIdShort>: <Reg8: 2, Reg8: 1, UInt8: 1, string_id: 40>  # String: 'jsx' (Identifier)
+==> 00000023: <LoadFromEnvironment>: <Reg8: 1, Reg8: 0, UInt8: 6>
+==> 00000027: <GetByIdShort>: <Reg8: 1, Reg8: 1, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 0000002c: <LoadConstString>: <Reg8: 5, string_id: 35904>  # String: 'خودکار' (Identifier)
+==> 00000030: <StrictEq>: <Reg8: 14, Reg8: 4, Reg8: 5>
+==> 00000034: <Mov>: <Reg8: 13, Reg8: 4>
+==> 00000037: <JmpFalse>: <Addr8: 16, Reg8: 14>  # Address: 00000047
+==> 0000003a: <GetEnvironment>: <Reg8: 5, UInt8: 0>
+==> 0000003d: <LoadFromEnvironment>: <Reg8: 5, Reg8: 5, UInt8: 4>
+==> 00000041: <GetById>: <Reg8: 13, Reg8: 5, UInt8: 3, string_id: 34479>  # String: 'VideoSettingsAudioDefault' (Identifier)
+==> 00000047: <StoreToEnvironment>: <Reg8: 8, UInt8: 0, Reg8: 4>
+==> 0000004b: <LoadFromEnvironment>: <Reg8: 5, Reg8: 0, UInt8: 7>
+==> 0000004f: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 00000054: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 4, string_id: 82>  # String: 'bg' (Identifier)
+==> 00000059: <GetByVal>: <Reg8: 12, Reg8: 5, Reg8: 6>
+==> 0000005d: <LoadFromEnvironment>: <Reg8: 5, Reg8: 0, UInt8: 7>
+==> 00000061: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 00000066: <GetByIdShort>: <Reg8: 6, Reg8: 5, UInt8: 4, string_id: 82>  # String: 'bg' (Identifier)
+==> 0000006b: <LoadConstUInt8>: <Reg8: 5, UInt8: 3>
+==> 0000006e: <GetByVal>: <Reg8: 11, Reg8: 6, Reg8: 5>
+==> 00000072: <LoadFromEnvironment>: <Reg8: 5, Reg8: 0, UInt8: 7>
+==> 00000076: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 0000007b: <GetByIdShort>: <Reg8: 6, Reg8: 5, UInt8: 5, string_id: 142>  # String: 'fonts' (Identifier)
+==> 00000080: <LoadConstUInt8>: <Reg8: 5, UInt8: 50>
+==> 00000083: <GetByVal>: <Reg8: 10, Reg8: 6, Reg8: 5>
+==> 00000087: <LoadFromEnvironment>: <Reg8: 5, Reg8: 0, UInt8: 7>
+==> 0000008b: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 00000090: <GetByIdShort>: <Reg8: 6, Reg8: 5, UInt8: 5, string_id: 142>  # String: 'fonts' (Identifier)
+==> 00000095: <LoadConstInt>: <Reg8: 5, Imm32: 900>
+==> 0000009b: <GetByVal>: <Reg8: 9, Reg8: 6, Reg8: 5>
+==> 0000009f: <GetEnvironment>: <Reg8: 5, UInt8: 0>
+==> 000000a2: <LoadFromEnvironment>: <Reg8: 5, Reg8: 5, UInt8: 5>
+==> 000000a6: <GetById>: <Reg8: 5, Reg8: 5, UInt8: 6, string_id: 27674>  # String: 'video' (Identifier)
+==> 000000ac: <GetById>: <Reg8: 7, Reg8: 5, UInt8: 7, string_id: 28582>  # String: 'quality' (Identifier)
+==> 000000b2: <LoadFromEnvironment>: <Reg8: 0, Reg8: 0, UInt8: 7>
+==> 000000b6: <GetByIdShort>: <Reg8: 0, Reg8: 0, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 000000bb: <GetById>: <Reg8: 5, Reg8: 0, UInt8: 8, string_id: 35689>  # String: 'primary' (Identifier)
+==> 000000c1: <LoadConstInt>: <Reg8: 0, Imm32: 500>
+==> 000000c7: <GetByVal>: <Reg8: 6, Reg8: 5, Reg8: 0>
+==> 000000cb: <NewObject>: <Reg8: 5>
+==> 000000cd: <LoadConstUInt8>: <Reg8: 0, UInt8: 25>
+==> 000000d0: <PutNewOwnById>: <Reg8: 5, Reg8: 0, string_id: 35485>  # String: 'marginEnd' (Identifier)
+==> 000000d5: <NewObject>: <Reg8: 0>
+==> 000000d7: <PutNewOwnByIdShort>: <Reg8: 0, Reg8: 14, string_id: 155>  # String: 'hasTVPreferredFocus' (Identifier)
+==> 000000db: <PutNewOwnByIdShort>: <Reg8: 0, Reg8: 13, string_id: 20>  # String: 'text' (Identifier)
+==> 000000df: <PutNewOwnByIdShort>: <Reg8: 0, Reg8: 12, string_id: 79>  # String: 'backgroundColor' (Identifier)
+==> 000000e3: <PutNewOwnById>: <Reg8: 0, Reg8: 11, string_id: 35082>  # String: 'focusedBackgroundColor' (Identifier)
+==> 000000e8: <PutNewOwnById>: <Reg8: 0, Reg8: 10, string_id: 34591>  # String: 'textColor' (Identifier)
+==> 000000ed: <PutNewOwnById>: <Reg8: 0, Reg8: 9, string_id: 35084>  # String: 'focusedTextColor' (Identifier)
+==> 000000f2: <CreateClosure>: <Reg8: 8, Reg8: 8, function_id: 58067>  # Function: [#58067 onPress of 59 bytes]: 1 params @ offset 0x00a83e27
+==> 000000f7: <PutNewOwnByIdShort>: <Reg8: 0, Reg8: 8, string_id: 197>  # String: 'onPress' (Identifier)
+==> 000000fb: <StrictEq>: <Reg8: 7, Reg8: 7, Reg8: 4>
+==> 000000ff: <PutNewOwnById>: <Reg8: 0, Reg8: 7, string_id: 27105>  # String: 'selected' (Identifier)
+==> 00000104: <PutNewOwnById>: <Reg8: 0, Reg8: 6, string_id: 35472>  # String: 'selectedBackgroundColor' (Identifier)
+==> 00000109: <PutNewOwnByIdShort>: <Reg8: 0, Reg8: 5, string_id: 232>  # String: 'style' (Identifier)
+==> 0000010d: <Call4>: <Reg8: 0, Reg8: 2, Reg8: 3, Reg8: 1, Reg8: 0, Reg8: 4>
+==> 00000114: <Ret>: <Reg8: 0>
+
+
+===============
+

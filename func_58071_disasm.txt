@@ -1,0 +1,69 @@
+=> [Function #58071 "" of 253 bytes]: 2 params, frame size=24, strict=0, exc handler=0, debug info=0  @ offset 0x00a83f0a
+
+Bytecode listing:
+
+==> 00000000: <CreateEnvironment>: <Reg8: 8>
+==> 00000002: <LoadParam>: <Reg8: 4, UInt8: 1>
+==> 00000005: <LoadConstUndefined>: <Reg8: 3>
+==> 00000007: <GetEnvironment>: <Reg8: 0, UInt8: 1>
+==> 0000000a: <LoadFromEnvironment>: <Reg8: 2, Reg8: 0, UInt8: 0>
+==> 0000000e: <LoadFromEnvironment>: <Reg8: 1, Reg8: 0, UInt8: 1>
+==> 00000012: <LoadConstUInt8>: <Reg8: 6, UInt8: 9>
+==> 00000015: <GetByVal>: <Reg8: 1, Reg8: 1, Reg8: 6>
+==> 00000019: <Call2>: <Reg8: 1, Reg8: 2, Reg8: 3, Reg8: 1>
+==> 0000001e: <GetByIdShort>: <Reg8: 2, Reg8: 1, UInt8: 1, string_id: 40>  # String: 'jsx' (Identifier)
+==> 00000023: <LoadFromEnvironment>: <Reg8: 1, Reg8: 0, UInt8: 6>
+==> 00000027: <GetByIdShort>: <Reg8: 1, Reg8: 1, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 0000002c: <LoadFromEnvironment>: <Reg8: 5, Reg8: 0, UInt8: 7>
+==> 00000030: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 00000035: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 3, string_id: 82>  # String: 'bg' (Identifier)
+==> 0000003a: <GetByVal>: <Reg8: 12, Reg8: 5, Reg8: 6>
+==> 0000003e: <LoadFromEnvironment>: <Reg8: 5, Reg8: 0, UInt8: 7>
+==> 00000042: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 00000047: <GetByIdShort>: <Reg8: 6, Reg8: 5, UInt8: 3, string_id: 82>  # String: 'bg' (Identifier)
+==> 0000004c: <LoadConstUInt8>: <Reg8: 5, UInt8: 3>
+==> 0000004f: <GetByVal>: <Reg8: 11, Reg8: 6, Reg8: 5>
+==> 00000053: <LoadFromEnvironment>: <Reg8: 5, Reg8: 0, UInt8: 7>
+==> 00000057: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 0000005c: <GetByIdShort>: <Reg8: 6, Reg8: 5, UInt8: 4, string_id: 142>  # String: 'fonts' (Identifier)
+==> 00000061: <LoadConstUInt8>: <Reg8: 5, UInt8: 50>
+==> 00000064: <GetByVal>: <Reg8: 10, Reg8: 6, Reg8: 5>
+==> 00000068: <LoadFromEnvironment>: <Reg8: 5, Reg8: 0, UInt8: 7>
+==> 0000006c: <GetByIdShort>: <Reg8: 5, Reg8: 5, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 00000071: <GetByIdShort>: <Reg8: 6, Reg8: 5, UInt8: 4, string_id: 142>  # String: 'fonts' (Identifier)
+==> 00000076: <LoadConstInt>: <Reg8: 5, Imm32: 900>
+==> 0000007c: <GetByVal>: <Reg8: 9, Reg8: 6, Reg8: 5>
+==> 00000080: <GetEnvironment>: <Reg8: 5, UInt8: 0>
+==> 00000083: <LoadFromEnvironment>: <Reg8: 13, Reg8: 5, UInt8: 2>
+==> 00000087: <LoadConstNull>: <Reg8: 6>
+==> 00000089: <LoadConstUndefined>: <Reg8: 7>
+==> 0000008b: <JEqual>: <Addr8: 14, Reg8: 13, Reg8: 6>  # Address: 00000099
+==> 0000008f: <LoadFromEnvironment>: <Reg8: 5, Reg8: 5, UInt8: 2>
+==> 00000093: <GetById>: <Reg8: 7, Reg8: 5, UInt8: 5, string_id: 32302>  # String: 'language' (Identifier)
+==> 00000099: <StoreToEnvironment>: <Reg8: 8, UInt8: 0, Reg8: 4>
+==> 0000009d: <LoadFromEnvironment>: <Reg8: 0, Reg8: 0, UInt8: 7>
+==> 000000a1: <GetByIdShort>: <Reg8: 0, Reg8: 0, UInt8: 2, string_id: 119>  # String: 'default' (Identifier)
+==> 000000a6: <GetById>: <Reg8: 5, Reg8: 0, UInt8: 6, string_id: 35689>  # String: 'primary' (Identifier)
+==> 000000ac: <LoadConstInt>: <Reg8: 0, Imm32: 500>
+==> 000000b2: <GetByVal>: <Reg8: 6, Reg8: 5, Reg8: 0>
+==> 000000b6: <NewObject>: <Reg8: 5>
+==> 000000b8: <LoadConstUInt8>: <Reg8: 0, UInt8: 25>
+==> 000000bb: <PutNewOwnById>: <Reg8: 5, Reg8: 0, string_id: 35485>  # String: 'marginEnd' (Identifier)
+==> 000000c0: <NewObject>: <Reg8: 0>
+==> 000000c2: <PutNewOwnByIdShort>: <Reg8: 0, Reg8: 4, string_id: 20>  # String: 'text' (Identifier)
+==> 000000c6: <PutNewOwnByIdShort>: <Reg8: 0, Reg8: 12, string_id: 79>  # String: 'backgroundColor' (Identifier)
+==> 000000ca: <PutNewOwnById>: <Reg8: 0, Reg8: 11, string_id: 35082>  # String: 'focusedBackgroundColor' (Identifier)
+==> 000000cf: <PutNewOwnById>: <Reg8: 0, Reg8: 10, string_id: 34591>  # String: 'textColor' (Identifier)
+==> 000000d4: <PutNewOwnById>: <Reg8: 0, Reg8: 9, string_id: 35084>  # String: 'focusedTextColor' (Identifier)
+==> 000000d9: <CreateClosure>: <Reg8: 8, Reg8: 8, function_id: 58072>  # Function: [#58072 onPress of 31 bytes]: 1 params @ offset 0x00a84007
+==> 000000de: <PutNewOwnByIdShort>: <Reg8: 0, Reg8: 8, string_id: 197>  # String: 'onPress' (Identifier)
+==> 000000e2: <StrictEq>: <Reg8: 7, Reg8: 7, Reg8: 4>
+==> 000000e6: <PutNewOwnById>: <Reg8: 0, Reg8: 7, string_id: 27105>  # String: 'selected' (Identifier)
+==> 000000eb: <PutNewOwnById>: <Reg8: 0, Reg8: 6, string_id: 35472>  # String: 'selectedBackgroundColor' (Identifier)
+==> 000000f0: <PutNewOwnByIdShort>: <Reg8: 0, Reg8: 5, string_id: 232>  # String: 'style' (Identifier)
+==> 000000f4: <Call4>: <Reg8: 0, Reg8: 2, Reg8: 3, Reg8: 1, Reg8: 0, Reg8: 4>
+==> 000000fb: <Ret>: <Reg8: 0>
+
+
+===============
+

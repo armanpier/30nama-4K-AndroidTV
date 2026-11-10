@@ -1,0 +1,87 @@
+=> [Function #52623 "" of 319 bytes]: 8 params, frame size=25, strict=1, exc handler=1, debug info=0  @ offset 0x009f0075
+  [Exception handlers: [start=0xfd, end=0x134, target=0x136] ]
+
+Bytecode listing:
+
+==> 00000000: <CreateEnvironment>: <Reg8: 10>
+==> 00000002: <LoadParam>: <Reg8: 9, UInt8: 2>
+==> 00000005: <LoadParam>: <Reg8: 8, UInt8: 6>
+==> 00000008: <LoadParam>: <Reg8: 7, UInt8: 7>
+==> 0000000b: <LoadParam>: <Reg8: 2, UInt8: 0>
+==> 0000000e: <LoadConstUndefined>: <Reg8: 0>
+==> 00000010: <LoadConstUInt8>: <Reg8: 6, UInt8: 3>
+==> 00000013: <LoadConstUInt8>: <Reg8: 5, UInt8: 2>
+==> 00000016: <LoadConstZero>: <Reg8: 4>
+==> 00000018: <LoadConstUInt8>: <Reg8: 3, UInt8: 1>
+==> 0000001b: <Mov>: <Reg8: 1, Reg8: 2>
+==> 0000001e: <JmpFalse>: <Addr8: 9, Reg8: 1>  # Address: 00000027
+==> 00000021: <GetById>: <Reg8: 1, Reg8: 2, UInt8: 1, string_id: 34532>  # String: '__awaiter' (Identifier)
+==> 00000027: <JmpTrue>: <Addr8: 8, Reg8: 1>  # Address: 0000002f
+==> 0000002a: <CreateClosure>: <Reg8: 1, Reg8: 10, function_id: 52624>  # Function: [#52624  of 83 bytes]: 5 params @ offset 0x009f01b4
+==> 0000002f: <StoreToEnvironment>: <Reg8: 10, UInt8: 0, Reg8: 9>
+==> 00000033: <StoreToEnvironment>: <Reg8: 10, UInt8: 1, Reg8: 7>
+==> 00000037: <StoreNPToEnvironment>: <Reg8: 10, UInt8: 3, Reg8: 0>
+==> 0000003b: <StoreToEnvironment>: <Reg8: 10, UInt8: 2, Reg8: 1>
+==> 0000003f: <GetGlobalObject>: <Reg8: 1>
+==> 00000041: <TryGetById>: <Reg8: 13, Reg8: 1, UInt8: 2, string_id: 31>  # String: 'Object' (Identifier)
+==> 00000047: <GetByIdShort>: <Reg8: 12, Reg8: 13, UInt8: 3, string_id: 120>  # String: 'defineProperty' (Identifier)
+==> 0000004c: <NewObject>: <Reg8: 11>
+==> 0000004e: <LoadConstTrue>: <Reg8: 2>
+==> 00000050: <PutNewOwnByIdShort>: <Reg8: 11, Reg8: 2, string_id: 160>  # String: 'value' (Identifier)
+==> 00000054: <LoadConstString>: <Reg8: 2, string_id: 60>  # String: '__esModule' (Identifier)
+==> 00000058: <Call4>: <Reg8: 2, Reg8: 12, Reg8: 13, Reg8: 8, Reg8: 2, Reg8: 11>
+==> 0000005f: <PutById>: <Reg8: 8, Reg8: 0, UInt8: 1, string_id: 27915>  # String: 'API' (Identifier)
+==> 00000065: <CreateClosure>: <Reg8: 2, Reg8: 10, function_id: 52631>  # Function: [#52631 getFastestResponse of 83 bytes]: 2 params @ offset 0x009f0376
+==> 0000006a: <StoreToEnvironment>: <Reg8: 10, UInt8: 3, Reg8: 2>
+==> 0000006e: <NewObject>: <Reg8: 2>
+==> 00000070: <NewObject>: <Reg8: 11>
+==> 00000072: <PutNewOwnById>: <Reg8: 2, Reg8: 11, string_id: 30457>  # String: 'actions' (Identifier)
+==> 00000077: <NewObject>: <Reg8: 11>
+==> 00000079: <PutNewOwnByIdShort>: <Reg8: 2, Reg8: 11, string_id: 108>  # String: 'config' (Identifier)
+==> 0000007d: <CreateClosure>: <Reg8: 11, Reg8: 10, function_id: 52636>  # Function: [#52636 setConfig of 59 bytes]: 2 params @ offset 0x009f0433
+==> 00000082: <PutNewOwnById>: <Reg8: 2, Reg8: 11, string_id: 32471>  # String: 'setConfig' (Identifier)
+==> 00000087: <CreateClosure>: <Reg8: 11, Reg8: 10, function_id: 52637>  # Function: [#52637 store of 28 bytes]: 1 params @ offset 0x009f046e
+==> 0000008c: <PutNewOwnById>: <Reg8: 2, Reg8: 11, string_id: 26781>  # String: 'store' (Identifier)
+==> 00000091: <CreateClosure>: <Reg8: 11, Reg8: 10, function_id: 52640>  # Function: [#52640 setAPIStore of 16 bytes]: 2 params @ offset 0x009f0493
+==> 00000096: <PutNewOwnById>: <Reg8: 2, Reg8: 11, string_id: 33157>  # String: 'setAPIStore' (Identifier)
+==> 0000009b: <CreateClosure>: <Reg8: 11, Reg8: 10, function_id: 52641>  # Function: [#52641 emmiter of 4 bytes]: 3 params @ offset 0x004da694
+==> 000000a0: <PutNewOwnById>: <Reg8: 2, Reg8: 11, string_id: 33488>  # String: 'emmiter' (Identifier)
+==> 000000a5: <CreateClosure>: <Reg8: 11, Reg8: 10, function_id: 52642>  # Function: [#52642 setAPIEmmiter of 16 bytes]: 2 params @ offset 0x009f04a3
+==> 000000aa: <PutNewOwnById>: <Reg8: 2, Reg8: 11, string_id: 35526>  # String: 'setAPIEmmiter' (Identifier)
+==> 000000af: <CreateClosure>: <Reg8: 11, Reg8: 10, function_id: 52643>  # Function: [#52643 log of 142 bytes]: 2 params @ offset 0x009f04b3
+==> 000000b4: <PutNewOwnByIdShort>: <Reg8: 2, Reg8: 11, string_id: 116>  # String: 'log' (Identifier)
+==> 000000b8: <CreateClosure>: <Reg8: 11, Reg8: 10, function_id: 52644>  # Function: [#52644 useTransferEndpoint of 36 bytes]: 2 params @ offset 0x009f0541
+==> 000000bd: <PutNewOwnById>: <Reg8: 2, Reg8: 11, string_id: 33021>  # String: 'useTransferEndpoint' (Identifier)
+==> 000000c2: <CreateClosure>: <Reg8: 10, Reg8: 10, function_id: 52652>  # Function: [#52652 initialize of 29 bytes]: 1 params @ offset 0x009f0729
+==> 000000c7: <PutNewOwnById>: <Reg8: 2, Reg8: 10, string_id: 28500>  # String: 'initialize' (Identifier)
+==> 000000cc: <PutById>: <Reg8: 8, Reg8: 2, UInt8: 1, string_id: 27915>  # String: 'API' (Identifier)
+==> 000000d2: <TryGetById>: <Reg8: 10, Reg8: 1, UInt8: 2, string_id: 31>  # String: 'Object' (Identifier)
+==> 000000d8: <GetById>: <Reg8: 2, Reg8: 10, UInt8: 4, string_id: 27423>  # String: 'entries' (Identifier)
+==> 000000de: <GetByVal>: <Reg8: 1, Reg8: 7, Reg8: 5>
+==> 000000e2: <Call2>: <Reg8: 1, Reg8: 9, Reg8: 0, Reg8: 1>
+==> 000000e7: <Call2>: <Reg8: 10, Reg8: 2, Reg8: 10, Reg8: 1>
+==> 000000ec: <Mov>: <Reg8: 1, Reg8: 10>
+==> 000000ef: <IteratorBegin>: <Reg8: 2, Reg8: 1>
+==> 000000f2: <IteratorNext>: <Reg8: 11, Reg8: 2, Reg8: 1>
+==> 000000f6: <Mov>: <Reg8: 10, Reg8: 2>
+==> 000000f9: <JStrictEqual>: <Addr8: 68, Reg8: 10, Reg8: 0>  # Address: 0000013d
+==> 000000fd: <GetByVal>: <Reg8: 10, Reg8: 7, Reg8: 6>
+==> 00000101: <Call2>: <Reg8: 10, Reg8: 9, Reg8: 0, Reg8: 10>
+==> 00000106: <Call3>: <Reg8: 10, Reg8: 10, Reg8: 0, Reg8: 11, Reg8: 5>
+==> 0000010c: <GetByVal>: <Reg8: 12, Reg8: 10, Reg8: 4>
+==> 00000110: <GetByVal>: <Reg8: 14, Reg8: 10, Reg8: 3>
+==> 00000114: <GetById>: <Reg8: 10, Reg8: 8, UInt8: 5, string_id: 27915>  # String: 'API' (Identifier)
+==> 0000011a: <GetById>: <Reg8: 11, Reg8: 10, UInt8: 6, string_id: 30457>  # String: 'actions' (Identifier)
+==> 00000120: <GetByIdShort>: <Reg8: 13, Reg8: 14, UInt8: 7, string_id: 83>  # String: 'bind' (Identifier)
+==> 00000125: <GetById>: <Reg8: 10, Reg8: 8, UInt8: 5, string_id: 27915>  # String: 'API' (Identifier)
+==> 0000012b: <Call2>: <Reg8: 10, Reg8: 13, Reg8: 14, Reg8: 10>
+==> 00000130: <PutByVal>: <Reg8: 11, Reg8: 12, Reg8: 10>
+==> 00000134: <Jmp>: <Addr8: -66>  # Address: 000000f2
+==> 00000136: <Catch>: <Reg8: 1>
+==> 00000138: <IteratorClose>: <Reg8: 2, UInt8: 1>
+==> 0000013b: <Throw>: <Reg8: 1>
+==> 0000013d: <Ret>: <Reg8: 0>
+
+
+===============
+

@@ -1,0 +1,5 @@
+# Align package resources on 4-byte boundaries
+& "$env:LOCALAPPDATA\Android\Sdk\build-tools\<version>\zipalign.exe" -p -f -v 4 app-output.apk app-aligned.apk
+
+# Sign with Android SDK apksigner
+& "$env:LOCALAPPDATA\Android\Sdk\build-tools\<version>\apksigner.bat" sign --ks development.keystore app-aligned.apk

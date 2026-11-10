@@ -1,0 +1,24 @@
+    invoke-interface {p5, v2}, Lcom/facebook/react/bridge/ReadableMap;->getString(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v2
+
+    if-eqz v2, :cond_skip_body_transform
+
+    # Check if the URL (p2) targets "stream"
+    const-string v3, "stream"
+    invoke-virtual {p2, v3}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v3
+    if-nez v3, :cond_apply_body_transform
+
+    # Or check if the serialized body (v2) targets "stream"
+    const-string v3, "stream"
+    invoke-virtual {v2, v3}, Ljava/lang/String;->contains(Ljava/lang/CharSequence;)Z
+    move-result v3
+    if-eqz v3, :cond_skip_body_transform
+
+    :cond_apply_body_transform
+    const-string v3, "VdapnkLG9_DEFAULT_PROFILE_KEY"
+    const-string v4, "et7bRH_HIGH_RES_PROFILE_KEY"
+    invoke-virtual {v2, v3, v4}, Ljava/lang/String;->replace(Ljava/lang/CharSequence;Ljava/lang/CharSequence;)Ljava/lang/String;
+    move-result-object v2
+
+    :cond_skip_body_transform

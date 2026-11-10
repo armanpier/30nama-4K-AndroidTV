@@ -1,0 +1,37 @@
+=> [Function #52673 "default_1" of 129 bytes]: 4 params, frame size=17, strict=1, exc handler=0, debug info=0  @ offset 0x009f0cf2
+
+Bytecode listing:
+
+==> 00000000: <LoadParam>: <Reg8: 1, UInt8: 2>
+==> 00000003: <LoadParam>: <Reg8: 2, UInt8: 0>
+==> 00000006: <GetEnvironment>: <Reg8: 6, UInt8: 1>
+==> 00000009: <LoadFromEnvironment>: <Reg8: 4, Reg8: 6, UInt8: 0>
+==> 0000000d: <LoadFromEnvironment>: <Reg8: 3, Reg8: 6, UInt8: 1>
+==> 00000011: <LoadConstZero>: <Reg8: 0>
+==> 00000013: <GetByVal>: <Reg8: 3, Reg8: 3, Reg8: 0>
+==> 00000017: <LoadConstUndefined>: <Reg8: 0>
+==> 00000019: <Call2>: <Reg8: 4, Reg8: 4, Reg8: 0, Reg8: 3>
+==> 0000001e: <GetEnvironment>: <Reg8: 3, UInt8: 0>
+==> 00000021: <LoadFromEnvironment>: <Reg8: 3, Reg8: 3, UInt8: 0>
+==> 00000025: <Call3>: <Reg8: 3, Reg8: 4, Reg8: 0, Reg8: 2, Reg8: 3>
+==> 0000002b: <GetByIdShort>: <Reg8: 5, Reg8: 1, UInt8: 1, string_id: 108>  # String: 'config' (Identifier)
+==> 00000030: <GetById>: <Reg8: 4, Reg8: 1, UInt8: 2, string_id: 33488>  # String: 'emmiter' (Identifier)
+==> 00000036: <GetById>: <Reg8: 3, Reg8: 1, UInt8: 3, string_id: 26781>  # String: 'store' (Identifier)
+==> 0000003c: <GetByIdShort>: <Reg8: 1, Reg8: 1, UInt8: 4, string_id: 116>  # String: 'log' (Identifier)
+==> 00000041: <LoadFromEnvironment>: <Reg8: 7, Reg8: 6, UInt8: 3>
+==> 00000045: <GetById>: <Reg8: 6, Reg8: 5, UInt8: 5, string_id: 28092>  # String: 'platform' (Identifier)
+==> 0000004b: <GetByVal>: <Reg8: 6, Reg8: 7, Reg8: 6>
+==> 0000004f: <PutById>: <Reg8: 2, Reg8: 6, UInt8: 1, string_id: 27083>  # String: 'token' (Identifier)
+==> 00000055: <PutById>: <Reg8: 2, Reg8: 5, UInt8: 2, string_id: 108>  # String: 'config' (Identifier)
+==> 0000005b: <LoadParam>: <Reg8: 5, UInt8: 1>
+==> 0000005e: <PutById>: <Reg8: 2, Reg8: 5, UInt8: 3, string_id: 32942>  # String: 'actionUrl' (Identifier)
+==> 00000064: <LoadParam>: <Reg8: 5, UInt8: 3>
+==> 00000067: <PutById>: <Reg8: 2, Reg8: 5, UInt8: 4, string_id: 31037>  # String: 'overrideSession' (Identifier)
+==> 0000006d: <PutById>: <Reg8: 2, Reg8: 4, UInt8: 5, string_id: 33488>  # String: 'emmiter' (Identifier)
+==> 00000073: <PutById>: <Reg8: 2, Reg8: 3, UInt8: 6, string_id: 26781>  # String: 'store' (Identifier)
+==> 00000079: <PutById>: <Reg8: 2, Reg8: 1, UInt8: 7, string_id: 116>  # String: 'log' (Identifier)
+==> 0000007f: <Ret>: <Reg8: 0>
+
+
+===============
+

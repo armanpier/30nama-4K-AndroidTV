@@ -1,0 +1,37 @@
+=> [Function #52664 "" of 115 bytes]: 8 params, frame size=17, strict=1, exc handler=0, debug info=0  @ offset 0x009f0b03
+
+Bytecode listing:
+
+==> 00000000: <CreateEnvironment>: <Reg8: 1>
+==> 00000002: <LoadParam>: <Reg8: 2, UInt8: 6>
+==> 00000005: <LoadParam>: <Reg8: 0, UInt8: 0>
+==> 00000008: <Mov>: <Reg8: 3, Reg8: 0>
+==> 0000000b: <JmpFalse>: <Addr8: 9, Reg8: 3>  # Address: 00000014
+==> 0000000e: <GetById>: <Reg8: 3, Reg8: 0, UInt8: 1, string_id: 34532>  # String: '__awaiter' (Identifier)
+==> 00000014: <JmpTrue>: <Addr8: 8, Reg8: 3>  # Address: 0000001c
+==> 00000017: <CreateClosure>: <Reg8: 3, Reg8: 1, function_id: 52665>  # Function: [#52665  of 83 bytes]: 5 params @ offset 0x009f0b76
+==> 0000001c: <LoadParam>: <Reg8: 0, UInt8: 2>
+==> 0000001f: <StoreToEnvironment>: <Reg8: 1, UInt8: 0, Reg8: 0>
+==> 00000023: <LoadParam>: <Reg8: 0, UInt8: 7>
+==> 00000026: <StoreToEnvironment>: <Reg8: 1, UInt8: 1, Reg8: 0>
+==> 0000002a: <LoadConstUndefined>: <Reg8: 0>
+==> 0000002c: <StoreNPToEnvironment>: <Reg8: 1, UInt8: 3, Reg8: 0>
+==> 00000030: <StoreToEnvironment>: <Reg8: 1, UInt8: 2, Reg8: 3>
+==> 00000034: <GetGlobalObject>: <Reg8: 3>
+==> 00000036: <TryGetById>: <Reg8: 6, Reg8: 3, UInt8: 2, string_id: 31>  # String: 'Object' (Identifier)
+==> 0000003c: <GetByIdShort>: <Reg8: 5, Reg8: 6, UInt8: 3, string_id: 120>  # String: 'defineProperty' (Identifier)
+==> 00000041: <NewObject>: <Reg8: 4>
+==> 00000043: <LoadConstTrue>: <Reg8: 3>
+==> 00000045: <PutNewOwnByIdShort>: <Reg8: 4, Reg8: 3, string_id: 160>  # String: 'value' (Identifier)
+==> 00000049: <LoadConstString>: <Reg8: 3, string_id: 60>  # String: '__esModule' (Identifier)
+==> 0000004d: <Call4>: <Reg8: 3, Reg8: 5, Reg8: 6, Reg8: 2, Reg8: 3, Reg8: 4>
+==> 00000054: <NewObjectWithBuffer>: <Reg8: 3, UInt16: 8, UInt16: 8, UInt16: 3427, UInt16: 6968>  # Object: {'DESKTOP': 'et7bRHdhmL468C5BcNrEMYTWGfz3a9vJ', 'HYBRID': 'et7bRHdhmL468C5BcNrEMYTWGfz3a9vJ', 'ANDROIDTV': 'VdapnkLG9EHsSmF8yeKcb4253RAuN6YX', 'WEBTV': '83hRzBabjDnuv9SmV2GFaftpxjhZSHXYe7UnBuX5DdANdpzPvXu46jvKZHPb97As', 'WEBSITE': 'B9gA4Dr8gefwtd999YYw7SNRzPzq2TDPEJvXVJLnPDWFL2H4RcVq83TZy7dHY9Z4', 'MOBILE': 'qCKS5D6Ek39eATysYgUhNP4fBjxZ2a8u', 'SYSTEM': 'QguPhpFdjNQD73cmakvtIYwdMDHry8UDuG6qACvDshWTrXa2UaKtccAL5GAuIHZm', 'DEVELOPMENT': 'BqnpVqrUNX8ReMWcurMK2Vr8yBPcxpaVzJ4eTgnfpd338X6fW4ChUjnVSLfBmpwb'}
+==> 0000005e: <StoreToEnvironment>: <Reg8: 1, UInt8: 3, Reg8: 3>
+==> 00000062: <CreateClosure>: <Reg8: 1, Reg8: 1, function_id: 52672>  # Function: [#52672  of 140 bytes]: 1 params @ offset 0x009f0c66
+==> 00000067: <Call1>: <Reg8: 1, Reg8: 1, Reg8: 0>
+==> 0000006b: <PutById>: <Reg8: 2, Reg8: 1, UInt8: 1, string_id: 119>  # String: 'default' (Identifier)
+==> 00000071: <Ret>: <Reg8: 0>
+
+
+===============
+

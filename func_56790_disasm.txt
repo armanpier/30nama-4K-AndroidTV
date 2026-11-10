@@ -1,0 +1,50 @@
+=> [Function #56790 "qualitySetup" of 163 bytes]: 1 params, frame size=19, strict=0, exc handler=0, debug info=0  @ offset 0x00a6275c
+
+Bytecode listing:
+
+==> 00000000: <LoadConstUndefined>: <Reg8: 0>
+==> 00000002: <CreateEnvironment>: <Reg8: 1>
+==> 00000004: <NewObject>: <Reg8: 3>
+==> 00000006: <GetEnvironment>: <Reg8: 2, UInt8: 0>
+==> 00000009: <LoadFromEnvironment>: <Reg8: 4, Reg8: 2, UInt8: 17>
+==> 0000000d: <LoadConstNull>: <Reg8: 5>
+==> 0000000f: <JEqual>: <Addr8: 41, Reg8: 4, Reg8: 5>  # Address: 00000038
+==> 00000013: <StoreToEnvironment>: <Reg8: 1, UInt8: 0, Reg8: 3>
+==> 00000017: <LoadFromEnvironment>: <Reg8: 4, Reg8: 2, UInt8: 17>
+==> 0000001b: <GetById>: <Reg8: 4, Reg8: 4, UInt8: 1, string_id: 26600>  # String: 'file' (Identifier)
+==> 00000021: <GetById>: <Reg8: 7, Reg8: 4, UInt8: 2, string_id: 32965>  # String: 'm3u8' (Identifier)
+==> 00000027: <GetByIdShort>: <Reg8: 6, Reg8: 7, UInt8: 3, string_id: 179>  # String: 'map' (Identifier)
+==> 0000002c: <CreateClosure>: <Reg8: 4, Reg8: 1, function_id: 56791>  # Function: [#56791  of 48 bytes]: 2 params @ offset 0x00a627ff
+==> 00000031: <Call2>: <Reg8: 4, Reg8: 6, Reg8: 7, Reg8: 4>
+==> 00000036: <Jmp>: <Addr8: 6>  # Address: 0000003c
+==> 00000038: <StoreToEnvironment>: <Reg8: 1, UInt8: 0, Reg8: 3>
+==> 0000003c: <LoadFromEnvironment>: <Reg8: 3, Reg8: 2, UInt8: 17>
+==> 00000040: <JmpFalse>: <Addr8: 84, Reg8: 3>  # Address: 00000094
+==> 00000043: <LoadFromEnvironment>: <Reg8: 3, Reg8: 2, UInt8: 17>
+==> 00000047: <LoadConstUndefined>: <Reg8: 4>
+==> 00000049: <JEqual>: <Addr8: 25, Reg8: 3, Reg8: 5>  # Address: 00000062
+==> 0000004d: <LoadFromEnvironment>: <Reg8: 3, Reg8: 2, UInt8: 17>
+==> 00000051: <GetById>: <Reg8: 3, Reg8: 3, UInt8: 1, string_id: 26600>  # String: 'file' (Identifier)
+==> 00000057: <GetById>: <Reg8: 3, Reg8: 3, UInt8: 2, string_id: 32965>  # String: 'm3u8' (Identifier)
+==> 0000005d: <GetByIdShort>: <Reg8: 4, Reg8: 3, UInt8: 4, string_id: 178>  # String: 'length' (Identifier)
+==> 00000062: <LoadConstZero>: <Reg8: 3>
+==> 00000064: <JNotGreater>: <Addr8: 48, Reg8: 4, Reg8: 3>  # Address: 00000094
+==> 00000068: <LoadFromEnvironment>: <Reg8: 4, Reg8: 2, UInt8: 33>
+==> 0000006c: <GetGlobalObject>: <Reg8: 3>
+==> 0000006e: <TryGetById>: <Reg8: 8, Reg8: 3, UInt8: 5, string_id: 31>  # String: 'Object' (Identifier)
+==> 00000074: <GetByIdShort>: <Reg8: 7, Reg8: 8, UInt8: 6, string_id: 78>  # String: 'assign' (Identifier)
+==> 00000079: <LoadFromEnvironment>: <Reg8: 6, Reg8: 2, UInt8: 32>
+==> 0000007d: <NewObject>: <Reg8: 5>
+==> 0000007f: <LoadConstTrue>: <Reg8: 3>
+==> 00000081: <PutNewOwnById>: <Reg8: 5, Reg8: 3, string_id: 28560>  # String: 'hasCurrentFile' (Identifier)
+==> 00000086: <NewObject>: <Reg8: 3>
+==> 00000088: <Call4>: <Reg8: 3, Reg8: 7, Reg8: 8, Reg8: 3, Reg8: 6, Reg8: 5>
+==> 0000008f: <Call2>: <Reg8: 3, Reg8: 4, Reg8: 0, Reg8: 3>
+==> 00000094: <LoadFromEnvironment>: <Reg8: 2, Reg8: 2, UInt8: 22>
+==> 00000098: <LoadFromEnvironment>: <Reg8: 1, Reg8: 1, UInt8: 0>
+==> 0000009c: <Call2>: <Reg8: 1, Reg8: 2, Reg8: 0, Reg8: 1>
+==> 000000a1: <Ret>: <Reg8: 0>
+
+
+===============
+

@@ -1,0 +1,19 @@
+=> [Function #52674 "buildUrl" of 50 bytes]: 1 params, frame size=15, strict=1, exc handler=0, debug info=0  @ offset 0x009f0d73
+
+Bytecode listing:
+
+==> 00000000: <LoadParam>: <Reg8: 0, UInt8: 0>
+==> 00000003: <GetByIdShort>: <Reg8: 1, Reg8: 0, UInt8: 1, string_id: 108>  # String: 'config' (Identifier)
+==> 00000008: <GetById>: <Reg8: 4, Reg8: 1, UInt8: 2, string_id: 28343>  # String: 'endpoint' (Identifier)
+==> 0000000e: <GetById>: <Reg8: 3, Reg8: 0, UInt8: 3, string_id: 32942>  # String: 'actionUrl' (Identifier)
+==> 00000014: <GetGlobalObject>: <Reg8: 0>
+==> 00000016: <TryGetById>: <Reg8: 0, Reg8: 0, UInt8: 4, string_id: 18>  # String: 'HermesInternal' (Identifier)
+==> 0000001c: <GetByIdShort>: <Reg8: 2, Reg8: 0, UInt8: 5, string_id: 33>  # String: 'concat' (Identifier)
+==> 00000021: <LoadConstString>: <Reg8: 1, string_id: 26468>  # String: '' (Identifier)
+==> 00000025: <LoadConstString>: <Reg8: 0, string_id: 1704>  # String: '/action/' (String)
+==> 00000029: <Call4>: <Reg8: 0, Reg8: 2, Reg8: 1, Reg8: 4, Reg8: 0, Reg8: 3>
+==> 00000030: <Ret>: <Reg8: 0>
+
+
+===============
+
