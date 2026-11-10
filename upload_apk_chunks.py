@@ -25,14 +25,14 @@ with open(apk_path, 'rb') as f:
         chunks += 1
 
 meta = {
-    'version': '1.3.4',
-    'versionCode': 10,
+    'version': '1.3.5',
+    'versionCode': 11,
     'total_size': size,
     'total_chunks': chunks,
     'chunk_size': chunk_size,
-    'filename': 'AsanVPN-v1.3.4-universal.apk',
+    'filename': 'AsanVPN-v1.3.5-universal.apk',
     'sha256': hasher.hexdigest(),
-    'changelog': 'محدودسازی لاگ به ۱۰۰ سطر، خلاصه‌سازی تست پینگ لینک‌ها، روتینگ مستقیم آی‌پی‌ها و دامنه‌های ایران با Chocolate4Iran و بای‌پس ۸۲ برنامه ایرانی (نوبیتکس، آپ، بازار و بانک‌ها)'
+    'changelog': 'حل مشکل فریز و عدم عبور ترافیک در اتصال با فعال‌سازی DoH اختصاصی و رفع لوپ DNS، استخراج زنده و دقیق باقیمانده حجم و روزها از نودهای ۳X-UI و هماهنگ‌سازی چندپنلی'
 }
 
 meta_file = os.path.join(out_dir, 'meta.json')
