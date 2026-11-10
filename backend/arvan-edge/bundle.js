@@ -2220,11 +2220,9 @@ async function handleRequest(request) {
     }), { headers: { 'content-type': 'application/json' } });
   }
 
-  // 3. Proxy API requests to backend
+  // 3. Proxy API requests with Cloudflare Primary & VPS Fallback
   if (path.startsWith('/api/')) {
     try {
-      const targetUrl = new URL(url.pathname + url.search, 'http://95.182.87.115');
-      
       let adminToken = '';
       try {
         if (request.headers) {
@@ -2249,7 +2247,7 @@ async function handleRequest(request) {
       const outgoingHeaders = {
         'Accept': 'application/json',
         'Content-Type': contentType,
-        'User-Agent': 'ArvanCloud-Edge/1.0'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AsanVPN-Edge/1.0'
       };
       if (adminToken) {
         outgoingHeaders['X-Admin-Token'] = adminToken;
@@ -2261,11 +2259,40 @@ async function handleRequest(request) {
         reqBody = await request.arrayBuffer();
       }
 
-      const response = await fetch(targetUrl.toString(), {
-        method: request.method,
-        headers: outgoingHeaders,
-        body: reqBody
-      });
+      const cfUrl = new URL(url.pathname + url.search, 'https://asanvpn-worker.hi-deploy.workers.dev');
+      const vpsUrl = new URL(url.pathname + url.search, 'http://95.182.87.115');
+
+      let response = null;
+      let lastErr = null;
+
+      // 1. Primary: Cloudflare Cloud KV Storage (Serverless & independent of any VPS filtering/changes)
+      try {
+        const cfResp = await fetch(cfUrl.toString(), {
+          method: request.method,
+          headers: outgoingHeaders,
+          body: reqBody
+        });
+        if (cfResp && (cfResp.status === 200 || cfResp.status === 204)) {
+          response = cfResp;
+        } else {
+          lastErr = new Error('Cloudflare returned status ' + (cfResp ? cfResp.status : 'null'));
+        }
+      } catch (e) {
+        lastErr = e;
+      }
+
+      // 2. Secondary Fallback: VPS Standalone SQLite (if Cloudflare KV is rate-limited or unavailable)
+      if (!response) {
+        try {
+          response = await fetch(vpsUrl.toString(), {
+            method: request.method,
+            headers: outgoingHeaders,
+            body: reqBody
+          });
+        } catch (e) {
+          throw new Error('Both Cloudflare and VPS failed: ' + (lastErr ? lastErr.message : '') + ' | ' + e.message);
+        }
+      }
 
       const respHeaders = new Headers(response.headers);
       respHeaders.set('Access-Control-Allow-Origin', '*');

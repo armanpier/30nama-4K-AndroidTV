@@ -1,50 +1,47 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Android / APK Builds (Attached to GitHub Releases, not git tree)
+# Android / Gradle
+.gradle/
+.kotlin/
+build/
+app/build/
 *.apk
+*.aab
 *.idsig
-*.zip
-*.jks
-*.keystore
-apk-extract/
-apk_chunks/
-temp_classes.jar
-
-# Reverse engineering artifacts and scratch dumps
-*.log
-*.dump
-*.txt
-*.xml
-*.html
-*.wav
-*.mp3
-*.db
-*.json
-*.ps1
-backend/
-android/
-docs/
-backup/
-backup_x8000h/
-restore*.bat
-
-# Ignore root scratch scripts & images
-*.py
-*.png
-!build_standalone_apk.py
-!download_and_build_arm.py
-!create_premium_art.py
-!generate_apk_branding.py
-
-# System / IDE
-.wrangler/
-.vscode/
+local.properties
 .idea/
+*.iml
 .DS_Store
 
-# Whitelist clean assets & addon
-!branding_assets/**
-!plugin.video.30nama/**
+# Cloudflare Worker / Node.js
+node_modules/
+.wrangler/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sensitive / Local Data
+*.jks
+*.keystore
+.env
+*.env
+!*.env.example
+user_*.json
+*.log
+*.dump
+
+# Databases & Backups
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+backup/
+backups/
+
+# OS / IDE
+.vscode/
+Thumbs.db
+__pycache__/
+*.pyc
+release-apks/
