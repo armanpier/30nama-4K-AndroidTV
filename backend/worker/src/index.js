@@ -173,6 +173,14 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
+    if (path === '/api/debug-headers') {
+      const h = {};
+      for (const [k, v] of request.headers.entries()) {
+        h[k] = v;
+      }
+      return new Response(JSON.stringify(h), { headers: corsHeaders });
+    }
+
     // Web Admin Dashboard UI (Serve HTML to browser)
     if ((path === '/' || path === '/admin' || path === '/dashboard') && (request.method === 'GET' || request.method === 'HEAD')) {
       const acceptHeader = request.headers.get('Accept') || '';

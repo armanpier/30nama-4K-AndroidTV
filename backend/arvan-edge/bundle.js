@@ -231,7 +231,7 @@ function getAdminDashboardHtml() {
             <h2 class="font-bold text-sm sm:text-lg leading-tight">آسان وی‌پی‌ان</h2>
             <span class="text-[10px] sm:text-xs text-emerald-400 flex items-center gap-1">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              سامانه ابری کلودفلر
+              سامانه ابری آروان (ArvanCloud Edge)
             </span>
           </div>
         </div>
@@ -2200,24 +2200,76 @@ async function handleRequest(request) {
     });
   }
 
+  // Debug headers endpoint
+  if (path === '/api/debug_headers') {
+    const rawHeaders = {};
+    try {
+      if (typeof request.headers.entries === 'function') {
+        for (const [k, v] of request.headers.entries()) {
+          rawHeaders[k] = v;
+        }
+      } else {
+        Object.assign(rawHeaders, request.headers);
+      }
+    } catch (e) {
+      rawHeaders['error'] = e.message;
+    }
+    return new Response(JSON.stringify({
+      rawHeaders,
+      get_x_admin_token: (typeof request.headers.get === 'function') ? request.headers.get('x-admin-token') : 'no get function'
+    }), { headers: { 'content-type': 'application/json' } });
+  }
+
   // 3. Proxy API requests to backend
   if (path.startsWith('/api/')) {
     try {
-      const targetUrl = new URL(url.pathname + url.search, 'https://asanvpn-worker.hi-deploy.workers.dev');
-      const newHeaders = new Headers(request.headers);
-      newHeaders.set('X-Forwarded-Host', url.hostname);
-      newHeaders.set('X-Edge-Provider', 'ArvanCloud');
+      const targetUrl = new URL(url.pathname + url.search, 'http://95.182.87.115');
+      
+      let adminToken = '';
+      try {
+        if (request.headers) {
+          if (typeof request.headers.get === 'function') {
+            adminToken = request.headers.get('x-admin-token') || request.headers.get('X-Admin-Token') || '';
+          }
+          if (!adminToken && request.headers['x-admin-token']) {
+            adminToken = request.headers['x-admin-token'];
+          }
+          if (!adminToken && request.headers['X-Admin-Token']) {
+            adminToken = request.headers['X-Admin-Token'];
+          }
+        }
+      } catch (e) {}
 
-      const proxyRequest = new Request(targetUrl.toString(), {
+      if (!adminToken) {
+        adminToken = url.searchParams.get('token') || url.searchParams.get('admin_token') || '';
+      }
+
+      const contentType = (request.headers.get && request.headers.get('content-type')) || 'application/json';
+
+      const outgoingHeaders = {
+        'Accept': 'application/json',
+        'Content-Type': contentType,
+        'User-Agent': 'ArvanCloud-Edge/1.0'
+      };
+      if (adminToken) {
+        outgoingHeaders['X-Admin-Token'] = adminToken;
+      }
+
+      // Clone or read body safely
+      let reqBody = undefined;
+      if (!['GET', 'HEAD'].includes(request.method)) {
+        reqBody = await request.arrayBuffer();
+      }
+
+      const response = await fetch(targetUrl.toString(), {
         method: request.method,
-        headers: newHeaders,
-        body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,
-        redirect: 'follow'
+        headers: outgoingHeaders,
+        body: reqBody
       });
 
-      const response = await fetch(proxyRequest);
       const respHeaders = new Headers(response.headers);
       respHeaders.set('Access-Control-Allow-Origin', '*');
+      respHeaders.set('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Token');
       respHeaders.set('X-Served-By', 'ArvanCloud-Edge');
 
       return new Response(response.body, {
