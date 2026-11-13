@@ -135,6 +135,10 @@ class PreferencesManager(context: Context) {
         }
         set(value) = prefs.edit().putBoolean(KEY_IS_ADMIN, value).apply()
 
+    var isDarkMode: Boolean
+        get() = prefs.getBoolean("is_dark_mode", false)
+        set(value) = prefs.edit().putBoolean("is_dark_mode", value).apply()
+
     var lastGeoRulesCheckTime: Long
         get() = prefs.getLong(KEY_LAST_GEO_RULES_CHECK, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_GEO_RULES_CHECK, value).apply()
