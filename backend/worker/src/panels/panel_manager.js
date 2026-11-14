@@ -229,7 +229,7 @@ export const DEFAULT_INITIAL_PANELS = [
     name: 'سرور پاسارگاد (PasarGuard)',
     type: 'pasarguard',
     url: 'https://irtun.darklink.ir',
-    apiKey: 'pg_key_f85f5abb-13cc-4dc5-b3fc-8a77c2026e94',
+    apiKey: 'pg_key_72dfa716-8976-4622-9cda-c889ace30db5',
     subBaseUrl: 'https://irsub.trafficfast.ir:9090',
     priority: 2,
     autoSync: true,
@@ -292,10 +292,10 @@ export class PanelManager {
         p.subBaseUrl = p.subBaseUrl.replace(/13\.140\.(94\.235|84\.27)/g, '95.182.87.115').replace(':2096', ':2016');
         needsSave = true;
       }
-      // Auto-migrate PasarGuard from blocked port 8000 to standard HTTPS port 443
-      if (p.url && (p.url.includes('irtun.darklink.ir:8000') || p.url.includes('pasarguard.example.com'))) {
+      // Auto-migrate PasarGuard to standard HTTPS port 443 & new API key
+      if (p.url && (p.url.includes('irtun.darklink.ir') || p.url.includes('pasarguard.example.com'))) {
         p.url = 'https://irtun.darklink.ir';
-        p.apiKey = 'pg_key_f85f5abb-13cc-4dc5-b3fc-8a77c2026e94';
+        p.apiKey = 'pg_key_72dfa716-8976-4622-9cda-c889ace30db5';
         p.subBaseUrl = 'https://irsub.trafficfast.ir:9090';
         needsSave = true;
       }

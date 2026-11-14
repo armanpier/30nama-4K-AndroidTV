@@ -338,6 +338,23 @@ class MainActivity : ComponentActivity() {
     private fun validateUserSession(pin: String) {
         lifecycleScope.launch(Dispatchers.IO) {
             val result = repository.syncWithWorker(pin)
+            result.onSuccess { response ->
+                withContext(Dispatchers.Main) {
+                    response.userInfo?.let { info ->
+                        info.name?.let { prefs.userName = it; currentUserName = it }
+                        info.daysLeft?.let { prefs.daysLeft = it; currentDaysLeft = it }
+                        info.trafficTotalBytes?.let {
+                            prefs.trafficTotalBytes = it
+                            currentTrafficTotal = it
+                        }
+                        info.trafficRemainingBytes?.let {
+                            val rem = if (prefs.trafficTotalBytes <= 0L) -1L else it
+                            prefs.trafficRemainingBytes = rem
+                            currentTrafficRemaining = rem
+                        }
+                    }
+                }
+            }
             result.onFailure { error ->
                 if (error is com.asanvpn.app.data.AuthRevokedException) {
                     val status = error.status
@@ -613,9 +630,10 @@ class MainActivity : ComponentActivity() {
             val uid = android.os.Process.myUid()
             val baseUidRx = android.net.TrafficStats.getUidRxBytes(uid).coerceAtLeast(0L)
             val baseUidTx = android.net.TrafficStats.getUidTxBytes(uid).coerceAtLeast(0L)
-            val initialRemaining = prefs.trafficRemainingBytes
+            var currentInitialRemaining = prefs.trafficRemainingBytes
             val totalBytes = prefs.trafficTotalBytes
-            val isUnlimited = initialRemaining < 0L || totalBytes <= 0L
+            val isUnlimited = currentInitialRemaining < 0L || totalBytes <= 0L
+            var baseSessionTraffic = 0L
 
             var lastRx = 0L
             var lastTx = 0L
@@ -641,11 +659,19 @@ class MainActivity : ComponentActivity() {
 
                 val speedRx = if (lastRx > 0) ((currentRx - lastRx) / timeDiffSec).toLong().coerceAtLeast(0L) else 0L
                 val speedTx = if (lastTx > 0) ((currentTx - lastTx) / timeDiffSec).toLong().coerceAtLeast(0L) else 0L
-                val sessionTraffic = currentRx + currentTx
+
+                // Detect external quota update (e.g. user recharged on Telegram or admin panel)
+                val prefRem = prefs.trafficRemainingBytes
+                if (prefRem > currentInitialRemaining) {
+                    currentInitialRemaining = prefRem
+                    baseSessionTraffic = currentRx + currentTx
+                }
+
+                val sessionTraffic = (currentRx + currentTx) - baseSessionTraffic
                 val liveRemaining = if (isUnlimited) {
                     -1L
                 } else {
-                    (initialRemaining - sessionTraffic).coerceAtLeast(0L)
+                    (currentInitialRemaining - sessionTraffic).coerceAtLeast(0L)
                 }
 
                 withContext(Dispatchers.Main) {

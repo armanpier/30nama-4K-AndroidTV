@@ -609,6 +609,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             pass
         return {}
 
+    def do_HEAD(self):
+        self.do_GET()
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
@@ -849,18 +852,42 @@ class RequestHandler(BaseHTTPRequestHandler):
 
             # ADMIN: Test Panel Latency
             if path == "/api/v1/admin/panels/test":
+                p_id = body.get("panel_id") or body.get("id") or ""
                 p_url = body.get("url", "").strip()
                 p_type = body.get("type", "").lower()
                 p_key = body.get("apiKey", "")
+
+                if (not p_url or not p_key) and p_id:
+                    panels_json = db.get("__CONFIG_PANELS__")
+                    if panels_json:
+                        try:
+                            for p in json.loads(panels_json):
+                                if p.get("id") == p_id:
+                                    p_url = p.get("url", "").strip()
+                                    p_type = p.get("type", "").lower()
+                                    p_key = p.get("apiKey", "")
+                                    break
+                        except Exception:
+                            pass
+
                 start_t = time.time()
                 try:
+                    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AsanVPN/1.0"}
                     if p_type == "pasarguard":
-                        req = urllib.request.Request(f"{p_url.rstrip('/')}/api/users", headers={"Authorization": f"ApiKey {p_key}"})
+                        headers["Authorization"] = f"ApiKey {p_key}"
+                        headers["X-API-KEY"] = p_key
+                        req = urllib.request.Request(f"{p_url.rstrip('/')}/api/users", headers=headers)
                     elif p_type == "goguard":
-                        req = urllib.request.Request(f"{p_url.rstrip('/')}/api/subscriptions", headers={"X-API-Key": p_key})
+                        headers["X-API-Key"] = p_key
+                        req = urllib.request.Request(f"{p_url.rstrip('/')}/api/subscriptions", headers=headers)
+                    elif p_type == "3xui" or "3x" in p_type:
+                        xui_db = "/etc/x-ui/x-ui.db"
+                        if os.path.exists(xui_db):
+                            return self.send_json(200, {"ok": True, "latency": 1, "message": "اتصال محلی ۳X-UI فعال است (1ms)"})
+                        req = urllib.request.Request(p_url, headers=headers)
                     else:
-                        req = urllib.request.Request(p_url)
-                    with urllib.request.urlopen(req, timeout=5, context=INSECURE_SSL_CTX) as res:
+                        req = urllib.request.Request(p_url, headers=headers)
+                    with urllib.request.urlopen(req, timeout=7, context=INSECURE_SSL_CTX) as res:
                         elapsed = int((time.time() - start_t) * 1000)
                         return self.send_json(200, {"ok": True, "latency": elapsed, "message": f"اتصال موفق ({elapsed}ms)"})
                 except Exception as e:
