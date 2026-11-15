@@ -31,9 +31,9 @@ DASHBOARD_HTML_PATH = "/etc/asanvpn/dashboard.html"
 ADMIN_PASSWORD = "Arman4237340"
 SUPPORT_PHONE = "+989120000000"
 SUPPORT_TELEGRAM = "AsanSupport"
-APP_VERSION = "1.3.13"
-APP_VERSION_CODE = 19
-GITHUB_APK_URL = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.13/AsanVPN-v1.3.13-universal.apk"
+APP_VERSION = "1.3.14"
+APP_VERSION_CODE = 20
+GITHUB_APK_URL = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.14/AsanVPN-v1.3.14-universal.apk"
 EDGE_SECRET = "asanvpn-edge-internal-secret-2026"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -551,6 +551,77 @@ sync_thread.start()
 
 
 # ==========================================
+# APP VERSION & ABI SPLIT MANAGER
+# ==========================================
+def get_app_update_info(abi: str = None) -> dict:
+    raw = db.get("__CONFIG_APP_UPDATE__")
+    config = {}
+    if raw:
+        try:
+            config = json.loads(raw)
+        except Exception:
+            config = {}
+
+    ver_name = str(config.get("versionName") or APP_VERSION).strip()
+    try:
+        ver_code = int(config.get("versionCode") or APP_VERSION_CODE)
+    except Exception:
+        ver_code = APP_VERSION_CODE
+    force_update = bool(config.get("forceUpdate", False))
+    notes = str(config.get("releaseNotes") or "به‌روزرسانی بهینه‌سازی سرعت دانلود، تفکیک هوشمند معماری گوشی (v7/v8)، تفکیک آپدیت اجباری و اختیاری و پایداری اتصال").strip()
+
+    base_opt = "/opt/asanvpn"
+    files = {
+        "arm64-v8a": os.path.join(base_opt, "AsanVPN-arm64-v8a.apk"),
+        "armeabi-v7a": os.path.join(base_opt, "AsanVPN-armeabi-v7a.apk"),
+        "universal": os.path.join(base_opt, "AsanVPN.apk"),
+    }
+
+    sizes = {}
+    for k, p in files.items():
+        if os.path.exists(p):
+            sizes[k] = os.path.getsize(p)
+        else:
+            sizes[k] = 20965393 if "64" in k else (21494040 if "v7" in k else 60621364)
+
+    abis_info = {
+        "arm64-v8a": {
+            "url": "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download?abi=arm64-v8a",
+            "fallbackUrl": "http://95.182.87.115/download?abi=arm64-v8a",
+            "size": sizes["arm64-v8a"]
+        },
+        "armeabi-v7a": {
+            "url": "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download?abi=armeabi-v7a",
+            "fallbackUrl": "http://95.182.87.115/download?abi=armeabi-v7a",
+            "size": sizes["armeabi-v7a"]
+        },
+        "universal": {
+            "url": "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download",
+            "fallbackUrl": "http://95.182.87.115/download",
+            "size": sizes["universal"]
+        }
+    }
+
+    target_dl = abis_info.get(abi, {}).get("url") if abi in abis_info else abis_info["universal"]["url"]
+    target_fallback = abis_info.get(abi, {}).get("fallbackUrl") if abi in abis_info else abis_info["universal"]["fallbackUrl"]
+    target_size = abis_info.get(abi, {}).get("size") if abi in abis_info else sizes["universal"]
+
+    return {
+        "success": True,
+        "versionName": ver_name,
+        "versionCode": ver_code,
+        "forceUpdate": force_update,
+        "totalSize": target_size,
+        "downloadUrl": target_dl,
+        "fallbackUrl": target_fallback,
+        "githubUrl": f"https://github.com/armanpier/AsanVPN/releases/download/v{ver_name}/AsanVPN-v{ver_name}-universal.apk",
+        "releaseNotes": notes,
+        "abis": abis_info,
+        "publishedAt": int(time.time())
+    }
+
+
+# ==========================================
 # HTTP SERVER & API ROUTER
 # ==========================================
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -663,35 +734,57 @@ class RequestHandler(BaseHTTPRequestHandler):
                     "time": int(time.time())
                 })
 
-        # Version check
+        # Version check (supports ?abi=arm64-v8a or ?abi=armeabi-v7a)
         if path in ["/api/v1/app/version", "/api/v1/version", "/version"]:
-            return self.send_json(200, {
-                "success": True,
-                "versionName": APP_VERSION,
-                "versionCode": APP_VERSION_CODE,
-                "totalSize": 60620405,
-                "downloadUrl": "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download",
-                "fallbackUrl": "http://95.182.87.115/download",
-                "githubUrl": GITHUB_APK_URL,
-                "releaseNotes": "پشتیبانی کامل از اتصال بدون فیلترشکن، ورود هوشمند با کدهای ۸ و ۱۰ رقمی، بهینه‌سازی مسیر مستقیم و پایداری اتصال",
-                "publishedAt": int(time.time())
-            })
+            qs = urllib.parse.parse_qs(parsed.query)
+            abi = qs.get("abi", [None])[0]
+            info = get_app_update_info(abi)
+            return self.send_json(200, info)
 
-        # Direct APK Download
-        if path in ["/download", "/AsanVPN.apk", "/apk"]:
-            apk_path = "/opt/asanvpn/AsanVPN.apk"
-            if os.path.exists(apk_path):
+        # Direct APK Download (supports ?abi=arm64-v8a, ?abi=armeabi-v7a, /download/arm64-v8a, etc.)
+        if path in ["/download", "/AsanVPN.apk", "/apk"] or path.startswith("/download/"):
+            qs = urllib.parse.parse_qs(parsed.query)
+            abi = qs.get("abi", [None])[0]
+            if not abi and path.startswith("/download/"):
+                abi = path.removeprefix("/download/").strip("/")
+
+            apk_path = None
+            filename = f"AsanVPN-v{APP_VERSION}-universal.apk"
+            if abi == "arm64-v8a":
+                candidate = "/opt/asanvpn/AsanVPN-arm64-v8a.apk"
+                if os.path.exists(candidate):
+                    apk_path = candidate
+                    filename = f"AsanVPN-v{APP_VERSION}-arm64-v8a.apk"
+            elif abi in ("armeabi-v7a", "armeabi"):
+                candidate = "/opt/asanvpn/AsanVPN-armeabi-v7a.apk"
+                if os.path.exists(candidate):
+                    apk_path = candidate
+                    filename = f"AsanVPN-v{APP_VERSION}-armeabi-v7a.apk"
+
+            if not apk_path:
+                candidate_uni = "/opt/asanvpn/AsanVPN.apk"
+                if os.path.exists(candidate_uni):
+                    apk_path = candidate_uni
+                    filename = f"AsanVPN-v{APP_VERSION}-universal.apk"
+                else:
+                    candidate_arm64 = "/opt/asanvpn/AsanVPN-arm64-v8a.apk"
+                    if os.path.exists(candidate_arm64):
+                        apk_path = candidate_arm64
+                        filename = f"AsanVPN-v{APP_VERSION}-arm64-v8a.apk"
+
+            if apk_path and os.path.exists(apk_path):
                 file_size = os.path.getsize(apk_path)
                 self.send_response(200)
                 self.send_header("Content-Type", "application/vnd.android.package-archive")
                 self.send_header("Content-Length", str(file_size))
-                self.send_header("Content-Disposition", f'attachment; filename="AsanVPN-v{APP_VERSION}-universal.apk"')
+                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
                 self.send_header("Accept-Ranges", "bytes")
+                self.send_header("Cache-Control", "public, max-age=3600")
                 self.send_cors_headers()
                 self.end_headers()
                 if self.command != "HEAD":
                     with open(apk_path, "rb") as f:
-                        while chunk := f.read(65536):
+                        while chunk := f.read(131072):
                             self.wfile.write(chunk)
                 return
             else:
@@ -700,6 +793,15 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self.send_cors_headers()
                 self.end_headers()
                 return
+
+        # ADMIN: Get App Update Configuration
+        if path == "/api/v1/admin/config/update":
+            if not self.check_admin_auth():
+                return self.send_json(401, {"error": "Unauthorized", "message": "رمز عبور یا توکن مدیریت نامعتبر است"})
+            qs = urllib.parse.parse_qs(parsed.query)
+            abi = qs.get("abi", [None])[0]
+            info = get_app_update_info(abi)
+            return self.send_json(200, {"success": True, "config": info})
 
         # ADMIN: Get single user
         if path == "/api/v1/admin/user":
@@ -954,6 +1056,35 @@ class RequestHandler(BaseHTTPRequestHandler):
                 return self.send_json(200, {
                     "success": True,
                     "message": "عملیات همگام‌سازی ترافیک و سرورها در پس‌زمینه آغاز گردید."
+                })
+
+            # ADMIN: Update App Version & Force/Optional Settings
+            if path in ["/api/v1/admin/config/update", "/api/v1/admin/app/version"]:
+                existing_raw = db.get("__CONFIG_APP_UPDATE__")
+                cfg = {}
+                if existing_raw:
+                    try:
+                        cfg = json.loads(existing_raw)
+                    except Exception:
+                        cfg = {}
+                if "versionName" in body and str(body["versionName"]).strip():
+                    cfg["versionName"] = str(body["versionName"]).strip()
+                if "versionCode" in body:
+                    try:
+                        cfg["versionCode"] = int(body["versionCode"])
+                    except Exception:
+                        pass
+                if "forceUpdate" in body:
+                    cfg["forceUpdate"] = bool(body["forceUpdate"])
+                if "releaseNotes" in body and str(body["releaseNotes"]).strip():
+                    cfg["releaseNotes"] = str(body["releaseNotes"]).strip()
+
+                db.put("__CONFIG_APP_UPDATE__", json.dumps(cfg, ensure_ascii=False))
+                updated_info = get_app_update_info()
+                return self.send_json(200, {
+                    "success": True,
+                    "message": "تنظیمات نسخه و آپدیت با موفقیت ذخیره شد.",
+                    "config": updated_info
                 })
 
         # CLIENT: Lockout status check

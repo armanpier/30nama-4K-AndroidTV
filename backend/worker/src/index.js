@@ -340,40 +340,40 @@ export default {
       }), { headers: corsHeaders });
     }
 
-    // App Version & In-App Update API Endpoint
+    // App Version & In-App Update API Endpoint (Zero-KV Proxy to VPS SSOT)
     if ((path === '/api/v1/app/version' || path === '/api/v1/version' || path === '/version') && (request.method === 'GET' || request.method === 'HEAD')) {
-      let rawMeta = null;
       try {
-        rawMeta = await env.VPN_USERS.get('apk_meta');
-      } catch (kvErr) {}
-
-      let version = "1.3.13";
-      let versionCode = 19;
-      let changelog = "پشتیبانی کامل از اتصال بدون فیلترشکن، ورود هوشمند با کدهای ۸ و ۱۰ رقمی، بهینه‌سازی مسیر مستقیم و پایداری اتصال";
-      let totalSize = 60620750;
-      let githubUrl = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.13/AsanVPN-v1.3.13-universal.apk";
-
-      if (rawMeta) {
-        try {
-          const meta = JSON.parse(rawMeta);
-          if (meta.versionCode && meta.versionCode > versionCode) {
-            version = meta.version;
-            versionCode = meta.versionCode;
-            if (meta.total_size) totalSize = meta.total_size;
-            if (meta.changelog) changelog = meta.changelog;
-            if (meta.github_url) githubUrl = meta.github_url;
+        const vpsUrl = new URL(url.pathname + url.search, 'http://95.182.87.115.sslip.io');
+        const vpsResp = await fetch(vpsUrl.toString(), {
+          method: request.method,
+          headers: {
+            'User-Agent': request.headers.get('User-Agent') || 'AsanVPN-Proxy',
+            'X-Edge-Secret': 'asanvpn-edge-internal-secret-2026'
           }
-        } catch (e) {}
-      }
+        });
+        if (vpsResp.ok) {
+          const data = await vpsResp.text();
+          return new Response(data, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }
+          });
+        }
+      } catch (proxyErr) {}
+
+      // Fallback if VPS proxy fails
       return new Response(JSON.stringify({
         success: true,
-        versionName: version,
-        versionCode: versionCode,
-        totalSize: totalSize,
+        versionName: "1.3.14",
+        versionCode: 20,
+        forceUpdate: false,
+        totalSize: 20965393,
         downloadUrl: "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download",
         fallbackUrl: "http://95.182.87.115/download",
-        githubUrl: githubUrl,
-        releaseNotes: changelog,
+        githubUrl: "https://github.com/armanpier/AsanVPN/releases/download/v1.3.14/AsanVPN-v1.3.14-universal.apk",
+        releaseNotes: "به‌روزرسانی بهینه‌سازی سرعت دانلود، تفکیک هوشمند معماری گوشی (v7/v8)، تفکیک آپدیت اجباری و اختیاری و پایداری اتصال",
         publishedAt: Math.floor(Date.now() / 1000)
       }), {
         headers: {
@@ -384,78 +384,18 @@ export default {
       });
     }
 
-    // Direct APK Download Endpoint (Hosted directly on Cloudflare Worker CDN with Fast CDN Redirect)
-    if ((path === '/download' || path === '/AsanVPN.apk' || path === '/apk') && (request.method === 'GET' || request.method === 'HEAD')) {
-      let rawMeta = null;
-      try {
-        rawMeta = await env.VPN_USERS.get('apk_meta');
-      } catch (kvErr) {}
-
-      let meta = null;
-      if (rawMeta) {
-        try { meta = JSON.parse(rawMeta); } catch (e) {}
-      }
-
+    // Direct APK Download Endpoint (Fast domestic CDN redirect with ABI support)
+    if ((path === '/download' || path === '/AsanVPN.apk' || path === '/apk' || path.startsWith('/download/')) && (request.method === 'GET' || request.method === 'HEAD')) {
       const urlObj = new URL(request.url);
-      const forceKv = urlObj.searchParams.get('source') === 'kv';
-      const domesticUrl = "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download";
-      const targetGithubUrl = (meta && meta.versionCode && meta.versionCode >= 18 && meta.github_url) || "https://github.com/armanpier/AsanVPN/releases/download/v1.3.12/AsanVPN-v1.3.12-universal.apk";
+      const abi = urlObj.searchParams.get('abi') || (path.startsWith('/download/') ? path.replace('/download/', '') : '');
+      const abiParam = abi ? `?abi=${abi}` : '';
+      const domesticUrl = `https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download${abiParam}`;
+      const targetGithubUrl = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.14/AsanVPN-v1.3.14-universal.apk";
 
-      // If source=github is explicitly requested, redirect to GitHub
       if (urlObj.searchParams.get('source') === 'github') {
         return Response.redirect(targetGithubUrl, 302);
       }
-
-      // If not explicitly forced to KV, redirect to Iranian domestic high-speed ArvanCloud Edge (no VPN required, ping <20ms)
-      if (!forceKv) {
-        return Response.redirect(domesticUrl, 302);
-      }
-
-      if (!meta) {
-        return Response.redirect(targetGithubUrl, 302);
-      }
-
-      if (request.method === 'HEAD') {
-        return new Response(null, {
-          headers: {
-            'Content-Type': 'application/vnd.android.package-archive',
-            'Content-Disposition': `attachment; filename="${meta.filename || 'AsanVPN.apk'}"`,
-            'Content-Length': meta.total_size.toString(),
-            'Cache-Control': 'public, max-age=86400',
-            'Access-Control-Allow-Origin': '*'
-          }
-        });
-      }
-
-      // Stream concatenated chunks sequentially
-      const { readable, writable } = new TransformStream();
-      (async () => {
-        const writer = writable.getWriter();
-        try {
-          for (let i = 0; i < meta.total_chunks; i++) {
-            const chunk = await env.VPN_USERS.get(`apk_chunk_${i}`, { type: 'arrayBuffer' });
-            if (chunk) {
-              await writer.write(new Uint8Array(chunk));
-            }
-          }
-        } catch (streamErr) {
-          console.error('Error streaming APK chunk:', streamErr);
-        } finally {
-          await writer.close();
-        }
-      })();
-
-      return new Response(readable, {
-        headers: {
-          'Content-Type': 'application/vnd.android.package-archive',
-          'Content-Disposition': `attachment; filename="${meta.filename || 'AsanVPN.apk'}"`,
-          'Content-Length': meta.total_size.toString(),
-          'X-Total-Length': meta.total_size.toString(),
-          'X-File-Size': meta.total_size.toString(),
-          'Cache-Control': 'public, max-age=86400',
-          'Access-Control-Allow-Origin': '*'
-        }
-      });
+      return Response.redirect(domesticUrl, 302);
     }
 
     const supportPhone = env.DEFAULT_SUPPORT_PHONE || '+989120000000';

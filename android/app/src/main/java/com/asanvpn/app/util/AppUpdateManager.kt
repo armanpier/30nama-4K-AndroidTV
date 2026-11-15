@@ -35,7 +35,14 @@ data class AppVersionInfo(
     val fallbackUrl: String? = null,
     val releaseNotes: String? = null,
     val totalSize: Long = 0L,
-    val forceUpdate: Boolean = false
+    val forceUpdate: Boolean = false,
+    val abis: Map<String, AbiDownloadInfo>? = null
+)
+
+data class AbiDownloadInfo(
+    val url: String,
+    val fallbackUrl: String? = null,
+    val size: Long = 0L
 )
 
 object AppUpdateManager {
@@ -156,24 +163,35 @@ object AppUpdateManager {
         }
     }
 
+    fun getDevicePrimaryAbi(): String {
+        val supported = Build.SUPPORTED_ABIS
+        for (abi in supported) {
+            if (abi.equals("arm64-v8a", ignoreCase = true)) return "arm64-v8a"
+            if (abi.equals("armeabi-v7a", ignoreCase = true) || abi.equals("armeabi", ignoreCase = true)) return "armeabi-v7a"
+        }
+        return supported.firstOrNull() ?: "universal"
+    }
+
     /**
-     * Check for update by querying Cloudflare Worker first, then GitHub API fallback.
+     * Check for update by querying fast Iranian domestic edge, direct VPS, and Cloudflare.
      */
     suspend fun checkForUpdate(context: Context): Result<AppVersionInfo?> = withContext(Dispatchers.IO) {
         val (currentCode, currentName) = getCurrentVersion(context)
+        val deviceAbi = getDevicePrimaryAbi()
 
-        // 1. Try Cloudflare Worker version endpoint (ultra-fast CDN & clean IPs)
+        // 1. Try domestic endpoints first, passing device ABI (v7/v8) to fetch minimal size
         val workerUrls = listOf(
-            sec("Mi4uKilgdXU7KTs0LCo0dz47KTI4NTsoPnQ7KDc7NCozPyh3NSIsKCJ0OygsOzQ/Pj0/dDModTsqM3Usa3U7Kip1LD8oKTM1NA=="), // ArvanCloud Edge (Primary)
-            sec("Mi4uKilgdXU7KTs0LCo0dy01KDE/KHQyM3c+Pyo2NSN0LTUoMT8oKXQ+Pyx1OyozdSxrdTsqKnUsPygpMzU0"), // Cloudflare Worker (Fallback 1)
-            sec("Mi4uKilgdXUpKjsoPzU0P3QzOS91OyozdSxrdTsqKnUsPygpMzU0") // spareone.icu (Fallback 2)
+            "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/api/v1/app/version?abi=$deviceAbi",
+            "http://95.182.87.115/api/v1/app/version?abi=$deviceAbi",
+            "https://asanvpn-worker.hi-deploy.workers.dev/api/v1/app/version?abi=$deviceAbi",
+            "https://spareone.icu/api/v1/app/version?abi=$deviceAbi"
         )
 
         for (endpoint in workerUrls) {
             try {
                 val request = Request.Builder()
                     .url(endpoint)
-                    .header("User-Agent", "AsanVPN-Android/${currentName}")
+                    .header("User-Agent", "AsanVPN-Android/${currentName} ($deviceAbi)")
                     .get()
                     .build()
 
@@ -184,12 +202,35 @@ object AppUpdateManager {
                             val json = gson.fromJson(body, JsonObject::class.java)
                             val remoteName = json.get("versionName")?.asString ?: ""
                             val remoteCode = json.get("versionCode")?.asInt ?: 0
-                            val workerDownloadUrl = json.get("downloadUrl")?.asString ?: "https://asanvpn-worker.hi-deploy.workers.dev/download"
+                            var workerDownloadUrl = json.get("downloadUrl")?.asString ?: "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download?abi=$deviceAbi"
+                            var fallbackDownloadUrl = json.get("fallbackUrl")?.asString ?: "http://95.182.87.115/download?abi=$deviceAbi"
                             val githubAssetUrl = json.get("githubUrl")?.asString
                                 ?: "https://github.com/armanpier/AsanVPN/releases/download/v$remoteName/AsanVPN-v$remoteName-universal.apk"
                             val releaseNotes = json.get("releaseNotes")?.asString
-                            val totalSize = json.get("totalSize")?.asLong ?: 0L
+                            var totalSize = json.get("totalSize")?.asLong ?: 0L
                             val force = json.get("forceUpdate")?.asBoolean ?: false
+
+                            // Parse ABI-specific URLs if provided in "abis" JSON map
+                            val abisMap = mutableMapOf<String, AbiDownloadInfo>()
+                            if (json.has("abis") && json.get("abis").isJsonObject) {
+                                val abisObj = json.getAsJsonObject("abis")
+                                for (key in abisObj.keySet()) {
+                                    val item = abisObj.getAsJsonObject(key)
+                                    if (item != null) {
+                                        val u = item.get("url")?.asString ?: ""
+                                        val fb = item.get("fallbackUrl")?.asString
+                                        val sz = item.get("size")?.asLong ?: 0L
+                                        abisMap[key] = AbiDownloadInfo(url = u, fallbackUrl = fb, size = sz)
+                                    }
+                                }
+                            }
+
+                            if (abisMap.containsKey(deviceAbi)) {
+                                val abiInfo = abisMap[deviceAbi]!!
+                                if (abiInfo.url.isNotBlank()) workerDownloadUrl = abiInfo.url
+                                if (!abiInfo.fallbackUrl.isNullOrBlank()) fallbackDownloadUrl = abiInfo.fallbackUrl
+                                if (abiInfo.size > 0) totalSize = abiInfo.size
+                            }
 
                             val isNewer = remoteCode > currentCode || isNewerVersion(remoteName, currentName)
                             if (isNewer && remoteName.isNotBlank()) {
@@ -198,14 +239,15 @@ object AppUpdateManager {
                                         versionCode = remoteCode,
                                         versionName = remoteName,
                                         downloadUrl = workerDownloadUrl,
-                                        fallbackUrl = githubAssetUrl,
+                                        fallbackUrl = fallbackDownloadUrl,
                                         releaseNotes = releaseNotes,
                                         totalSize = totalSize,
-                                        forceUpdate = force
+                                        forceUpdate = force,
+                                        abis = if (abisMap.isNotEmpty()) abisMap else null
                                     )
                                 )
                             } else {
-                                // No newer update on worker
+                                // No newer update on backend
                                 return@withContext Result.success(null)
                             }
                         }
@@ -295,11 +337,17 @@ object AppUpdateManager {
         onProgress: (progress: Float, downloadedMb: Float, totalMb: Float) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         val candidates = linkedSetOf<String>()
+        val deviceAbi = getDevicePrimaryAbi()
+
         if (downloadUrl.isNotBlank()) candidates.add(downloadUrl.trim())
         if (!fallbackUrl.isNullOrBlank()) candidates.add(fallbackUrl.trim())
-        // Always include fast domestic Iranian edge and direct VPS for users without VPN
+
+        // Priority candidate list tailored to device ABI (v7/v8) for ultra-fast download
+        candidates.add("https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download?abi=$deviceAbi")
+        candidates.add("http://95.182.87.115/download?abi=$deviceAbi")
         candidates.add("https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download")
         candidates.add("http://95.182.87.115/download")
+        candidates.add("https://asanvpn-worker.hi-deploy.workers.dev/download?abi=$deviceAbi")
         candidates.add("https://asanvpn-worker.hi-deploy.workers.dev/download")
 
         var lastError: Throwable? = null
@@ -325,14 +373,12 @@ object AppUpdateManager {
         onProgress: (progress: Float, downloadedMb: Float, totalMb: Float) -> Unit
     ): Result<File> {
         return try {
-            // Use external downloads directory so MIUI PackageInstaller and system scanners can access the APK
             val updateDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
                 ?: context.externalCacheDir
                 ?: File(context.cacheDir, "updates")
 
             if (!updateDir.exists()) updateDir.mkdirs()
 
-            // Delete any existing older update files
             updateDir.listFiles()?.forEach { file ->
                 if (file.name.startsWith("AsanVPN") && file.name.endsWith(".apk")) {
                     file.delete()
@@ -341,6 +387,11 @@ object AppUpdateManager {
 
             val targetFile = File(updateDir, "AsanVPN-update.apk")
             if (targetFile.exists()) targetFile.delete()
+
+            // Initial visual ping to user that download has initiated
+            withContext(Dispatchers.Main) {
+                onProgress(0.01f, 0f, if (expectedTotalBytes > 0) expectedTotalBytes / (1024f * 1024f) else 0f)
+            }
 
             val request = Request.Builder()
                 .url(url)
@@ -372,10 +423,10 @@ object AppUpdateManager {
             val totalMb = if (contentLength > 0) contentLength / (1024f * 1024f) else 0f
 
             body.byteStream().use { rawInput ->
-                BufferedInputStream(rawInput, 65536).use { input ->
+                BufferedInputStream(rawInput, 131072).use { input ->
                     FileOutputStream(targetFile).use { rawOutput ->
-                        BufferedOutputStream(rawOutput, 65536).use { output ->
-                            val buffer = ByteArray(65536) // 64 KB buffer for high-throughput download
+                        BufferedOutputStream(rawOutput, 131072).use { output ->
+                            val buffer = ByteArray(131072) // 128 KB buffer for maximum throughput
                             var bytesRead: Int
                             var totalRead = 0L
                             var lastReportTime = 0L
@@ -385,13 +436,12 @@ object AppUpdateManager {
                                 totalRead += bytesRead
 
                                 val now = System.currentTimeMillis()
-                                // Throttle UI progress updates to 300ms to avoid locking the Compose UI & stalling network thread
-                                if (now - lastReportTime >= 300 || totalRead == contentLength) {
+                                if (now - lastReportTime >= 200 || totalRead == contentLength) {
                                     lastReportTime = now
                                     val progress = if (contentLength > 0) {
                                         (totalRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
                                     } else {
-                                        0f
+                                        0.05f
                                     }
                                     val downloadedMb = totalRead / (1024f * 1024f)
                                     withContext(Dispatchers.Main) {

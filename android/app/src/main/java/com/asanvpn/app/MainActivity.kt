@@ -139,9 +139,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Automatic background check for update on app startup
+        // Automatic fast check for update on app startup
         lifecycleScope.launch {
-            kotlinx.coroutines.delay(2000L)
+            kotlinx.coroutines.delay(400L)
             triggerCheckForUpdate(manual = false)
         }
 
@@ -192,6 +192,7 @@ class MainActivity : ComponentActivity() {
                             lockoutUntil = prefs.lockoutUntil,
                             appVersion = currentName,
                             newVersionAvailable = availableUpdate?.versionName,
+                            isForceUpdate = availableUpdate?.forceUpdate == true,
                             isDarkMode = isDarkMode,
                             onToggleTheme = {
                                 isDarkMode = !isDarkMode

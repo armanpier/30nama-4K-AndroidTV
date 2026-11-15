@@ -123,6 +123,36 @@ fun UpdateDialog(
                             color = colors.skyBlue
                         )
                     }
+
+                    if (versionInfo.forceUpdate) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .luxuryWell(shape = RoundedCornerShape(12.dp))
+                                .background(colors.coralRed.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 7.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = colors.coralRed,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = "این به‌روزرسانی برای ادامه استفاده از برنامه الزامی است",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.coralRed,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // Release notes / Description box
@@ -155,8 +185,13 @@ fun UpdateDialog(
                     }
 
                     Text(
-                        text = "آیا مایلید نسخه جدید هم‌اکنون به صورت مستقیم دریافت و نصب شود؟",
+                        text = if (versionInfo.forceUpdate) {
+                            "جهت برقراری ارتباط پایدار و استفاده از خدمات، برنامه را هم‌اکنون به نسخه جدید ارتقا دهید."
+                        } else {
+                            "آیا مایلید نسخه جدید هم‌اکنون به صورت مستقیم دریافت و نصب شود؟"
+                        },
                         fontSize = 13.sp,
+                        fontWeight = if (versionInfo.forceUpdate) FontWeight.Bold else FontWeight.Normal,
                         color = colors.textPrimary,
                         textAlign = TextAlign.Center,
                         lineHeight = 20.sp
@@ -269,7 +304,7 @@ fun UpdateDialog(
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                text = "بعداً",
+                                text = "فعلاً نه",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.textSecondary
@@ -280,8 +315,8 @@ fun UpdateDialog(
                     if (!isDownloading && !isDownloadComplete) {
                         Button(
                             onClick = onConfirmUpdate,
-                            modifier = Modifier.weight(1.5f),
-                            colors = ButtonDefaults.buttonColors(containerColor = colors.jadeGreen),
+                            modifier = if (versionInfo.forceUpdate) Modifier.fillMaxWidth() else Modifier.weight(1.5f),
+                            colors = ButtonDefaults.buttonColors(containerColor = if (versionInfo.forceUpdate) colors.coralRed else colors.jadeGreen),
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Icon(
@@ -291,7 +326,7 @@ fun UpdateDialog(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "دانلود و نصب",
+                                text = if (versionInfo.forceUpdate) "به‌روزرسانی الزامی و نصب" else "بله، به‌روزرسانی شود",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -302,10 +337,16 @@ fun UpdateDialog(
                     if (isDownloadComplete) {
                         Button(
                             onClick = onInstallApk,
-                            modifier = Modifier.weight(1.5f),
+                            modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = colors.jadeGreen),
                             shape = RoundedCornerShape(16.dp)
                         ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "نصب نسخه جدید",
                                 fontSize = 13.sp,

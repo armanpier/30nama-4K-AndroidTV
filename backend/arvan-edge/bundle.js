@@ -92,10 +92,11 @@ async function handleRequest(request) {
     });
   }
 
-  // 3. Serve High-Speed APK Direct Download (domestic Iranian edge)
-  if (path === '/download' || path === '/AsanVPN.apk' || path === '/apk') {
+  // 3. Serve High-Speed APK Direct Download (domestic Iranian edge with ABI support)
+  if (path === '/download' || path === '/AsanVPN.apk' || path === '/apk' || path.startsWith('/download/')) {
     try {
-      const vpsApk = await fetch('http://95.182.87.115/download', {
+      const vpsApk = await fetch(`http://95.182.87.115${url.pathname}${url.search}`, {
+        method: request.method,
         headers: { 'User-Agent': 'ArvanEdge-Download/1.0', 'X-Edge-Secret': 'asanvpn-edge-internal-secret-2026' }
       });
       if (vpsApk && vpsApk.status === 200) {

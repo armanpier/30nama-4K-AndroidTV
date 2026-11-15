@@ -63,8 +63,9 @@ fun PinScreen(
     errorMessage: String?,
     isSuccess: Boolean,
     lockoutUntil: Long = 0L,
-    appVersion: String = "1.3.13",
+    appVersion: String = "1.3.14",
     newVersionAvailable: String? = null,
+    isForceUpdate: Boolean = false,
     isDarkMode: Boolean = false,
     onToggleTheme: () -> Unit = {},
     onCheckUpdate: () -> Unit = {},
@@ -184,6 +185,10 @@ fun PinScreen(
     }
 
     fun onDigitPress(digit: String) {
+        if (isForceUpdate) {
+            onCheckUpdate()
+            return
+        }
         if (isLockedOut) return
         if (enteredPin.length < PIN_LENGTH && !isLoading && !isSuccess) {
             performClickHaptic()
@@ -235,6 +240,10 @@ fun PinScreen(
     }
 
     fun handlePasteFromClipboard() {
+        if (isForceUpdate) {
+            onCheckUpdate()
+            return
+        }
         if (isLockedOut) return
         try {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
@@ -337,6 +346,72 @@ fun PinScreen(
                         tint = if (colors.isDark) Color(0xFFFBBF24) else Color(0xFF6366F1),
                         modifier = Modifier.size(19.dp)
                     )
+                }
+            }
+
+            // Interactive New Version Available Card (Header Badge)
+            if (newVersionAvailable != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .luxuryCushion(shape = RoundedCornerShape(18.dp), elevation = 4.dp)
+                        .clickable { onCheckUpdate() }
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isForceUpdate) colors.coralRed.copy(alpha = 0.2f) else colors.skyBlue.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isForceUpdate) Icons.Default.Warning else Icons.Default.SystemUpdate,
+                                    contentDescription = null,
+                                    tint = if (isForceUpdate) colors.coralRed else colors.skyBlue,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = if (isForceUpdate) "به‌روزرسانی اجباری موجود است" else "به‌روزرسانی جدید موجود است",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isForceUpdate) colors.coralRed else colors.textPrimary
+                                )
+                                Text(
+                                    text = "نسخه $newVersionAvailable (فوق‌العاده سریع و سبک)",
+                                    fontSize = 11.sp,
+                                    color = colors.textSecondary
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isForceUpdate) colors.coralRed else colors.jadeGreen)
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "به‌روزرسانی",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
             }
 
@@ -844,10 +919,12 @@ fun PinScreen(
                         modifier = Modifier.clickable { onCheckUpdate() }
                     ) {
                         Text(
-                            text = if (newVersionAvailable != null) "نسخه جدید: $newVersionAvailable" else "نسخه $appVersion",
+                            text = if (newVersionAvailable != null) {
+                                if (isForceUpdate) "به‌روزرسانی اجباری: $newVersionAvailable" else "نسخه جدید: $newVersionAvailable"
+                            } else "نسخه $appVersion",
                             fontSize = 11.sp,
                             fontWeight = if (newVersionAvailable != null) FontWeight.Bold else FontWeight.Normal,
-                            color = if (newVersionAvailable != null) Color(0xFFEF4444) else colors.textMuted
+                            color = if (newVersionAvailable != null) (if (isForceUpdate) colors.coralRed else colors.skyBlue) else colors.textMuted
                         )
                     }
                     Spacer(modifier = Modifier.width(16.dp))
