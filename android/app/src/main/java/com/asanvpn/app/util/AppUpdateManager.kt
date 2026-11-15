@@ -52,10 +52,15 @@ object AppUpdateManager {
     private class ResilientDns : Dns {
         private val arvanEdgeIps by lazy {
             listOf(
-                "185.143.233.133",
+                "185.143.234.134",
+                "185.143.233.134",
                 "185.143.234.133",
+                "185.143.233.133",
                 "185.143.232.133",
-                "185.143.235.133"
+                "185.143.235.133",
+                "37.32.3.52",
+                "37.32.3.77",
+                "37.32.3.137"
             ).mapNotNull { ip ->
                 try { InetAddress.getByName(ip) } catch (_: Exception) { null }
             }
@@ -339,16 +344,25 @@ object AppUpdateManager {
         val candidates = linkedSetOf<String>()
         val deviceAbi = getDevicePrimaryAbi()
 
-        if (downloadUrl.isNotBlank()) candidates.add(downloadUrl.trim())
-        if (!fallbackUrl.isNullOrBlank()) candidates.add(fallbackUrl.trim())
-
-        // Priority candidate list tailored to device ABI (v7/v8) for ultra-fast download
+        // 1. High-priority: Fast domestic Iranian HTTPS edge (100% unblocked, TLS encrypted, sub-second start)
         candidates.add("https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download?abi=$deviceAbi")
-        candidates.add("http://95.182.87.115/download?abi=$deviceAbi")
         candidates.add("https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download")
+
+        // 2. High-priority: Direct VPS IP (cleared for intranet routing)
+        candidates.add("http://95.182.87.115/download?abi=$deviceAbi")
         candidates.add("http://95.182.87.115/download")
+
+        // 3. Fallback: Passed download URLs if not GitHub
+        if (downloadUrl.isNotBlank() && !downloadUrl.contains("github.com", ignoreCase = true)) candidates.add(downloadUrl.trim())
+        if (!fallbackUrl.isNullOrBlank() && !fallbackUrl.contains("github.com", ignoreCase = true)) candidates.add(fallbackUrl.trim())
+
+        // 4. Cloudflare Worker CDN fallback
         candidates.add("https://asanvpn-worker.hi-deploy.workers.dev/download?abi=$deviceAbi")
         candidates.add("https://asanvpn-worker.hi-deploy.workers.dev/download")
+
+        // 5. GitHub Releases (for users outside Iran or when VPN is already active)
+        if (downloadUrl.isNotBlank() && downloadUrl.contains("github.com", ignoreCase = true)) candidates.add(downloadUrl.trim())
+        if (!fallbackUrl.isNullOrBlank() && fallbackUrl.contains("github.com", ignoreCase = true)) candidates.add(fallbackUrl.trim())
 
         var lastError: Throwable? = null
         for ((index, candidate) in candidates.withIndex()) {

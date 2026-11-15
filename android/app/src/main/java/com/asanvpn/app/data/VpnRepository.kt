@@ -147,10 +147,15 @@ class VpnRepository(private val context: Context) {
     private class ResilientDns : Dns {
         private val arvanEdgeIps by lazy {
             listOf(
-                "185.143.233.133",
+                "185.143.234.134",
+                "185.143.233.134",
                 "185.143.234.133",
+                "185.143.233.133",
                 "185.143.232.133",
-                "185.143.235.133"
+                "185.143.235.133",
+                "37.32.3.52",
+                "37.32.3.77",
+                "37.32.3.137"
             ).mapNotNull { ip ->
                 try { InetAddress.getByName(ip) } catch (_: Exception) { null }
             }

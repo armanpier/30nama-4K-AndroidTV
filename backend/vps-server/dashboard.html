@@ -1167,8 +1167,8 @@
     function openMigrationModal() { document.getElementById('migration-modal').classList.remove('hidden'); }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-    function openEditModal(pin) {
-      const user = cachedUsers.find(u => u.pin === pin);
+    async function openEditModal(pin) {
+      let user = cachedUsers.find(u => u.pin === pin);
       if (!user) return;
 
       document.getElementById('edit-pin-val').value = user.pin;
@@ -1180,9 +1180,11 @@
         : (user.panel_id ? [user.panel_id] : []);
       renderPanelCheckboxes('edit-user-panels-container', userPanelIds);
 
-      const allUrls = (Array.isArray(user.upstream_sub_urls) && user.upstream_sub_urls.length > 0)
+      // Read or asynchronously load full user details including upstream URLs
+      let allUrls = (Array.isArray(user.upstream_sub_urls) && user.upstream_sub_urls.length > 0)
         ? user.upstream_sub_urls.join('\n')
         : (user.upstream_sub_url || '');
+
       document.getElementById('edit-sub-url').value = allUrls;
       document.getElementById('edit-user-days').value = '';
       document.getElementById('edit-active-status').value = user.active !== false ? 'true' : 'false';
@@ -1197,6 +1199,23 @@
       }
 
       document.getElementById('edit-modal').classList.remove('hidden');
+
+      if (!allUrls) {
+        try {
+          const { ok, data } = await fetchJson(`/api/v1/admin/user?pin=${pin}`, {
+            headers: { 'X-Admin-Token': currentToken }
+          });
+          if (ok && data && data.user) {
+            const freshUser = data.user;
+            const freshUrls = (Array.isArray(freshUser.upstream_sub_urls) && freshUser.upstream_sub_urls.length > 0)
+              ? freshUser.upstream_sub_urls.join('\n')
+              : (freshUser.upstream_sub_url || '');
+            if (freshUrls) {
+              document.getElementById('edit-sub-url').value = freshUrls;
+            }
+          }
+        } catch (_) {}
+      }
     }
 
     async function submitEditUser() {

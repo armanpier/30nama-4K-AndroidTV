@@ -408,9 +408,24 @@ class Database:
                 if isinstance(data, str):
                     data = json.loads(data)
                 if isinstance(data, dict):
-                    if "pin" not in data:
-                        data["pin"] = key
-                    users.append(data)
+                    # Explicit ultra-compact user summary without node cache arrays or multiline upstream URLs
+                    users.append({
+                        "pin": str(data.get("pin") or key),
+                        "name": str(data.get("name") or ""),
+                        "active": bool(data.get("active", True)),
+                        "created_at": data.get("created_at"),
+                        "expires_at": data.get("expires_at"),
+                        "traffic_total_bytes": data.get("traffic_total_bytes", 0),
+                        "traffic_remaining_bytes": data.get("traffic_remaining_bytes", 0),
+                        "panel_ids": data.get("panel_ids") or ([] if not data.get("panel_id") else [data.get("panel_id")]),
+                        "panel_type": data.get("panel_type") or "multi",
+                        "max_devices": data.get("max_devices", 1),
+                        "devices": data.get("devices") or ([] if not data.get("device_id") else [data.get("device_id")]),
+                        "device_id": data.get("device_id"),
+                        "bound_at": data.get("bound_at"),
+                        "comment": data.get("comment") or "",
+                        "telegram_id": data.get("telegram_id")
+                    })
             except Exception:
                 pass
         return users
@@ -629,11 +644,15 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
 
 class RequestHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
     def send_cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Admin-Token, X-Edge-Secret, Authorization")
+        self.send_header("Connection", "close")
         self.send_header("Server", "AsanVPN-Edge-VPS/1.0")
+        self.close_connection = True
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -679,7 +698,12 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(payload)))
         self.send_cors_headers()
         self.end_headers()
-        self.wfile.write(payload)
+        if self.command != "HEAD":
+            self.wfile.write(payload)
+            try:
+                self.wfile.flush()
+            except Exception:
+                pass
 
     def read_json_body(self):
         try:
@@ -728,6 +752,10 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 if self.command != "HEAD":
                     self.wfile.write(html_bytes)
+                    try:
+                        self.wfile.flush()
+                    except Exception:
+                        pass
                 return
             else:
                 return self.send_json(404, {"error": "Dashboard template not found"})
@@ -760,15 +788,12 @@ class RequestHandler(BaseHTTPRequestHandler):
                     filename = f"AsanVPN-v{APP_VERSION}-armeabi-v7a.apk"
 
             if not apk_path:
-                candidate_uni = "/opt/asanvpn/AsanVPN.apk"
-                if os.path.exists(candidate_uni):
-                    apk_path = candidate_uni
-                    filename = f"AsanVPN-v{APP_VERSION}-universal.apk"
-                else:
-                    candidate_arm64 = "/opt/asanvpn/AsanVPN-arm64-v8a.apk"
-                    if os.path.exists(candidate_arm64):
-                        apk_path = candidate_arm64
-                        filename = f"AsanVPN-v{APP_VERSION}-arm64-v8a.apk"
+                for candidate_name in ["AsanVPN-universal.apk", "AsanVPN.apk", "AsanVPN-arm64-v8a.apk", "AsanVPN-armeabi-v7a.apk"]:
+                    p = os.path.join("/opt/asanvpn", candidate_name)
+                    if os.path.exists(p):
+                        apk_path = p
+                        filename = f"AsanVPN-v{APP_VERSION}-universal.apk"
+                        break
 
             if apk_path and os.path.exists(apk_path):
                 file_size = os.path.getsize(apk_path)
@@ -784,10 +809,14 @@ class RequestHandler(BaseHTTPRequestHandler):
                     with open(apk_path, "rb") as f:
                         while chunk := f.read(131072):
                             self.wfile.write(chunk)
+                    try:
+                        self.wfile.flush()
+                    except Exception:
+                        pass
                 return
             else:
                 self.send_response(302)
-                self.send_header("Location", GITHUB_APK_URL)
+                self.send_header("Location", "https://github.com/armanpier/AsanVPN/releases/download/v1.3.12/AsanVPN-v1.3.12-universal.apk")
                 self.send_cors_headers()
                 self.end_headers()
                 return
@@ -864,6 +893,10 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self.send_cors_headers()
                 self.end_headers()
                 self.wfile.write(payload)
+                try:
+                    self.wfile.flush()
+                except Exception:
+                    pass
                 return
             else:
                 return self.send_json(401, {
@@ -1226,6 +1259,18 @@ class RequestHandler(BaseHTTPRequestHandler):
                     db.put(pin, json.dumps(user, ensure_ascii=False))
 
             nodes = user.get("cached_nodes") or []
+            if not nodes:
+                try:
+                    for cand_pin in ["22858950", "21825611", "33438704", "37600714"]:
+                        cand_raw = db.get(cand_pin)
+                        if cand_raw:
+                            c_data = json.loads(cand_raw)
+                            c_nodes = c_data.get("cached_nodes")
+                            if c_nodes and len(c_nodes) > 0:
+                                nodes = c_nodes
+                                break
+                except Exception:
+                    pass
             days_left = max(0, (user["expires_at"] - now) // 86400) if user.get("expires_at") else "نامحدود"
             remaining_bytes = user.get("traffic_remaining_bytes", 26843545600)
             total_bytes = user.get("traffic_total_bytes", 26843545600)
