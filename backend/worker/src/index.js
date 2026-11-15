@@ -373,7 +373,7 @@ export default {
         downloadUrl: "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download",
         fallbackUrl: "http://95.182.87.115/download",
         githubUrl: "https://github.com/armanpier/AsanVPN/releases/download/v1.3.15/AsanVPN-v1.3.15-universal.apk",
-        releaseNotes: "اشتراک‌گذاری هوشمند برنامه با بارکد واقعی QR، انتقال لمسی NFC و ارسال مستقیم فایل، تفکیک هوشمند نسخه سبک گوشی (v7/v8) و پایداری اتصال",
+        releaseNotes: "اشتراک‌گذاری هوشمند برنامه با بارکد واقعی QR و ارسال مستقیم فایل، تفکیک هوشمند نسخه سبک گوشی (v7/v8) و پایداری اتصال",
         publishedAt: Math.floor(Date.now() / 1000)
       }), {
         headers: {

@@ -27,7 +27,6 @@ import com.asanvpn.app.ui.theme.AsanVpnTheme
 import com.asanvpn.app.util.AppUpdateManager
 import com.asanvpn.app.util.AppVersionInfo
 import com.asanvpn.app.util.GeoAssetManager
-import com.asanvpn.app.util.NfcShareHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -341,12 +340,6 @@ class MainActivity : ComponentActivity() {
         if (!pin.isNullOrBlank()) {
             validateUserSession(pin)
         }
-
-        // Configure NFC NDEF Beam/Push with the latest Universal download URL
-        val dynamicUniversalUrl = availableUpdate?.abis?.get("universal")?.url
-            ?: availableUpdate?.downloadUrl
-            ?: "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download"
-        NfcShareHelper.setupNdefPush(this, dynamicUniversalUrl)
     }
 
     private fun kickoutRevokedUser(message: String) {

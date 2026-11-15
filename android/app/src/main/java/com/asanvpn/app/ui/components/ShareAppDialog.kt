@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.asanvpn.app.ui.theme.*
-import com.asanvpn.app.util.NfcShareHelper
+import com.asanvpn.app.util.AppShareHelper
 import com.asanvpn.app.util.QrCodeGenerator
 
 @Composable
@@ -38,10 +38,6 @@ fun ShareAppDialog(
 ) {
     val context = LocalContext.current
     val colors = LuxuryTheme.colors
-
-    var selectedTab by remember { mutableStateOf(0) } // 0: QR Code, 1: NFC
-    val isNfcSupported = remember { NfcShareHelper.isNfcSupported(context) }
-    val isNfcEnabled = remember { NfcShareHelper.isNfcEnabled(context) }
 
     // Generate real, high-contrast, camera-friendly QR Code Bitmap via ZXing
     val qrBitmap: Bitmap? = remember(downloadUrl) {
@@ -111,284 +107,83 @@ fun ShareAppDialog(
                     Spacer(modifier = Modifier.size(36.dp))
                 }
 
-                // Tab Switcher (QR Code vs NFC)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .luxuryWell(shape = RoundedCornerShape(16.dp))
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                // QR CODE CONTENT
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Tab 0: QR Code
+                    // High-contrast clean white plate for 100% reliable camera scanning
                     Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                if (selectedTab == 0) colors.skyBlue.copy(alpha = 0.18f) else Color.Transparent
-                            )
-                            .clickable { selectedTab = 0 }
-                            .padding(vertical = 9.dp),
+                            .size(220.dp)
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(Color.White)
+                            .border(2.dp, Color(0xFFE2E8F0), RoundedCornerShape(22.dp))
+                            .padding(14.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.QrCode2,
-                                contentDescription = null,
-                                tint = if (selectedTab == 0) colors.skyBlue else colors.textMuted,
-                                modifier = Modifier.size(17.dp)
+                        if (qrBitmap != null) {
+                            Image(
+                                bitmap = qrBitmap.asImageBitmap(),
+                                contentDescription = "Real Universal APK QR Code",
+                                modifier = Modifier.fillMaxSize()
                             )
-                            Text(
-                                text = "بارکد QR",
-                                fontSize = 12.5.sp,
-                                fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedTab == 0) colors.textPrimary else colors.textMuted
+                        } else {
+                            CircularProgressIndicator(
+                                color = colors.skyBlue,
+                                modifier = Modifier.size(36.dp)
                             )
                         }
                     }
 
-                    // Tab 1: NFC
+                    Text(
+                        text = "دوربین هر گوشی را مقابل این بارکد بگیرید تا لینک مستقیم دانلود آخرین نسخه Universal باز شود.",
+                        fontSize = 12.sp,
+                        color = colors.textSecondary,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp)
+                    )
+
+                    // Quick Copy Pill
                     Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                if (selectedTab == 1) colors.jadeGreen.copy(alpha = 0.18f) else Color.Transparent
-                            )
-                            .clickable { selectedTab = 1 }
-                            .padding(vertical = 9.dp),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .luxuryWell(shape = RoundedCornerShape(14.dp))
+                            .clickable {
+                                AppShareHelper.copyToClipboard(context, downloadUrl)
+                            }
+                            .padding(horizontal = 12.dp, vertical = 9.dp)
                     ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Nfc,
-                                contentDescription = null,
-                                tint = if (selectedTab == 1) colors.jadeGreen else colors.textMuted,
-                                modifier = Modifier.size(17.dp)
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = "کپی لینک",
+                                tint = colors.skyBlue,
+                                modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "انتقال لمسی NFC",
-                                fontSize = 12.5.sp,
-                                fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedTab == 1) colors.textPrimary else colors.textMuted
-                            )
-                        }
-                    }
-                }
-
-                // TAB CONTENT
-                if (selectedTab == 0) {
-                    // TAB 0: REAL QR CODE
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // High-contrast clean white plate for 100% reliable camera scanning
-                        Box(
-                            modifier = Modifier
-                                .size(210.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color.White)
-                                .border(2.dp, Color(0xFFE2E8F0), RoundedCornerShape(20.dp))
-                                .padding(12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (qrBitmap != null) {
-                                Image(
-                                    bitmap = qrBitmap.asImageBitmap(),
-                                    contentDescription = "Real Universal APK QR Code",
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                CircularProgressIndicator(
-                                    color = colors.skyBlue,
-                                    modifier = Modifier.size(36.dp)
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = "دوربین هر گوشی را مقابل این بارکد بگیرید تا لینک مستقیم دانلود آخرین نسخه Universal باز شود.",
-                            fontSize = 11.5.sp,
-                            color = colors.textSecondary,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 17.sp,
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
-
-                        // Quick Copy Pill
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .luxuryWell(shape = RoundedCornerShape(14.dp))
-                                .clickable {
-                                    NfcShareHelper.copyToClipboard(context, downloadUrl)
-                                }
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ContentCopy,
-                                    contentDescription = "کپی لینک",
-                                    tint = colors.skyBlue,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = downloadUrl.replace("https://", ""),
-                                    fontSize = 10.5.sp,
-                                    color = colors.textSecondary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(horizontal = 8.dp),
-                                    textAlign = TextAlign.Center
-                                )
-                                Text(
-                                    text = "کپی",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.skyBlue
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    // TAB 1: NFC TAP-TO-SHARE
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        // NFC Pulse Graphic Box
-                        Box(
-                            modifier = Modifier
-                                .size(110.dp)
-                                .luxuryWell(shape = CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
+                                text = downloadUrl.replace("https://", ""),
+                                fontSize = 10.5.sp,
+                                color = colors.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier
-                                    .size(86.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (isNfcEnabled) colors.jadeGreen.copy(alpha = 0.2f)
-                                        else colors.amberWarning.copy(alpha = 0.2f)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Nfc,
-                                    contentDescription = null,
-                                    tint = if (isNfcEnabled) colors.jadeGreen else colors.amberWarning,
-                                    modifier = Modifier.size(46.dp)
-                                )
-                            }
-                        }
-
-                        // NFC Status Description Card
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .luxuryWell(shape = RoundedCornerShape(16.dp))
-                                .padding(12.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                if (isNfcEnabled) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(8.dp)
-                                                .clip(CircleShape)
-                                                .background(colors.jadeGreen)
-                                        )
-                                        Text(
-                                            text = "انتقال لمسی NFC آماده است",
-                                            fontSize = 12.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = colors.jadeGreen
-                                        )
-                                    }
-                                    Text(
-                                        text = "پشت این گوشی را به پشت گوشی مقابل بچسبانید تا صفحه دانلود مستقیماً باز شود.",
-                                        fontSize = 11.5.sp,
-                                        color = colors.textSecondary,
-                                        textAlign = TextAlign.Center,
-                                        lineHeight = 17.sp
-                                    )
-                                } else if (isNfcSupported) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Warning,
-                                            contentDescription = null,
-                                            tint = colors.amberWarning,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Text(
-                                            text = "سخت‌افزار NFC خاموش است",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = colors.amberWarning
-                                        )
-                                    }
-                                    Text(
-                                        text = "برای انتقال لمسی، لطفاً NFC را در تنظیمات گوشی روشن کنید.",
-                                        fontSize = 11.sp,
-                                        color = colors.textSecondary,
-                                        textAlign = TextAlign.Center
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(colors.amberWarning.copy(alpha = 0.2f))
-                                            .clickable { NfcShareHelper.openNfcSettings(context) }
-                                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                                    ) {
-                                        Text(
-                                            text = "باز کردن تنظیمات NFC",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = colors.amberWarning
-                                        )
-                                    }
-                                } else {
-                                    Text(
-                                        text = "این گوشی فاقد سخت‌افزار NFC است",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.textMuted,
-                                        textAlign = TextAlign.Center
-                                    )
-                                    Text(
-                                        text = "می‌توانید با دکمه زیر فایل نصبی برنامه را از طریق Quick Share یا بلوتوث ارسال کنید.",
-                                        fontSize = 11.sp,
-                                        color = colors.textSecondary,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
+                                    .weight(1f)
+                                    .padding(horizontal = 8.dp),
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = "کپی",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.skyBlue
+                            )
                         }
                     }
                 }
@@ -412,7 +207,7 @@ fun ShareAppDialog(
                             .height(44.dp)
                             .luxuryCushion(shape = RoundedCornerShape(14.dp), elevation = 4.dp)
                             .clickable {
-                                NfcShareHelper.shareTextLink(context, downloadUrl)
+                                AppShareHelper.shareTextLink(context, downloadUrl)
                             },
                         contentAlignment = Alignment.Center
                     ) {
@@ -447,7 +242,7 @@ fun ShareAppDialog(
                                 )
                             )
                             .clickable {
-                                NfcShareHelper.shareApkFile(context)
+                                AppShareHelper.shareApkFile(context)
                             },
                         contentAlignment = Alignment.Center
                     ) {

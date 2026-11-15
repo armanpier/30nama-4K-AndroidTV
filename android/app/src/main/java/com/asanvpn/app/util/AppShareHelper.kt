@@ -1,80 +1,14 @@
 package com.asanvpn.app.util
 
-import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.nfc.NdefMessage
-import android.nfc.NdefRecord
-import android.nfc.NfcAdapter
-import android.os.Build
-import android.provider.Settings
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import java.io.File
 
-object NfcShareHelper {
-
-    fun isNfcSupported(context: Context): Boolean {
-        return try {
-            val adapter = NfcAdapter.getDefaultAdapter(context)
-            adapter != null
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    fun isNfcEnabled(context: Context): Boolean {
-        return try {
-            val adapter = NfcAdapter.getDefaultAdapter(context)
-            adapter != null && adapter.isEnabled
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    fun openNfcSettings(context: Context) {
-        try {
-            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                Intent(Settings.ACTION_NFC_SETTINGS)
-            } else {
-                Intent(Settings.ACTION_WIRELESS_SETTINGS)
-            }
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            try {
-                val intent = Intent(Settings.ACTION_SETTINGS)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(intent)
-            } catch (_: Exception) {}
-        }
-    }
-
-    /**
-     * Registers an NDEF push message on the Activity so touching devices transmits the URL & opens the download.
-     * Uses reflection to maintain compatibility with all compileSdk and runtime levels.
-     */
-    fun setupNdefPush(activity: Activity, url: String) {
-        try {
-            val adapter = NfcAdapter.getDefaultAdapter(activity) ?: return
-            if (adapter.isEnabled) {
-                val uriRecord = NdefRecord.createUri(url)
-                val aarRecord = NdefRecord.createApplicationRecord(activity.packageName)
-                val ndefMessage = NdefMessage(arrayOf(uriRecord, aarRecord))
-                try {
-                    val method = adapter.javaClass.getMethod(
-                        "setNdefPushMessage",
-                        NdefMessage::class.java,
-                        Activity::class.java
-                    )
-                    method.invoke(adapter, ndefMessage, activity)
-                } catch (_: Exception) {}
-            }
-        } catch (_: Exception) {}
-    }
+object AppShareHelper {
 
     fun copyToClipboard(context: Context, text: String, label: String = "لینک دانلود آسان وی‌پی‌ان") {
         try {
@@ -105,7 +39,7 @@ object NfcShareHelper {
 
     /**
      * Copies current running APK to cache and shares via Android system share sheet
-     * (allows Quick Share / Nearby Share / Bluetooth offline transmission).
+     * (allows Quick Share / Nearby Share / Bluetooth / Telegram offline transmission).
      */
     fun shareApkFile(context: Context) {
         try {

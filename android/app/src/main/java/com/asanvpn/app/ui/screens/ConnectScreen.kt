@@ -276,7 +276,7 @@ fun ConnectScreen(
                         )
                     }
 
-                    // 3.5. QR & NFC Share Button (beside Update button)
+                    // 3.5. QR Share Button (beside Update button)
                     Box(
                         modifier = Modifier
                             .size(42.dp)
@@ -286,7 +286,7 @@ fun ConnectScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.QrCode2,
-                            contentDescription = "اشتراک‌گذاری با QR و NFC",
+                            contentDescription = "اشتراک‌گذاری با بارکد QR",
                             tint = colors.skyBlue,
                             modifier = Modifier.size(20.dp)
                         )

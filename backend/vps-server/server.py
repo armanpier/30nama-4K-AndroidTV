@@ -583,7 +583,7 @@ def get_app_update_info(abi: str = None) -> dict:
     except Exception:
         ver_code = APP_VERSION_CODE
     force_update = bool(config.get("forceUpdate", False))
-    notes = str(config.get("releaseNotes") or "اشتراک‌گذاری هوشمند برنامه با بارکد واقعی QR، انتقال لمسی NFC و ارسال مستقیم فایل، تفکیک هوشمند نسخه سبک گوشی (v7/v8) و پایداری اتصال").strip()
+    notes = str(config.get("releaseNotes") or "اشتراک‌گذاری هوشمند برنامه با بارکد واقعی QR و ارسال مستقیم فایل، تفکیک هوشمند نسخه سبک گوشی (v7/v8) و پایداری اتصال").strip()
 
     base_opt = "/opt/asanvpn"
     files = {
