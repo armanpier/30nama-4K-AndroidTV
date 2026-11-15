@@ -43,7 +43,30 @@ object AppUpdateManager {
     private val gson = Gson()
 
     private class ResilientDns : Dns {
+        private val arvanEdgeIps by lazy {
+            listOf(
+                "185.143.233.133",
+                "185.143.234.133",
+                "185.143.232.133",
+                "185.143.235.133"
+            ).mapNotNull { ip ->
+                try { InetAddress.getByName(ip) } catch (_: Exception) { null }
+            }
+        }
+
         override fun lookup(hostname: String): List<InetAddress> {
+            if (hostname.contains("arvanedge.ir")) {
+                return try {
+                    val sys = Dns.SYSTEM.lookup(hostname).filter { addr ->
+                        val h = addr.hostAddress ?: ""
+                        !h.startsWith("10.10.") && h != "127.0.0.1" && h != "0.0.0.0"
+                    }
+                    if (sys.isNotEmpty()) sys else arvanEdgeIps
+                } catch (_: Exception) {
+                    arvanEdgeIps
+                }
+            }
+
             if (hostname.contains("workers.dev") || hostname.contains("hi-deploy") ||
                 hostname == "spareone.icu" || hostname == "onthepoint.live") {
                 val cleanIps = CloudflareEdgeTester.getWorkingCloudflareIps(hostname)

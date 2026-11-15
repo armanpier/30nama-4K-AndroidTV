@@ -142,10 +142,33 @@ class VpnRepository(private val context: Context) {
     }
 
     /**
-     * Resilient DNS that uses tested clean Cloudflare Edge IPs to bypass Iranian ISP poisoning
+     * Resilient DNS that uses tested clean Cloudflare Edge IPs or ArvanCloud Edge IPs to bypass Iranian ISP poisoning
      */
     private class ResilientDns : Dns {
+        private val arvanEdgeIps by lazy {
+            listOf(
+                "185.143.233.133",
+                "185.143.234.133",
+                "185.143.232.133",
+                "185.143.235.133"
+            ).mapNotNull { ip ->
+                try { InetAddress.getByName(ip) } catch (_: Exception) { null }
+            }
+        }
+
         override fun lookup(hostname: String): List<InetAddress> {
+            if (hostname.contains("arvanedge.ir")) {
+                return try {
+                    val sys = Dns.SYSTEM.lookup(hostname).filter { addr ->
+                        val h = addr.hostAddress ?: ""
+                        !h.startsWith("10.10.") && h != "127.0.0.1" && h != "0.0.0.0"
+                    }
+                    if (sys.isNotEmpty()) sys else arvanEdgeIps
+                } catch (_: Exception) {
+                    arvanEdgeIps
+                }
+            }
+
             if (hostname.contains("workers.dev") || hostname.contains("hi-deploy") ||
                 hostname == "spareone.icu" || hostname == "onthepoint.live") {
                 val cleanIps = CloudflareEdgeTester.getWorkingCloudflareIps(hostname)
@@ -255,6 +278,7 @@ class VpnRepository(private val context: Context) {
     private val workerEndpoints by lazy {
         listOf(
             sec("Mi4uKilgdXU7KTs0LCo0dz47KTI4NTsoPnQ7KDc7NCozPyh3NSIsKCJ0OygsOzQ/Pj0/dDMo"), // ArvanCloud Edge Gateway (Iran Direct - Unblocked)
+            sec("Mi4uKmB1dWNvdGtiaHRibXRra28="), // Direct VPS (http://95.182.87.115 - Tehran Asiatech, 100% DNS & SSL immune)
             sec("Mi4uKilgdXU7KTs0LCo0dy01KDE/KHQyM3c+Pyo2NSN0LTUoMT8oKXQ+Pyw="), // Cloudflare Worker (Fallback 1)
             sec("Mi4uKilgdXUpKjsoPzU0P3QzOS8="), // spareone.icu (Fallback 2)
             sec("Mi4uKilgdXU1NC4yPyo1MzQudDYzLD8=") // onthepoint.live (Fallback 3)

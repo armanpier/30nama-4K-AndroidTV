@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.sp
 import com.asanvpn.app.data.VpnRepository
 import com.asanvpn.app.ui.theme.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 
 private const val PIN_LENGTH = 10
 
@@ -61,7 +63,7 @@ fun PinScreen(
     errorMessage: String?,
     isSuccess: Boolean,
     lockoutUntil: Long = 0L,
-    appVersion: String = "1.3.12",
+    appVersion: String = "1.3.13",
     newVersionAvailable: String? = null,
     isDarkMode: Boolean = false,
     onToggleTheme: () -> Unit = {},
@@ -80,6 +82,8 @@ fun PinScreen(
     var isAdminMode by remember { mutableStateOf(prefs.isAdmin) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val coroutineScope = rememberCoroutineScope()
+    var autoSubmitJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     val colors = LuxuryTheme.colors
 
@@ -185,14 +189,23 @@ fun PinScreen(
             performClickHaptic()
             val newPin = enteredPin + digit
             enteredPin = newPin
+            autoSubmitJob?.cancel()
             if (newPin.length == PIN_LENGTH) {
                 onPinComplete(newPin)
+            } else if (newPin.length == 8) {
+                autoSubmitJob = coroutineScope.launch {
+                    delay(700L)
+                    if (enteredPin.length == 8 && !isLoading && !isSuccess) {
+                        onPinComplete(enteredPin)
+                    }
+                }
             }
         }
     }
 
     fun onBackspacePress() {
         if (isLockedOut) return
+        autoSubmitJob?.cancel()
         if (enteredPin.isNotEmpty() && !isLoading && !isSuccess) {
             performClickHaptic()
             enteredPin = enteredPin.dropLast(1)
@@ -333,7 +346,7 @@ fun PinScreen(
                 modifier = Modifier.padding(top = 16.dp)
             ) {
                 Text(
-                    text = "کد ۱۰ رقمی خود را وارد کنید",
+                    text = "کد اشتراک خود را وارد کنید",
                     fontSize = 21.sp,
                     fontWeight = FontWeight.Black,
                     color = colors.textPrimary,

@@ -31,9 +31,9 @@ DASHBOARD_HTML_PATH = "/etc/asanvpn/dashboard.html"
 ADMIN_PASSWORD = "Arman4237340"
 SUPPORT_PHONE = "+989120000000"
 SUPPORT_TELEGRAM = "AsanSupport"
-APP_VERSION = "1.3.12"
-APP_VERSION_CODE = 18
-GITHUB_APK_URL = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.12/AsanVPN-v1.3.12-universal.apk"
+APP_VERSION = "1.3.13"
+APP_VERSION_CODE = 19
+GITHUB_APK_URL = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.13/AsanVPN-v1.3.13-universal.apk"
 EDGE_SECRET = "asanvpn-edge-internal-secret-2026"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -673,7 +673,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 "downloadUrl": "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download",
                 "fallbackUrl": "http://95.182.87.115/download",
                 "githubUrl": GITHUB_APK_URL,
-                "releaseNotes": "طراحی سه‌بعدی لوکس جدید با دو تم روشن و تاریک (Porcelain و Obsidian)، گوی مغناطیسی چندلایه، پایداری بالاتر اتصال",
+                "releaseNotes": "پشتیبانی کامل از اتصال بدون فیلترشکن، ورود هوشمند با کدهای ۸ و ۱۰ رقمی، بهینه‌سازی مسیر مستقیم و پایداری اتصال",
                 "publishedAt": int(time.time())
             })
 
@@ -977,13 +977,6 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         # CLIENT: Connect endpoint (< 2ms instant response)
         if path == "/api/v1/connect":
-            if not self.is_authenticated_transit():
-                logging.warning(f"Direct unauthenticated connect attempt from {self.client_address[0]} rejected.")
-                return self.send_json(403, {
-                    "error": "Forbidden",
-                    "message": "Direct edge transit authentication required"
-                })
-
             pin = str(body.get("pin", "")).strip()
             device_id = str(body.get("device_id", "")).strip()
 

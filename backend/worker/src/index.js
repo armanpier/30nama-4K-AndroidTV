@@ -347,11 +347,11 @@ export default {
         rawMeta = await env.VPN_USERS.get('apk_meta');
       } catch (kvErr) {}
 
-      let version = "1.3.12";
-      let versionCode = 18;
-      let changelog = "طراحی سه‌بعدی لوکس جدید با دو تم روشن و تاریک (Porcelain و Obsidian)، گوی مغناطیسی چندلایه، پایداری بالاتر اتصال";
-      let totalSize = 60619980;
-      let githubUrl = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.12/AsanVPN-v1.3.12-universal.apk";
+      let version = "1.3.13";
+      let versionCode = 19;
+      let changelog = "پشتیبانی کامل از اتصال بدون فیلترشکن، ورود هوشمند با کدهای ۸ و ۱۰ رقمی، بهینه‌سازی مسیر مستقیم و پایداری اتصال";
+      let totalSize = 60620750;
+      let githubUrl = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.13/AsanVPN-v1.3.13-universal.apk";
 
       if (rawMeta) {
         try {
