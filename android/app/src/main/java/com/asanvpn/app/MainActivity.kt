@@ -18,6 +18,7 @@ import com.asanvpn.app.data.models.ConnectionState
 import com.asanvpn.app.service.AsanVpnService
 import com.asanvpn.app.service.PingTester
 import com.asanvpn.app.ui.components.UpdateDialog
+import com.asanvpn.app.ui.components.ShareAppDialog
 import com.asanvpn.app.ui.screens.ConnectScreen
 import com.asanvpn.app.util.AppLogger
 import com.asanvpn.app.ui.screens.ExpiredScreen
@@ -26,6 +27,7 @@ import com.asanvpn.app.ui.theme.AsanVpnTheme
 import com.asanvpn.app.util.AppUpdateManager
 import com.asanvpn.app.util.AppVersionInfo
 import com.asanvpn.app.util.GeoAssetManager
+import com.asanvpn.app.util.NfcShareHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -52,9 +54,10 @@ class MainActivity : ComponentActivity() {
     private var isPinSuccess by mutableStateOf(false)
     private var pinError by mutableStateOf<String?>(null)
 
-    // In-App Auto Update States
+    // In-App Auto Update & Share States
     private var availableUpdate by mutableStateOf<AppVersionInfo?>(null)
     private var showUpdateDialog by mutableStateOf(false)
+    private var showShareDialog by mutableStateOf(false)
     private var isUpdateDownloading by mutableStateOf(false)
     private var updateDownloadProgress by mutableFloatStateOf(0f)
     private var updateDownloadedMb by mutableFloatStateOf(0f)
@@ -201,6 +204,9 @@ class MainActivity : ComponentActivity() {
                             onCheckUpdate = {
                                 triggerCheckForUpdate(manual = true)
                             },
+                            onShareClick = {
+                                showShareDialog = true
+                            },
                             onPinComplete = { enteredPin ->
                                 verifyPinAndSetup(enteredPin)
                             },
@@ -258,6 +264,9 @@ class MainActivity : ComponentActivity() {
                             onCheckUpdate = {
                                 triggerCheckForUpdate(manual = true)
                             },
+                            onShareClick = {
+                                showShareDialog = true
+                            },
                             onChangePin = {
                                 disconnectVpnService()
                                 prefs.clearAll()
@@ -298,6 +307,21 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 }
+
+                // QR Code & NFC Share Modal
+                if (showShareDialog) {
+                    val dynamicUniversalUrl = availableUpdate?.abis?.get("universal")?.url
+                        ?: availableUpdate?.downloadUrl
+                        ?: "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download"
+
+                    ShareAppDialog(
+                        downloadUrl = dynamicUniversalUrl,
+                        versionName = availableUpdate?.versionName ?: currentName,
+                        onDismiss = {
+                            showShareDialog = false
+                        }
+                    )
+                }
             }
         }
     }
@@ -317,6 +341,12 @@ class MainActivity : ComponentActivity() {
         if (!pin.isNullOrBlank()) {
             validateUserSession(pin)
         }
+
+        // Configure NFC NDEF Beam/Push with the latest Universal download URL
+        val dynamicUniversalUrl = availableUpdate?.abis?.get("universal")?.url
+            ?: availableUpdate?.downloadUrl
+            ?: "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download"
+        NfcShareHelper.setupNdefPush(this, dynamicUniversalUrl)
     }
 
     private fun kickoutRevokedUser(message: String) {

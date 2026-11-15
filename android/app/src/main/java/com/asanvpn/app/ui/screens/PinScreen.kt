@@ -63,12 +63,13 @@ fun PinScreen(
     errorMessage: String?,
     isSuccess: Boolean,
     lockoutUntil: Long = 0L,
-    appVersion: String = "1.3.14",
+    appVersion: String = "1.3.15",
     newVersionAvailable: String? = null,
     isForceUpdate: Boolean = false,
     isDarkMode: Boolean = false,
     onToggleTheme: () -> Unit = {},
     onCheckUpdate: () -> Unit = {},
+    onShareClick: () -> Unit = {},
     onPinComplete: (String) -> Unit,
     onLockoutExpired: () -> Unit = {},
     onCheckLockout: (String, () -> Unit) -> Unit = { _, done -> done() }
@@ -308,20 +309,40 @@ fun PinScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Info (i) button
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 4.dp)
-                        .clickable { showDebugDialog = true },
-                    contentAlignment = Alignment.Center
+                // Info (i) button & QR Share button
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "اطلاعات",
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(19.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 4.dp)
+                            .clickable { showDebugDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "اطلاعات",
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 4.dp)
+                            .clickable { onShareClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCode2,
+                            contentDescription = "اشتراک‌گذاری برنامه",
+                            tint = colors.skyBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
 
                 // Title Brand Badge

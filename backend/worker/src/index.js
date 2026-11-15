@@ -366,14 +366,14 @@ export default {
       // Fallback if VPS proxy fails
       return new Response(JSON.stringify({
         success: true,
-        versionName: "1.3.14",
-        versionCode: 20,
+        versionName: "1.3.15",
+        versionCode: 21,
         forceUpdate: false,
-        totalSize: 20965393,
+        totalSize: 60651610,
         downloadUrl: "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download",
         fallbackUrl: "http://95.182.87.115/download",
-        githubUrl: "https://github.com/armanpier/AsanVPN/releases/download/v1.3.14/AsanVPN-v1.3.14-universal.apk",
-        releaseNotes: "به‌روزرسانی بهینه‌سازی سرعت دانلود، تفکیک هوشمند معماری گوشی (v7/v8)، تفکیک آپدیت اجباری و اختیاری و پایداری اتصال",
+        githubUrl: "https://github.com/armanpier/AsanVPN/releases/download/v1.3.15/AsanVPN-v1.3.15-universal.apk",
+        releaseNotes: "اشتراک‌گذاری هوشمند برنامه با بارکد واقعی QR، انتقال لمسی NFC و ارسال مستقیم فایل، تفکیک هوشمند نسخه سبک گوشی (v7/v8) و پایداری اتصال",
         publishedAt: Math.floor(Date.now() / 1000)
       }), {
         headers: {
@@ -390,7 +390,7 @@ export default {
       const abi = urlObj.searchParams.get('abi') || (path.startsWith('/download/') ? path.replace('/download/', '') : '');
       const abiParam = abi ? `?abi=${abi}` : '';
       const domesticUrl = `https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download${abiParam}`;
-      const targetGithubUrl = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.14/AsanVPN-v1.3.14-universal.apk";
+      const targetGithubUrl = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.15/AsanVPN-v1.3.15-universal.apk";
 
       if (urlObj.searchParams.get('source') === 'github') {
         return Response.redirect(targetGithubUrl, 302);

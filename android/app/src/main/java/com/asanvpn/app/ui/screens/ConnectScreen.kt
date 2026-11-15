@@ -60,13 +60,14 @@ fun ConnectScreen(
     uploadTraffic: String = "۰ B",
     downloadSpeed: String = "",
     uploadSpeed: String = "",
-    appVersion: String = "1.3.13",
+    appVersion: String = "1.3.15",
     newVersionAvailable: String? = null,
     isDarkMode: Boolean = false,
     onToggleTheme: () -> Unit = {},
     onToggleConnect: () -> Unit,
     onContactSupport: () -> Unit = {},
     onCheckUpdate: () -> Unit = {},
+    onShareClick: () -> Unit = {},
     onChangePin: () -> Unit
 ) {
     val context = LocalContext.current
@@ -272,6 +273,22 @@ fun ConnectScreen(
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (newVersionAvailable != null) Color(0xFFEF4444) else colors.textSecondary
+                        )
+                    }
+
+                    // 3.5. QR & NFC Share Button (beside Update button)
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .luxuryCushion(shape = RoundedCornerShape(18.dp), elevation = 4.dp)
+                            .clickable { onShareClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCode2,
+                            contentDescription = "اشتراک‌گذاری با QR و NFC",
+                            tint = colors.skyBlue,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
