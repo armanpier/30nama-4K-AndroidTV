@@ -658,8 +658,19 @@ class RequestHandler(BaseHTTPRequestHandler):
         token = token.strip()
         custom_pwd = db.get("__ADMIN_CUSTOM_PASSWORD__") or ADMIN_PASSWORD
         valid_tokens = [custom_pwd.strip(), ADMIN_PASSWORD.strip()]
-        auth_ok = token in valid_tokens or token.lower() in [vt.lower() for vt in valid_tokens]
-        return auth_ok
+        if token and (token in valid_tokens or token.lower() in [vt.lower() for vt in valid_tokens]):
+            return True
+
+        # Check authorization cookie
+        cookie_hdr = self.headers.get("Cookie") or self.headers.get("cookie") or ""
+        if "asan_edge_auth=" in cookie_hdr:
+            for part in cookie_hdr.split(";"):
+                part = part.strip()
+                if part.startswith("asan_edge_auth="):
+                    cookie_token = part.split("asan_edge_auth=")[1].strip()
+                    if cookie_token in valid_tokens or cookie_token.lower() in [vt.lower() for vt in valid_tokens]:
+                        return True
+        return False
 
     def send_json(self, status_code, data):
         payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -706,33 +717,20 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         # Admin Dashboard Frontend
         if path in ["/", "/admin", "/dashboard", "/panel", "/portal"]:
-            qs = urllib.parse.parse_qs(parsed.query)
-            query_key = qs.get("key", [""])[0] or qs.get("token", [""])[0] or qs.get("auth", [""])[0]
-            cookie_hdr = self.headers.get("Cookie") or self.headers.get("cookie") or ""
-            is_authorized = (
-                (query_key in [ADMIN_PASSWORD, db.get("__ADMIN_CUSTOM_PASSWORD__") or ADMIN_PASSWORD]) or
-                ("asan_edge_auth=Arman4237340" in cookie_hdr) or
-                self.check_admin_auth()
-            )
-            if is_authorized and os.path.exists(DASHBOARD_HTML_PATH):
+            if os.path.exists(DASHBOARD_HTML_PATH):
                 with open(DASHBOARD_HTML_PATH, "rb") as f:
                     html_bytes = f.read()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Content-Length", str(len(html_bytes)))
-                self.send_header("Set-Cookie", "asan_edge_auth=Arman4237340; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000")
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
                 self.send_cors_headers()
                 self.end_headers()
-                self.wfile.write(html_bytes)
+                if self.command != "HEAD":
+                    self.wfile.write(html_bytes)
                 return
             else:
-                # Decoy response for unauthorized visitors
-                return self.send_json(200, {
-                    "status": "active",
-                    "service": "AsanVPN Edge Routing Gateway",
-                    "pop": "IR",
-                    "time": int(time.time())
-                })
+                return self.send_json(404, {"error": "Dashboard template not found"})
 
         # Version check (supports ?abi=arm64-v8a or ?abi=armeabi-v7a)
         if path in ["/api/v1/app/version", "/api/v1/version", "/version"]:
@@ -854,11 +852,19 @@ class RequestHandler(BaseHTTPRequestHandler):
             input_token = str(body.get("token") or body.get("password") or self.headers.get("X-Admin-Token") or "").strip()
             custom_pwd = (db.get("__ADMIN_CUSTOM_PASSWORD__") or ADMIN_PASSWORD).strip()
             if input_token == custom_pwd or input_token == ADMIN_PASSWORD:
-                return self.send_json(200, {
+                payload = json.dumps({
                     "success": True,
                     "message": "ورود با موفقیت انجام شد.",
                     "token": input_token
-                })
+                }, ensure_ascii=False).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(payload)))
+                self.send_header("Set-Cookie", f"asan_edge_auth={input_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000")
+                self.send_cors_headers()
+                self.end_headers()
+                self.wfile.write(payload)
+                return
             else:
                 return self.send_json(401, {
                     "success": False,

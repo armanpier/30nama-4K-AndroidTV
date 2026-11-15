@@ -13,8 +13,9 @@ sftp = ssh.open_sftp()
 ssh.exec_command('mkdir -p /etc/asanvpn')
 
 # Upload files
-print("Uploading server.py...")
+print("Uploading server.py and dashboard.html...")
 sftp.put('backend/vps-server/server.py', '/etc/asanvpn/server.py')
+sftp.put('backend/vps-server/dashboard.html', '/etc/asanvpn/dashboard.html')
 
 # Ensure /opt/asanvpn exists for APK hosting
 ssh.exec_command('mkdir -p /opt/asanvpn')

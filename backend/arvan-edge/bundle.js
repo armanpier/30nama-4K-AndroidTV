@@ -47,48 +47,36 @@ async function handleRequest(request) {
     return new Response(null, { status: 302, headers: respHeaders });
   }
 
-  // 2. Admin Dashboard with Stealth Protection
-  // If the admin provides the secret key or holds the authorized session cookie, serve the full Dashboard!
-  // If unauthenticated, return the neutral decoy response so domestic crawlers cannot detect the VPN dashboard.
+  // 2. Admin Dashboard Frontend
+  // Serve the luxury web dashboard HTML directly to all visitors of /, /admin, /dashboard, /panel, /portal
+  // Authentication is handled inside the dashboard via #login-modal and /api/v1/admin/login
   if (path === '/' || path === '/admin' || path === '/dashboard' || path === '/panel' || path === '/portal') {
-    if (isAuthorizedAdmin) {
-      try {
-        const vpsDashboardUrl = 'http://95.182.87.115/?key=Arman4237340';
-        const vpsHtmlResp = await fetch(vpsDashboardUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AsanVPN-Edge/1.0',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'X-Edge-Secret': 'asanvpn-edge-internal-secret-2026'
-          }
-        });
-        if (vpsHtmlResp && vpsHtmlResp.status === 200) {
-          const respHeaders = new Headers(vpsHtmlResp.headers);
-          respHeaders.set('Content-Type', 'text/html; charset=utf-8');
-          respHeaders.set('Set-Cookie', 'asan_edge_auth=Arman4237340; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000');
-          respHeaders.set('X-Served-By', 'ArvanCloud-Edge');
-          return new Response(vpsHtmlResp.body, {
-            status: 200,
-            headers: respHeaders
-          });
+    try {
+      const vpsDashboardUrl = 'http://95.182.87.115/dashboard';
+      const vpsHtmlResp = await fetch(vpsDashboardUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AsanVPN-Edge/1.0',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'X-Edge-Secret': 'asanvpn-edge-internal-secret-2026'
         }
-      } catch (dashErr) {
-        console.error('Failed to proxy dashboard from VPS:', dashErr);
+      });
+      if (vpsHtmlResp && vpsHtmlResp.status === 200) {
+        const respHeaders = new Headers(vpsHtmlResp.headers);
+        respHeaders.set('Content-Type', 'text/html; charset=utf-8');
+        respHeaders.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        respHeaders.set('X-Served-By', 'ArvanCloud-Edge');
+        return new Response(vpsHtmlResp.body, {
+          status: 200,
+          headers: respHeaders
+        });
       }
+    } catch (dashErr) {
+      console.error('Failed to proxy dashboard from VPS:', dashErr);
     }
 
-    // Decoy Response for unauthenticated visitors / scanners / public
-    return new Response(JSON.stringify({
-      status: 'active',
-      service: 'AsanVPN Edge Routing Gateway',
-      pop: (request.headers.get && request.headers.get('X-Country-Code')) || 'IR',
-      time: new Date().toISOString()
-    }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'X-Powered-By': 'AsanVPN-Edge-Security'
-      }
+    return new Response('Dashboard currently unavailable. Please retry in a few moments.', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
     });
   }
 
@@ -140,18 +128,21 @@ async function handleRequest(request) {
       }
 
       if (path.startsWith('/api/v1/admin/')) {
-        const hasAuthCookie = reqCookie.includes('asan_edge_auth=Arman4237340');
-        const hasValidToken = (adminToken === 'Arman4237340');
-        const hasEdgeSecret = (edgeSecretHeader === 'asanvpn-edge-internal-secret-2026');
+        // Allow login attempts through to VPS
+        if (path !== '/api/v1/admin/login') {
+          const hasAuthCookie = reqCookie.includes('asan_edge_auth=');
+          const hasAdminToken = Boolean(adminToken);
+          const hasEdgeSecret = (edgeSecretHeader === 'asanvpn-edge-internal-secret-2026');
 
-        if (!hasAuthCookie && !hasValidToken && !hasEdgeSecret) {
-          return new Response(JSON.stringify({
-            error: 'Forbidden',
-            message: 'Administrative endpoints disabled on domestic edge gateway.'
-          }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json; charset=utf-8' }
-          });
+          if (!hasAuthCookie && !hasAdminToken && !hasEdgeSecret) {
+            return new Response(JSON.stringify({
+              error: 'Forbidden',
+              message: 'Administrative endpoints require authentication.'
+            }), {
+              status: 403,
+              headers: { 'Content-Type': 'application/json; charset=utf-8' }
+            });
+          }
         }
       }
 
@@ -171,8 +162,9 @@ async function handleRequest(request) {
       };
       if (adminToken) {
         outgoingHeaders['X-Admin-Token'] = adminToken;
-      } else if (reqCookie.includes('asan_edge_auth=Arman4237340')) {
-        outgoingHeaders['X-Admin-Token'] = 'Arman4237340';
+      }
+      if (reqCookie) {
+        outgoingHeaders['Cookie'] = reqCookie;
       }
       if (cleanClientIp) {
         outgoingHeaders['X-Forwarded-For'] = cleanClientIp;
