@@ -225,6 +225,67 @@ object PingTester {
     }
 
     /**
+     * Priority Cascade Auto-Failover:
+     * Finds the next fastest responsive node, strictly respecting panel priorities (Tier 1 first, then Tier 2, etc.),
+     * excluding the currently failing/unresponsive node.
+     */
+    suspend fun findNextBestNode(
+        nodes: List<VpnNode>,
+        currentNodeRemark: String?
+    ): VpnNode? = withContext(Dispatchers.IO) {
+        val usable = nodes.filter { isUsableEgressNode(it) && it.remark != currentNodeRemark }
+        val candidatePool = if (usable.isNotEmpty()) usable else nodes.filter { it.remark != currentNodeRemark }
+        if (candidatePool.isEmpty()) return@withContext null
+
+        val priorityTiers = candidatePool
+            .groupBy { it.panelPriority ?: 1 }
+            .toSortedMap()
+
+        for ((tier, tierNodes) in priorityTiers) {
+            val tierName = tierNodes.firstOrNull()?.panelName ?: "پنل اولویت $tier"
+            val isTopPriority = (tier == priorityTiers.firstKey())
+            val tcpTimeout = if (isTopPriority) 2000 else 1200
+            val realDelayTimeout = if (isTopPriority) 4000L else 3000L
+
+            Log.i(TAG, "Failover cascade search in Priority Tier $tier ($tierName) with ${tierNodes.size} candidates...")
+
+            // 1. Quick TCP prescan
+            val tcpResults = tierNodes.map { node ->
+                async {
+                    val tcp = testTcpLatency(node.server, node.port, tcpTimeout)
+                    Pair(node, tcp)
+                }
+            }.awaitAll()
+
+            val responsive = tcpResults.filter { it.second > 0 }.sortedBy { it.second }.map { it.first }
+            val candidates = if (responsive.isNotEmpty()) responsive.take(8) else tierNodes.take(8)
+
+            // 2. Measure real Libv2ray delay
+            val verifiedNodes = Collections.synchronizedList(mutableListOf<Pair<VpnNode, Long>>())
+            coroutineScope {
+                candidates.forEach { node ->
+                    launch {
+                        val realDelay = measureRealDelay(node, realDelayTimeout)
+                        if (realDelay > 0) {
+                            node.latencyMs = realDelay
+                            verifiedNodes.add(Pair(node, realDelay))
+                        }
+                    }
+                }
+            }
+
+            if (verifiedNodes.isNotEmpty()) {
+                val fastest = verifiedNodes.minByOrNull { it.second }?.first
+                if (fastest != null) {
+                    Log.i(TAG, "Failover selected [${fastest.remark}] (${fastest.latencyMs}ms) in Priority Tier $tier ($tierName)")
+                    return@withContext fastest
+                }
+            }
+        }
+        null
+    }
+
+    /**
      * Measures true end-to-end HTTP round-trip latency through the proxy tunnel using Libv2ray.
      * Tries primary Cloudflare endpoint first, and automatically falls back to Google generate_204
      * if primary times out or is blocked.

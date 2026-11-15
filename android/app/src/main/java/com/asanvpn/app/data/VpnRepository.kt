@@ -486,4 +486,16 @@ class VpnRepository(private val context: Context) {
         }
         Result.failure(Exception("خطا در ارتباط با سرور"))
     }
+
+    fun getCachedNodes(): List<VpnNode> {
+        val cachedJson = prefs.cachedNodesJson
+        if (!cachedJson.isNullOrBlank()) {
+            return try {
+                gson.fromJson(cachedJson, Array<VpnNode>::class.java).toList()
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+        return emptyList()
+    }
 }

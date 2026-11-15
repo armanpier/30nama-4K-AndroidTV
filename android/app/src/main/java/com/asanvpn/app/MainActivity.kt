@@ -127,17 +127,62 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Realtime latency monitoring while VPN is active
+        // Continuous Realtime Latency & Self-Healing Auto-Failover Monitor (5s unresponsiveness trigger)
         lifecycleScope.launch {
-            while (true) {
-                if (connectionState == ConnectionState.CONNECTED) {
-                    val livePing = PingTester.testConnectedRealLatency()
+            var unresponsiveStartTime = 0L
+            var isFailoverInProgress = false
+
+            while (isActive) {
+                if (connectionState == ConnectionState.CONNECTED && !isFailoverInProgress) {
+                    val livePing = PingTester.testConnectedRealLatency(timeoutMs = 2500L)
                     if (livePing > 0) {
+                        unresponsiveStartTime = 0L
                         currentServerPing = livePing
                         prefs.selectedServerPing = livePing
+                        kotlinx.coroutines.delay(3500L)
+                    } else {
+                        val now = System.currentTimeMillis()
+                        if (unresponsiveStartTime == 0L) {
+                            unresponsiveStartTime = now
+                            kotlinx.coroutines.delay(1000L)
+                        } else {
+                            val elapsed = now - unresponsiveStartTime
+                            if (elapsed >= 5000L) {
+                                isFailoverInProgress = true
+                                AppLogger.logUser("⚠️ عدم دریافت پاسخ از سرور به مدت ۵ ثانیه؛ در حال انتخاب سریع‌ترین سرور بعدی...")
+                                AppLogger.logAdmin("Server [${currentServerRemark}] unresponsive for ${elapsed}ms. Initiating auto-failover according to panel priorities...")
+
+                                val cachedNodes = repository.getCachedNodes()
+                                if (cachedNodes.isNotEmpty()) {
+                                    val replacementNode = PingTester.findNextBestNode(cachedNodes, currentServerRemark)
+                                    if (replacementNode != null && connectionState == ConnectionState.CONNECTED) {
+                                        AppLogger.logUser("🔄 اتصال با موفقیت به سرور [${replacementNode.remark}] منتقل شد (پینگ: ${replacementNode.latencyMs}ms)")
+                                        AppLogger.logAdmin("Auto-failover SUCCESS: Switched to [${replacementNode.remark}] (${replacementNode.latencyMs}ms, Priority ${replacementNode.panelPriority})")
+
+                                        prefs.selectedServerRemark = replacementNode.remark
+                                        currentServerRemark = replacementNode.remark
+                                        prefs.selectedServerPing = replacementNode.latencyMs
+                                        currentServerPing = replacementNode.latencyMs
+
+                                        val newConfig = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(replacementNode)
+                                        prefs.activeV2RayConfig = newConfig
+                                        switchVpnConfigInternal(newConfig)
+                                    } else {
+                                        AppLogger.logAdmin("Auto-failover: No responsive candidate found across priority tiers")
+                                    }
+                                }
+                                unresponsiveStartTime = 0L
+                                isFailoverInProgress = false
+                                kotlinx.coroutines.delay(4000L)
+                            } else {
+                                kotlinx.coroutines.delay(1000L)
+                            }
+                        }
                     }
+                } else {
+                    unresponsiveStartTime = 0L
+                    kotlinx.coroutines.delay(2000L)
                 }
-                kotlinx.coroutines.delay(10000L)
             }
         }
 

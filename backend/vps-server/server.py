@@ -31,9 +31,9 @@ DASHBOARD_HTML_PATH = "/etc/asanvpn/dashboard.html"
 ADMIN_PASSWORD = "Arman4237340"
 SUPPORT_PHONE = "+989120000000"
 SUPPORT_TELEGRAM = "AsanSupport"
-APP_VERSION = "1.3.15"
-APP_VERSION_CODE = 21
-GITHUB_APK_URL = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.15/AsanVPN-v1.3.15-universal.apk"
+APP_VERSION = "1.3.16"
+APP_VERSION_CODE = 22
+GITHUB_APK_URL = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.16/AsanVPN-v1.3.16-universal.apk"
 EDGE_SECRET = "asanvpn-edge-internal-secret-2026"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -583,7 +583,7 @@ def get_app_update_info(abi: str = None) -> dict:
     except Exception:
         ver_code = APP_VERSION_CODE
     force_update = bool(config.get("forceUpdate", False))
-    notes = str(config.get("releaseNotes") or "اشتراک‌گذاری هوشمند برنامه با بارکد واقعی QR و ارسال مستقیم فایل، تفکیک هوشمند نسخه سبک گوشی (v7/v8) و پایداری اتصال").strip()
+    notes = str(config.get("releaseNotes") or "سوییچ خودکار و هوشمند در صورت قطعی ۵ ثانیه‌ای به سریع‌ترین سرور طبق اولویت پنل‌ها، اشتراک‌گذاری با بارکد واقعی QR و پایداری اتصال").strip()
 
     base_opt = "/opt/asanvpn"
     files = {

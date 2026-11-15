@@ -63,7 +63,7 @@ fun PinScreen(
     errorMessage: String?,
     isSuccess: Boolean,
     lockoutUntil: Long = 0L,
-    appVersion: String = "1.3.15",
+    appVersion: String = "1.3.16",
     newVersionAvailable: String? = null,
     isForceUpdate: Boolean = false,
     isDarkMode: Boolean = false,
