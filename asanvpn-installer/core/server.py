@@ -41,6 +41,7 @@ DEFAULT_INITIAL_PANELS = [
         "id": "panel_3xui_default",
         "name": "سرور ۳X-UI اصلی",
         "type": "3xui",
+        "authType": "apiKey",
         "url": "https://95.182.87.115:14393/eX6Vvc2csV2GKtzmPF",
         "apiKey": "Wg6BrJKRiJzcNr4NKnjlxjZSAxMUIYkh7lzvWUDUQn3gxmW9",
         "subBaseUrl": "https://95.182.87.115:2016/xx11fs28c0ea3gr5/{subId}",
@@ -50,9 +51,24 @@ DEFAULT_INITIAL_PANELS = [
         "createdAt": 1794227465
     },
     {
+        "id": "panel_pasarguard_applemarket",
+        "name": "سرور پاسارگاد اپل‌مارکت (AppleMarket)",
+        "type": "pasarguard",
+        "authType": "userPass",
+        "url": "https://pl.applemarket13.ir",
+        "username": "P9502331E507",
+        "password": "AB!8c9c8e207dxy9$",
+        "subBaseUrl": "https://cb13.farsistar.ir",
+        "autoSync": True,
+        "priority": 2,
+        "userCount": 5,
+        "createdAt": 1794900000
+    },
+    {
         "id": "panel_pasarguard_default",
         "name": "سرور پاسارگاد (PasarGuard)",
         "type": "pasarguard",
+        "authType": "apiKey",
         "url": "https://irtun.darklink.ir:8000",
         "apiKey": "pg_key_f85f5abb-13cc-4dc5-b3fc-8a77c2026e94",
         "subBaseUrl": "https://irsub.trafficfast.ir:9090",
@@ -65,6 +81,7 @@ DEFAULT_INITIAL_PANELS = [
         "id": "panel_goguard_default",
         "name": "سرور گوگارد (GoGuard Core)",
         "type": "goguard",
+        "authType": "apiKey",
         "url": "https://core.erfjab.com",
         "apiKey": "7c704f070ae553721bfa91b4bcfeb84e2eaa8109d09e56d00b471e9001ed5206",
         "subBaseUrl": "",
@@ -101,6 +118,8 @@ def resolve_panel_for_sub_url(url: str, panels: list):
     # Well-known fallback heuristics
     if "95.182.87.115" in url_lower or ":2016" in url_lower or "3x" in url_lower:
         return "panel_3xui_default", "سرور ۳X-UI اصلی", 1
+    elif "farsistar.ir" in url_lower or "applemarket" in url_lower:
+        return "panel_pasarguard_applemarket", "سرور پاسارگاد اپل‌مارکت (AppleMarket)", 2
     elif "trafficfast.ir" in url_lower or "darklink.ir" in url_lower or "pasarguard" in url_lower:
         return "panel_pasarguard_default", "سرور پاسارگاد (PasarGuard)", 2
     elif "erfjab.com" in url_lower or "goguard" in url_lower:
@@ -415,6 +434,116 @@ def fetch_subscription_data(url: str, timeout: int = 8) -> dict:
     except Exception as e:
         logging.warning(f"Error fetching sub url {url}: {e}")
     return res_data
+
+# ==========================================
+# REMOTE PANEL API CLIENT & TOKEN CACHE
+# ==========================================
+PANEL_JWT_CACHE = {}
+
+def get_panel_jwt_token(panel_url: str, username: str, password: str, force_refresh: bool = False) -> str:
+    """
+    Retrieves or refreshes an OAuth2 JWT Bearer token for PasarGuard / Marzban / FastAPI panels.
+    Caches token in memory for efficiency.
+    """
+    if not panel_url or not username or not password:
+        return ""
+    base_url = panel_url.rstrip("/")
+    cache_key = f"{base_url}:{username}"
+    now = time.time()
+    if not force_refresh and cache_key in PANEL_JWT_CACHE:
+        entry = PANEL_JWT_CACHE[cache_key]
+        if now < entry.get("expires_at", 0):
+            return entry.get("token", "")
+
+    endpoints = [
+        f"{base_url}/api/admin/token",
+        f"{base_url}/dashboard/api/admin/token",
+        f"{base_url}/api/token"
+    ]
+    data = urllib.parse.urlencode({"username": username, "password": password}).encode("utf-8")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AsanVPN/1.0",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json"
+    }
+    for ep in endpoints:
+        try:
+            req = urllib.request.Request(ep, data=data, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=7, context=INSECURE_SSL_CTX) as res:
+                if res.status == 200:
+                    resp = json.loads(res.read().decode("utf-8"))
+                    tok = resp.get("access_token")
+                    if tok:
+                        PANEL_JWT_CACHE[cache_key] = {
+                            "token": tok,
+                            "expires_at": now + 1800 # 30 min cache
+                        }
+                        return tok
+        except Exception as e:
+            logging.debug(f"[PanelJWT] Failed on {ep}: {e}")
+    return ""
+
+def fetch_pasarguard_remote_users(panel_url: str, username: str, password: str, sub_base_url: str = "") -> list:
+    """
+    Fetches all users and their subscription URLs from a PasarGuard / Marzban panel using user/pass.
+    """
+    tok = get_panel_jwt_token(panel_url, username, password)
+    if not tok:
+        tok = get_panel_jwt_token(panel_url, username, password, force_refresh=True)
+    if not tok:
+        return []
+
+    base_url = panel_url.rstrip("/")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AsanVPN/1.0",
+        "Authorization": f"Bearer {tok}",
+        "Accept": "application/json"
+    }
+
+    req = urllib.request.Request(f"{base_url}/api/users", headers=headers)
+    users_list = []
+    try:
+        with urllib.request.urlopen(req, timeout=8, context=INSECURE_SSL_CTX) as res:
+            if res.status == 200:
+                body = json.loads(res.read().decode("utf-8"))
+                users_list = body.get("users", []) if isinstance(body, dict) else (body if isinstance(body, list) else [])
+    except Exception as e:
+        logging.warning(f"[fetch_pasarguard_remote_users] Error fetching user list: {e}")
+        return []
+
+    results = []
+    for u in users_list:
+        uname = u.get("username") if isinstance(u, dict) else str(u)
+        if not uname:
+            continue
+        sub_url = u.get("subscription_url") or ""
+        # If subscription_url is empty in summary, fetch full user detail
+        if not sub_url:
+            try:
+                r_detail = urllib.request.Request(f"{base_url}/api/user/{urllib.parse.quote(uname)}", headers=headers)
+                with urllib.request.urlopen(r_detail, timeout=6, context=INSECURE_SSL_CTX) as res_d:
+                    if res_d.status == 200:
+                        u_data = json.loads(res_d.read().decode("utf-8"))
+                        sub_url = u_data.get("subscription_url") or ""
+            except Exception as e:
+                logging.debug(f"[fetch_pasarguard_remote_users] Detail fetch error for {uname}: {e}")
+
+        # Ensure full URL if relative
+        if sub_url and sub_url.startswith("/"):
+            if sub_base_url:
+                sub_url = sub_base_url.rstrip("/") + sub_url
+            else:
+                sub_url = base_url + sub_url
+
+        results.append({
+            "name": uname,
+            "username": uname,
+            "subUrl": sub_url,
+            "status": u.get("status", "active") if isinstance(u, dict) else "active",
+            "panelType": "pasarguard"
+        })
+
+    return results
 
 # ==========================================
 # DATABASE (SQLite with WAL Mode)
@@ -1053,7 +1182,13 @@ class RequestHandler(BaseHTTPRequestHandler):
                 p_url = target_panel.get("url", "")
                 p_key = target_panel.get("apiKey", "")
                 p_sub = target_panel.get("subBaseUrl", "")
-                if "3x" in p_type or p_type == "3xui":
+                p_auth = target_panel.get("authType", "apiKey")
+                p_user = target_panel.get("username", "")
+                p_pass = target_panel.get("password", "")
+
+                if (p_auth == "userPass" or (p_user and p_pass)) and ("pasarguard" in p_type or "marzban" in p_type):
+                    remote_users = fetch_pasarguard_remote_users(p_url, p_user, p_pass, p_sub)
+                elif "3x" in p_type or p_type == "3xui":
                     xui_db_path = "/etc/x-ui/x-ui.db"
                     if os.path.exists(xui_db_path):
                         try:
@@ -1078,6 +1213,26 @@ class RequestHandler(BaseHTTPRequestHandler):
                                             pass
                         except Exception as e:
                             logging.warning(f"Error reading 3X-UI remote users: {e}")
+                elif "pasarguard" in p_type and p_key:
+                    try:
+                        req = urllib.request.Request(f"{p_url.rstrip('/')}/api/users", headers={"User-Agent": "Mozilla/5.0", "Authorization": f"ApiKey {p_key}", "X-API-KEY": p_key})
+                        with urllib.request.urlopen(req, timeout=7, context=INSECURE_SSL_CTX) as res:
+                            if res.status == 200:
+                                u_data = json.loads(res.read().decode("utf-8"))
+                                for u in u_data.get("users", []):
+                                    uname = u.get("username", "")
+                                    s_url = u.get("subscription_url") or ""
+                                    if s_url and s_url.startswith("/") and p_sub:
+                                        s_url = p_sub.rstrip("/") + s_url
+                                    remote_users.append({
+                                        "name": uname,
+                                        "username": uname,
+                                        "subUrl": s_url,
+                                        "panelType": "pasarguard"
+                                    })
+                    except Exception as e:
+                        logging.warning(f"Error reading PasarGuard remote users with API key: {e}")
+
             return self.send_json(200, {"success": True, "users": remote_users})
 
         # ADMIN: Get current password
@@ -1224,8 +1379,11 @@ class RequestHandler(BaseHTTPRequestHandler):
                 target_id = body.get("id") or ""
                 p_name = str(body.get("name", "")).strip()
                 p_type = str(body.get("type", "3xui")).strip().lower()
+                p_auth = str(body.get("authType", "apiKey")).strip()
                 p_url = str(body.get("url", "")).strip()
                 p_api_key = str(body.get("apiKey", "")).strip()
+                p_user = str(body.get("username", "")).strip()
+                p_pass = str(body.get("password", "")).strip()
                 p_sub_base = str(body.get("subBaseUrl", "")).strip()
                 p_priority = int(body.get("priority", 1) or 1)
                 p_auto_sync = bool(body.get("autoSync", True))
@@ -1239,8 +1397,11 @@ class RequestHandler(BaseHTTPRequestHandler):
                     if target_id and p.get("id") == target_id:
                         existing_panels[i]["name"] = p_name
                         existing_panels[i]["type"] = p_type
+                        existing_panels[i]["authType"] = p_auth
                         existing_panels[i]["url"] = p_url
                         existing_panels[i]["apiKey"] = p_api_key
+                        existing_panels[i]["username"] = p_user
+                        existing_panels[i]["password"] = p_pass
                         existing_panels[i]["subBaseUrl"] = p_sub_base
                         existing_panels[i]["priority"] = p_priority
                         existing_panels[i]["autoSync"] = p_auto_sync
@@ -1254,8 +1415,11 @@ class RequestHandler(BaseHTTPRequestHandler):
                         "id": new_id,
                         "name": p_name,
                         "type": p_type,
+                        "authType": p_auth,
                         "url": p_url,
                         "apiKey": p_api_key,
+                        "username": p_user,
+                        "password": p_pass,
                         "subBaseUrl": p_sub_base,
                         "priority": p_priority,
                         "autoSync": p_auto_sync,
@@ -1303,14 +1467,17 @@ class RequestHandler(BaseHTTPRequestHandler):
                     "message": f"بکاپ با موفقیت بازیابی شد ({len(kv_data)} رکورد بروزرسانی گردید)."
                 })
 
-            # ADMIN: Test Panel Latency
+            # ADMIN: Test Panel Latency & Auth
             if path == "/api/v1/admin/panels/test":
                 p_id = body.get("panel_id") or body.get("id") or ""
                 p_url = body.get("url", "").strip()
                 p_type = body.get("type", "").lower()
+                p_auth = body.get("authType", "apiKey")
                 p_key = body.get("apiKey", "")
+                p_user = body.get("username", "").strip()
+                p_pass = body.get("password", "").strip()
 
-                if (not p_url or not p_key) and p_id:
+                if (not p_url or (not p_key and not (p_user and p_pass))) and p_id:
                     panels_json = db.get("__CONFIG_PANELS__")
                     if panels_json:
                         try:
@@ -1318,7 +1485,10 @@ class RequestHandler(BaseHTTPRequestHandler):
                                 if p.get("id") == p_id:
                                     p_url = p.get("url", "").strip()
                                     p_type = p.get("type", "").lower()
+                                    p_auth = p.get("authType", "apiKey")
                                     p_key = p.get("apiKey", "")
+                                    p_user = p.get("username", "").strip()
+                                    p_pass = p.get("password", "").strip()
                                     break
                         except Exception:
                             pass
@@ -1326,7 +1496,22 @@ class RequestHandler(BaseHTTPRequestHandler):
                 start_t = time.time()
                 try:
                     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AsanVPN/1.0"}
-                    if p_type == "pasarguard":
+                    if (p_auth == "userPass" or (p_user and p_pass)) and ("pasarguard" in p_type or "marzban" in p_type):
+                        tok = get_panel_jwt_token(p_url, p_user, p_pass, force_refresh=True)
+                        if not tok:
+                            return self.send_json(200, {"ok": False, "error": "احراز هویت ناموفق بود (نام کاربری یا رمز عبور اشتباه است)", "message": "خطا در لاگین به پنل"})
+                        headers["Authorization"] = f"Bearer {tok}"
+                        req = urllib.request.Request(f"{p_url.rstrip('/')}/api/users", headers=headers)
+                        with urllib.request.urlopen(req, timeout=7, context=INSECURE_SSL_CTX) as res:
+                            elapsed = int((time.time() - start_t) * 1000)
+                            u_data = json.loads(res.read().decode("utf-8"))
+                            cnt = len(u_data.get("users", [])) if isinstance(u_data, dict) else len(u_data)
+                            return self.send_json(200, {
+                                "ok": True,
+                                "latency": elapsed,
+                                "message": f"اتصال و لاگین موفق با اکانت {p_user} ({elapsed}ms - {cnt} کاربر در پنل)"
+                            })
+                    elif p_type == "pasarguard":
                         headers["Authorization"] = f"ApiKey {p_key}"
                         headers["X-API-KEY"] = p_key
                         req = urllib.request.Request(f"{p_url.rstrip('/')}/api/users", headers=headers)
@@ -1403,10 +1588,102 @@ class RequestHandler(BaseHTTPRequestHandler):
 
             # ADMIN: Sync Panels (Manual trigger)
             if path in ["/api/v1/admin/sync_panels", "/api/v1/admin/panels/sync"]:
+                p_id = body.get("id") or body.get("panel_id") or ""
+                panels_json = db.get("__CONFIG_PANELS__")
+                panels = json.loads(panels_json) if panels_json else list(DEFAULT_INITIAL_PANELS)
+                target_panel = next((p for p in panels if p.get("id") == p_id), None) if p_id else None
+
+                total_users = 0
+                added_users = 0
+                updated_users = 0
+
+                if target_panel:
+                    p_type = target_panel.get("type", "").lower()
+                    p_url = target_panel.get("url", "")
+                    p_sub = target_panel.get("subBaseUrl", "")
+                    p_auth = target_panel.get("authType", "apiKey")
+                    p_user = target_panel.get("username", "")
+                    p_pass = target_panel.get("password", "")
+                    rem_users = []
+                    if (p_auth == "userPass" or (p_user and p_pass)) and ("pasarguard" in p_type or "marzban" in p_type):
+                        rem_users = fetch_pasarguard_remote_users(p_url, p_user, p_pass, p_sub)
+                    elif "3x" in p_type or p_type == "3xui":
+                        xui_db_path = "/etc/x-ui/x-ui.db"
+                        if os.path.exists(xui_db_path):
+                            try:
+                                with sqlite3.connect(xui_db_path, timeout=5) as conn:
+                                    cur = conn.cursor()
+                                    cur.execute("SELECT id, settings FROM inbounds")
+                                    for inb_id, inb_settings_raw in cur.fetchall():
+                                        if inb_settings_raw:
+                                            try:
+                                                inb_cfg = json.loads(inb_settings_raw)
+                                                for c in inb_cfg.get("clients", []):
+                                                    c_email = c.get("email", "")
+                                                    c_sub_id = c.get("subId") or c.get("id") or ""
+                                                    sub_link = p_sub.replace("{subId}", c_sub_id) if (p_sub and "{subId}" in p_sub) else f"https://95.182.87.115:2016/xx11fs28c0ea3gr5/{c_sub_id}"
+                                                    rem_users.append({"name": c_email, "username": c_email, "subUrl": sub_link})
+                                            except Exception:
+                                                pass
+                            except Exception as e:
+                                logging.warning(f"Error reading 3X-UI: {e}")
+
+                    total_users = len(rem_users)
+                    for p in panels:
+                        if p.get("id") == p_id:
+                            p["userCount"] = total_users
+                            p["lastSync"] = int(time.time())
+                            p["lastSyncStatus"] = "success"
+                            p["lastSyncMessage"] = f"همگام‌سازی موفق ({total_users} کاربر)"
+                    db.put("__CONFIG_PANELS__", json.dumps(panels, ensure_ascii=False))
+                    db.dump_to_backup_file()
+                else:
+                    for p in panels:
+                        p_type = p.get("type", "").lower()
+                        p_url = p.get("url", "")
+                        p_sub = p.get("subBaseUrl", "")
+                        p_auth = p.get("authType", "apiKey")
+                        p_user = p.get("username", "")
+                        p_pass = p.get("password", "")
+                        rem_users = []
+                        if (p_auth == "userPass" or (p_user and p_pass)) and ("pasarguard" in p_type or "marzban" in p_type):
+                            rem_users = fetch_pasarguard_remote_users(p_url, p_user, p_pass, p_sub)
+                        elif "3x" in p_type or p_type == "3xui":
+                            xui_db_path = "/etc/x-ui/x-ui.db"
+                            if os.path.exists(xui_db_path):
+                                try:
+                                    with sqlite3.connect(xui_db_path, timeout=5) as conn:
+                                        cur = conn.cursor()
+                                        cur.execute("SELECT id, settings FROM inbounds")
+                                        for inb_id, inb_settings_raw in cur.fetchall():
+                                            if inb_settings_raw:
+                                                try:
+                                                    inb_cfg = json.loads(inb_settings_raw)
+                                                    for c in inb_cfg.get("clients", []):
+                                                        c_email = c.get("email", "")
+                                                        c_sub_id = c.get("subId") or c.get("id") or ""
+                                                        sub_link = p_sub.replace("{subId}", c_sub_id) if (p_sub and "{subId}" in p_sub) else f"https://95.182.87.115:2016/xx11fs28c0ea3gr5/{c_sub_id}"
+                                                        rem_users.append({"name": c_email, "username": c_email, "subUrl": sub_link})
+                                                except Exception:
+                                                    pass
+                                except Exception:
+                                    pass
+                        if rem_users:
+                            p["userCount"] = len(rem_users)
+                            p["lastSync"] = int(time.time())
+                            p["lastSyncStatus"] = "success"
+                            p["lastSyncMessage"] = f"همگام‌سازی موفق ({len(rem_users)} کاربر)"
+                            total_users += len(rem_users)
+                    db.put("__CONFIG_PANELS__", json.dumps(panels, ensure_ascii=False))
+                    db.dump_to_backup_file()
+
                 threading.Thread(target=run_traffic_sync_cycle, daemon=True).start()
                 return self.send_json(200, {
                     "success": True,
-                    "message": "عملیات همگام‌سازی ترافیک و سرورها در پس‌زمینه آغاز گردید."
+                    "total": total_users,
+                    "totalAdded": added_users,
+                    "totalUpdated": updated_users,
+                    "message": "عملیات همگام‌سازی ترافیک و سرورها انجام گردید."
                 })
 
             # ADMIN: Update App Version & Force/Optional Settings
