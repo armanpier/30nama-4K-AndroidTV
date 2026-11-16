@@ -66,6 +66,9 @@ class PreferencesManager(context: Context) {
         private const val KEY_TRAFFIC_REMAINING = "saved_traffic_remaining_bytes"
         private const val KEY_TRAFFIC_TOTAL = "saved_traffic_total_bytes"
         private const val KEY_LAST_GEO_RULES_CHECK = "last_geo_rules_check_timestamp"
+        private const val KEY_APP_FILTER_ENABLED = "app_filter_enabled"
+        private const val KEY_APP_FILTER_WHITELIST = "app_filter_whitelist"
+        private const val KEY_SPEED_OPTIMIZATION_ENABLED = "speed_optimization_enabled"
     }
 
     var trafficTotalBytes: Long
@@ -142,6 +145,18 @@ class PreferencesManager(context: Context) {
     var lastGeoRulesCheckTime: Long
         get() = prefs.getLong(KEY_LAST_GEO_RULES_CHECK, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_GEO_RULES_CHECK, value).apply()
+
+    var isAppFilterEnabled: Boolean
+        get() = prefs.getBoolean(KEY_APP_FILTER_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_APP_FILTER_ENABLED, value).apply()
+
+    var appFilterWhitelist: Set<String>
+        get() = prefs.getStringSet(KEY_APP_FILTER_WHITELIST, emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_APP_FILTER_WHITELIST, HashSet(value)).apply()
+
+    var isSpeedOptimizationEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SPEED_OPTIMIZATION_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_SPEED_OPTIMIZATION_ENABLED, value).apply()
 
     fun clearAll() {
         prefs.edit().clear().apply()

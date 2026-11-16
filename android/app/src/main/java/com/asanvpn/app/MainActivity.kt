@@ -73,6 +73,7 @@ class MainActivity : ComponentActivity() {
 
     private var connectJob: Job? = null
     private var optimizationJob: Job? = null
+    private var speedBenchmarkJob: Job? = null
     private var trafficMonitorJob: Job? = null
 
     private val vpnPermissionLauncher = registerForActivityResult(
@@ -209,6 +210,22 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Periodic background update check while app is open (every 30 seconds)
+        lifecycleScope.launch {
+            while (isActive) {
+                kotlinx.coroutines.delay(30000L)
+                if (!isUpdateDownloading && !showUpdateDialog) {
+                    val result = AppUpdateManager.checkForUpdate(this@MainActivity)
+                    result.onSuccess { info ->
+                        if (info != null) {
+                            availableUpdate = info
+                            showUpdateDialog = true
+                        }
+                    }
+                }
+            }
+        }
+
         setContent {
             AsanVpnTheme(isDark = isDarkMode) {
                 val savedPin = currentPinState
@@ -311,6 +328,26 @@ class MainActivity : ComponentActivity() {
                             onShareClick = {
                                 showShareDialog = true
                             },
+                            onSaveAppFilter = { enabled, whitelist, speedOpt ->
+                                val wasEnabled = prefs.isAppFilterEnabled
+                                val previousWhitelist = prefs.appFilterWhitelist
+                                prefs.isAppFilterEnabled = enabled
+                                prefs.appFilterWhitelist = whitelist
+                                prefs.isSpeedOptimizationEnabled = speedOpt
+
+                                val changed = (wasEnabled != enabled) || (previousWhitelist != whitelist)
+                                if (changed && connectionState == ConnectionState.CONNECTED) {
+                                    Toast.makeText(this@MainActivity, "تغییرات فیلتر برنامه‌ها ذخیره شد. درحال اعمال و اتصال مجدد...", Toast.LENGTH_SHORT).show()
+                                    lifecycleScope.launch {
+                                        disconnectVpnService()
+                                        kotlinx.coroutines.delay(500L)
+                                        startVpnServiceInternal()
+                                    }
+                                } else {
+                                    val msg = if (speedOpt) "تنظیمات ذخیره شد (بهینه‌سازی هوشمند دانلود فعال گردید)" else "تنظیمات با موفقیت ذخیره شد"
+                                    Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
+                                }
+                            },
                             onChangePin = {
                                 disconnectVpnService()
                                 prefs.clearAll()
@@ -384,6 +421,11 @@ class MainActivity : ComponentActivity() {
         val pin = currentPinState ?: prefs.savedPin
         if (!pin.isNullOrBlank()) {
             validateUserSession(pin)
+        }
+
+        // Check for updates on resume immediately
+        if (!isUpdateDownloading && !showUpdateDialog) {
+            triggerCheckForUpdate(manual = false)
         }
     }
 
@@ -606,6 +648,40 @@ class MainActivity : ComponentActivity() {
                             }
                         )
 
+                        // Background Download Speed Benchmark & Smart Auto-Switch (if enabled)
+                        if (connectionState == ConnectionState.CONNECTED && prefs.isSpeedOptimizationEnabled) {
+                            speedBenchmarkJob?.cancel()
+                            speedBenchmarkJob = launch {
+                                // Wait 6 seconds for connection to stabilize
+                                kotlinx.coroutines.delay(6000L)
+                                if (!isActive || connectionState != ConnectionState.CONNECTED) return@launch
+                                val activeNode = initialConnectedNode ?: return@launch
+                                val activeTier = activeNode.panelPriority ?: 1
+                                val candidatesInTier = nodes
+                                    .filter { (it.panelPriority ?: 1) == activeTier && it.latencyMs > 0 }
+                                    .sortedBy { it.latencyMs }
+                                    .take(5)
+
+                                if (candidatesInTier.size > 1) {
+                                    val fasterNode = PingTester.benchmarkCandidateThroughput(candidatesInTier, activeNode)
+                                    if (fasterNode != null && isActive && connectionState == ConnectionState.CONNECTED) {
+                                        withContext(Dispatchers.Main) {
+                                            prefs.selectedServerRemark = fasterNode.remark
+                                            currentServerRemark = fasterNode.remark
+                                            if (fasterNode.latencyMs > 0) {
+                                                prefs.selectedServerPing = fasterNode.latencyMs
+                                                currentServerPing = fasterNode.latencyMs
+                                            }
+                                            val newConfig = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(fasterNode)
+                                            prefs.activeV2RayConfig = newConfig
+                                            switchVpnConfigInternal(newConfig)
+                                            Toast.makeText(this@MainActivity, "سوییچ خودکار به سرور پرسرعت‌تر: [${fasterNode.remark}]", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // If waterfall evaluation finished and no node passed delay test, disconnect gracefully (NEVER leave green!)
                         if (connectionState == ConnectionState.CONNECTING) {
                             withContext(Dispatchers.Main) {
@@ -685,6 +761,8 @@ class MainActivity : ComponentActivity() {
         connectJob = null
         optimizationJob?.cancel()
         optimizationJob = null
+        speedBenchmarkJob?.cancel()
+        speedBenchmarkJob = null
         stopTrafficMonitoring()
         val intent = Intent(this, AsanVpnService::class.java).apply {
             action = AsanVpnService.ACTION_DISCONNECT

@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.net.VpnService
 import android.os.Build
@@ -16,6 +17,7 @@ import com.asanvpn.app.MainActivity
 import com.asanvpn.app.data.PreferencesManager
 import com.asanvpn.app.data.VpnRepository
 import com.asanvpn.app.service.v2ray.V2RayCoreManager
+import com.asanvpn.app.util.AppLogger
 import com.asanvpn.app.util.IranAppBypassHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -115,15 +117,35 @@ class AsanVpnService : VpnService() {
                 .addDnsServer("8.8.8.8")
                 .addRoute("0.0.0.0", 0)
 
-            try {
-                // Allow this application process to bypass the tunnel so Xray outbound connections don't loop
-                builder.addDisallowedApplication(packageName)
-            } catch (e: Exception) {
-                Log.w("AsanVpnService", "Could not set addDisallowedApplication: ${e.message}")
-            }
+            val isFilterEnabled = prefs.isAppFilterEnabled
+            val whitelist = prefs.appFilterWhitelist
 
-            // Exclude Iranian domestic applications from tunnel routing
-            IranAppBypassHelper.applyDisallowedApplications(builder, this)
+            if (isFilterEnabled && whitelist.isNotEmpty()) {
+                var allowedCount = 0
+                for (pkg in whitelist) {
+                    if (pkg == packageName) continue // Never allow self into tunnel to prevent routing loop
+                    try {
+                        builder.addAllowedApplication(pkg)
+                        allowedCount++
+                    } catch (e: PackageManager.NameNotFoundException) {
+                        Log.w("AsanVpnService", "Allowed app not found on device: $pkg")
+                    } catch (e: Exception) {
+                        Log.w("AsanVpnService", "Could not add allowed app $pkg: ${e.message}")
+                    }
+                }
+                Log.i("AsanVpnService", "App Filter (Whitelist) ACTIVE: $allowedCount apps routed through VPN")
+                AppLogger.logUser("🛡️ فیلتر برنامه‌ها فعال است: ترافیک $allowedCount برنامه انتخابی از فیلترشکن عبور می‌کند")
+            } else {
+                try {
+                    // Allow this application process to bypass the tunnel so Xray outbound connections don't loop
+                    builder.addDisallowedApplication(packageName)
+                } catch (e: Exception) {
+                    Log.w("AsanVpnService", "Could not set addDisallowedApplication: ${e.message}")
+                }
+
+                // Exclude Iranian domestic applications from tunnel routing
+                IranAppBypassHelper.applyDisallowedApplications(builder, this)
+            }
 
             vpnInterface = builder.establish()
             if (vpnInterface == null) {

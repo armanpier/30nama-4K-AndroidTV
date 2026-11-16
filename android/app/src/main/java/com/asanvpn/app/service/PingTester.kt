@@ -23,6 +23,8 @@ object PingTester {
     private const val TAG = "PingTester"
     private const val TEST_URL_PRIMARY = "https://cp.cloudflare.com/generate_204"
     private const val TEST_URL_FALLBACK = "https://www.gstatic.com/generate_204"
+    private const val SPEED_TEST_URL_PRIMARY = "https://speed.cloudflare.com/__down?bytes=10000000"
+    private const val SPEED_TEST_URL_FALLBACK = "https://speedtest.tele2.net/10MB.zip"
 
     /**
      * Connects IMMEDIATELY to the first verified working link (fast connect),
@@ -98,13 +100,16 @@ object PingTester {
             val responsive = tcpResults.filter { it.second > 0 }.sortedBy { it.second }.map { it.first }
             val tierCandidatesToTest = if (responsive.isNotEmpty()) responsive.take(10) else tierNodes.take(10)
 
+            val testSemaphore = Semaphore(2)
             // Test Real Delay via Libv2ray HTTP 204 on this tier's candidates with generous patience for top tier
             coroutineScope {
                 tierCandidatesToTest.forEach { node ->
                     launch {
-                        val realDelay = measureRealDelay(node, realDelayTimeout)
+                        val realDelay = testSemaphore.withPermit {
+                            measureRealDelay(node, realDelayTimeout)
+                        }
                         node.latencyMs = realDelay
-                        if (realDelay in 1 until bestLatency.get()) {
+                        if (realDelay > 0) {
                             Log.i(TAG, "Tier $tier Verified OK: [${node.remark}] -> REAL latency: ${realDelay}ms")
                             AppLogger.logLinkTest(node.remark, realDelay, isSuccess = true)
 
@@ -316,6 +321,91 @@ object PingTester {
     }
 
     /**
+     * Tests download throughput (MB/s) of candidate nodes in the background without disconnecting.
+     * Takes up to 5 candidate nodes (including the currently active node).
+     * Returns a candidate node if it is significantly faster (at least 25% and >= 0.5 MB/s) than the active node,
+     * or null if the active node is already best or testing cannot find a better candidate.
+     */
+    suspend fun benchmarkCandidateThroughput(
+        candidates: List<VpnNode>,
+        activeNode: VpnNode,
+        timeoutPerNodeMs: Long = 15000L
+    ): VpnNode? = withContext(Dispatchers.IO) {
+        if (candidates.size <= 1) return@withContext null
+
+        Log.i(TAG, "Starting background download throughput benchmark on ${candidates.size} nodes...")
+        AppLogger.logUser("📊 شروع تست سرعت دانلود ۵ سرور برتر در پس‌زمینه...")
+
+        // candidate remark -> speed in MB/s
+        val speedResults = mutableMapOf<String, Double>()
+
+        // Ensure activeNode is evaluated first as baseline
+        val orderedCandidates = mutableListOf<VpnNode>()
+        orderedCandidates.add(activeNode)
+        for (c in candidates) {
+            if (c.remark != activeNode.remark && orderedCandidates.size < 5) {
+                orderedCandidates.add(c)
+            }
+        }
+
+        for (node in orderedCandidates) {
+            if (!isActive) return@withContext null
+            val configJson = try {
+                V2RayConfigBuilder.buildTestConfig(node)
+            } catch (e: Exception) {
+                null
+            }
+
+            if (configJson == null) continue
+
+            val durationMs = withTimeoutOrNull(timeoutPerNodeMs) {
+                try {
+                    val d1 = Libv2ray.measureOutboundDelay(configJson, SPEED_TEST_URL_PRIMARY)
+                    if (d1 > 0) return@withTimeoutOrNull d1
+                } catch (_: Exception) {}
+
+                try {
+                    val d2 = Libv2ray.measureOutboundDelay(configJson, SPEED_TEST_URL_FALLBACK)
+                    if (d2 > 0) return@withTimeoutOrNull d2
+                } catch (_: Exception) {}
+
+                -1L
+            } ?: -1L
+
+            if (durationMs > 0) {
+                val speedMBs = (10.0 / (durationMs / 1000.0))
+                val roundedSpeed = (speedMBs * 10).toInt() / 10.0
+                speedResults[node.remark] = speedMBs
+                Log.i(TAG, "Throughput test [${node.remark}]: ${roundedSpeed} MB/s (${durationMs}ms)")
+                AppLogger.logUser("⚡ سرعت دانلود [${node.remark}]: ${roundedSpeed} MB/s")
+            } else {
+                Log.w(TAG, "Throughput test [${node.remark}] timed out or failed")
+                speedResults[node.remark] = 0.0
+            }
+        }
+
+        val activeSpeed = speedResults[activeNode.remark] ?: 0.0
+        val bestEntry = speedResults.filter { it.value > 0.0 }.maxByOrNull { it.value }
+
+        if (bestEntry != null && bestEntry.key != activeNode.remark) {
+            val bestNode = orderedCandidates.firstOrNull { it.remark == bestEntry.key }
+            val bestSpeed = bestEntry.value
+            // Only switch if at least 25% faster and at least 0.5 MB/s difference
+            if (bestNode != null && (bestSpeed > activeSpeed * 1.25) && (bestSpeed - activeSpeed >= 0.5)) {
+                val roundedBest = (bestSpeed * 10).toInt() / 10.0
+                val roundedActive = (activeSpeed * 10).toInt() / 10.0
+                Log.i(TAG, "Throughput Winner: [${bestNode.remark}] (${roundedBest} MB/s vs active [${activeNode.remark}] ${roundedActive} MB/s)")
+                AppLogger.logUser("🚀 سرور [${bestNode.remark}] با سرعت ${roundedBest} MB/s انتخاب شد (سریع‌تر از سرور فعلی با ${roundedActive} MB/s)")
+                return@withContext bestNode
+            }
+        }
+
+        val roundedActive = (activeSpeed * 10).toInt() / 10.0
+        AppLogger.logUser("✅ بررسی سرعت دانلود تکمیل شد: سرور فعلی [${activeNode.remark}] با سرعت ${roundedActive} MB/s در وضعیت مطلوب قرار دارد.")
+        return@withContext null
+    }
+
+    /**
      * Measures the live realtime latency of the active connection while the VPN is ON.
      */
     suspend fun testConnectedRealLatency(timeoutMs: Long = 2500L): Long = withContext(Dispatchers.IO) {
@@ -367,10 +457,6 @@ object PingTester {
         // Plaintext nodes (security=none) cannot bypass DPI filtering
         val sec = node.security?.lowercase()?.trim() ?: "none"
         if (sec == "none" || sec.isEmpty()) {
-            return false
-        }
-        // Exclude fake CDN anycast IPs that give fake 2ms TCP handshakes without real proxying
-        if (node.type.equals("xhttp", ignoreCase = true) || node.type.equals("splithttp", ignoreCase = true)) {
             return false
         }
         val s = node.server.lowercase().trim()

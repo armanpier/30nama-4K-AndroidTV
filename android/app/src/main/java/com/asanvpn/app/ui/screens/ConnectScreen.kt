@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.asanvpn.app.data.PreferencesManager
 import com.asanvpn.app.data.VpnRepository
 import com.asanvpn.app.data.models.ConnectionState
+import com.asanvpn.app.ui.components.AppFilterDialog
 import com.asanvpn.app.ui.theme.*
 import com.asanvpn.app.util.AppLogger
 import kotlinx.coroutines.delay
@@ -68,11 +69,17 @@ fun ConnectScreen(
     onContactSupport: () -> Unit = {},
     onCheckUpdate: () -> Unit = {},
     onShareClick: () -> Unit = {},
+    onSaveAppFilter: (enabled: Boolean, whitelist: Set<String>, speedOptEnabled: Boolean) -> Unit = { _, _, _ -> },
     onChangePin: () -> Unit
 ) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     var showDebugDialog by remember { mutableStateOf(false) }
+    var showAppFilterDialog by remember { mutableStateOf(false) }
+    var isAppFilterEnabled by remember { mutableStateOf(prefs.isAppFilterEnabled) }
+    var appFilterWhitelist by remember { mutableStateOf(prefs.appFilterWhitelist) }
+    var isSpeedOptimizationEnabled by remember { mutableStateOf(prefs.isSpeedOptimizationEnabled) }
+    val isAppFilterActive = isAppFilterEnabled && appFilterWhitelist.isNotEmpty()
     var showAdminAuthDialog by remember { mutableStateOf(false) }
     var adminPasswordInput by remember { mutableStateOf("") }
     var isAdminMode by remember { mutableStateOf(prefs.isAdmin) }
@@ -195,20 +202,20 @@ fun ConnectScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // 1. Info (i) Sculpted Pebble Button
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
-                            .luxuryCushion(shape = RoundedCornerShape(18.dp), elevation = 4.dp)
+                            .size(40.dp)
+                            .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 4.dp)
                             .clickable { showDebugDialog = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(24.dp)
+                                .size(22.dp)
                                 .clip(CircleShape)
                                 .background(
                                     if (colors.isDark) Color(0xFF334155) else Color(0xFF475569)
@@ -217,18 +224,45 @@ fun ConnectScreen(
                         ) {
                             Text(
                                 text = "i",
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color.White
                             )
                         }
                     }
 
-                    // 2. Luxury Theme Switcher (Light Porcelain <-> Dark Obsidian)
+                    // 2. Gear (Settings & App Filter Whitelist) Sculpted Pebble Button
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
-                            .luxuryCushion(shape = RoundedCornerShape(18.dp), elevation = 4.dp)
+                            .size(40.dp)
+                            .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 4.dp)
+                            .clickable { showAppFilterDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(contentAlignment = Alignment.TopEnd) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "فیلتر برنامه‌ها (App Filter)",
+                                tint = if (isAppFilterActive) colors.jadeGreen else colors.textSecondary,
+                                modifier = Modifier.size(19.dp)
+                            )
+                            if (isAppFilterActive) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .offset(x = 2.dp, y = (-2).dp)
+                                        .clip(CircleShape)
+                                        .background(colors.jadeGreen)
+                                )
+                            }
+                        }
+                    }
+
+                    // 3. Luxury Theme Switcher (Light Porcelain <-> Dark Obsidian)
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 4.dp)
                             .clickable { onToggleTheme() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -236,51 +270,15 @@ fun ConnectScreen(
                             imageVector = if (colors.isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
                             contentDescription = if (colors.isDark) "حالت روز" else "حالت شب",
                             tint = if (colors.isDark) Color(0xFFFBBF24) else Color(0xFF6366F1),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
 
-                    // 3. Version Pill (Center)
-                    Row(
-                        modifier = Modifier
-                            .height(42.dp)
-                            .luxuryCushion(shape = RoundedCornerShape(20.dp), elevation = 4.dp)
-                            .clickable { onCheckUpdate() }
-                            .padding(horizontal = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    Brush.radialGradient(
-                                        listOf(Color(0xFFFED7AA), Color(0xFFFB7185), Color(0xFFE11D48))
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SystemUpdate,
-                                contentDescription = "نسخه",
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                        Text(
-                            text = if (newVersionAvailable != null) "نسخه جدید: $newVersionAvailable" else "نسخه $appVersion",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (newVersionAvailable != null) Color(0xFFEF4444) else colors.textSecondary
-                        )
-                    }
-
-                    // 3.5. QR Share Button (beside Update button)
+                    // 4. QR Share Button
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
-                            .luxuryCushion(shape = RoundedCornerShape(18.dp), elevation = 4.dp)
+                            .size(40.dp)
+                            .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 4.dp)
                             .clickable { onShareClick() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -288,49 +286,76 @@ fun ConnectScreen(
                             imageVector = Icons.Default.QrCode2,
                             contentDescription = "اشتراک‌گذاری با بارکد QR",
                             tint = colors.skyBlue,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
 
-                    // 4. Telegram Profile Sculpted Pill (Right side)
+                    // 5. Telegram Profile & Version Sculpted Pill (Right side)
                     Row(
                         modifier = Modifier
                             .weight(1f)
-                            .height(42.dp)
-                            .luxuryCushion(shape = RoundedCornerShape(20.dp), elevation = 4.dp)
-                            .clickable {
-                                Toast.makeText(context, "حساب کاربری: $userName", Toast.LENGTH_SHORT).show()
-                            }
-                            .padding(horizontal = 10.dp),
+                            .height(40.dp)
+                            .luxuryCushion(shape = RoundedCornerShape(18.dp), elevation = 4.dp)
+                            .clickable { onCheckUpdate() }
+                            .padding(horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(26.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.radialGradient(
-                                        listOf(Color(0xFFBAE6FD), Color(0xFF38BDF8), Color(0xFF0284C7))
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            modifier = Modifier.weight(1f, fill = false)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.radialGradient(
+                                            listOf(Color(0xFFBAE6FD), Color(0xFF38BDF8), Color(0xFF0284C7))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            Text(
+                                text = userName,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = colors.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Text(
-                            text = userName,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = colors.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+
+                        if (newVersionAvailable != null) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFFEF4444))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "آپدیت",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = "v$appVersion",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.textSecondary
+                            )
+                        }
                     }
                 }
 
@@ -1138,6 +1163,23 @@ fun ConnectScreen(
                 TextButton(onClick = { showDebugDialog = false }) {
                     Text("بستن", color = colors.textSecondary)
                 }
+            }
+        )
+    }
+
+    // App Filter & Whitelist Dialog (Opened via Gear button)
+    if (showAppFilterDialog) {
+        AppFilterDialog(
+            initialEnabled = isAppFilterEnabled,
+            initialWhitelist = appFilterWhitelist,
+            initialSpeedOptEnabled = isSpeedOptimizationEnabled,
+            isVpnConnected = isConnected,
+            onDismiss = { showAppFilterDialog = false },
+            onSave = { enabled, whitelist, speedOpt ->
+                isAppFilterEnabled = enabled
+                appFilterWhitelist = whitelist
+                isSpeedOptimizationEnabled = speedOpt
+                onSaveAppFilter(enabled, whitelist, speedOpt)
             }
         )
     }

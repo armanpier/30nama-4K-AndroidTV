@@ -32,7 +32,7 @@ data class UserInfo(
     @SerializedName("is_admin") val isAdmin: Boolean? = false
 )
 
-data class VpnNode(
+data class VpnNode @JvmOverloads constructor(
     @SerializedName("protocol") val protocol: String,
     @SerializedName("remark") val remark: String,
     @SerializedName("server") val server: String,
@@ -52,11 +52,45 @@ data class VpnNode(
     @SerializedName("serviceName") val serviceName: String? = null,
     @SerializedName("alpn") val alpn: List<String>? = null,
     @SerializedName("cipher") val cipher: String? = null,
+    @SerializedName("encryption") val encryption: String? = null,
+    @SerializedName("mode") val mode: String? = null,
+    @SerializedName("headerType") val headerType: String? = null,
+    @SerializedName("raw_link") val rawLink: String? = null,
     @SerializedName("latency") var latencyMs: Long = -1L,
     @SerializedName("panel_id") val panelId: String? = null,
     @SerializedName("panel_name") val panelName: String? = null,
     @SerializedName("panel_priority") val panelPriority: Int? = 1
-)
+) {
+    constructor(
+        protocol: String,
+        remark: String,
+        server: String,
+        port: Int,
+        uuid: String?,
+        password: String?,
+        type: String?,
+        security: String?,
+        sni: String?,
+        path: String?,
+        flow: String?,
+        pbk: String?,
+        sid: String?,
+        spx: String?,
+        fingerprint: String?,
+        hostHeader: String?,
+        serviceName: String?,
+        alpn: List<String>?,
+        cipher: String?,
+        latencyMs: Long,
+        panelId: String?,
+        panelName: String?,
+        panelPriority: Int?
+    ) : this(
+        protocol, remark, server, port, uuid, password, type, security, sni, path, flow, pbk, sid, spx,
+        fingerprint, hostHeader, serviceName, alpn, cipher, null, null, null, null, latencyMs,
+        panelId, panelName, panelPriority
+    )
+}
 
 enum class ConnectionState {
     DISCONNECTED,

@@ -359,12 +359,13 @@ class VpnRepository(private val context: Context) {
                         AppLogger.logUser("✅ مشخصات اشتراک تایید شد (${count} سرور دریافت گردید)")
                         AppLogger.logAdmin("Connect SUCCESS. Received $count subscription nodes.")
                         return@withContext Result.success(parsed)
-                    } else if (parsed != null && (parsed.status == "invalid_pin" || parsed.status == "disabled" || parsed.status == "expired" || parsed.status == "deleted" || parsed.status == "device_locked")) {
+                    } else if (parsed != null && (parsed.status == "invalid_pin" || parsed.status == "disabled" || parsed.status == "expired" || parsed.status == "deleted" || parsed.status == "device_locked" || parsed.status == "traffic_exhausted")) {
                         isPinRejected = true
                         rejectionMessageFa = parsed.messageFa ?: when (parsed.status) {
                             "disabled" -> "اشتراک شما توسط مدیر غیرفعال شده است."
                             "expired" -> "اشتراک شما به پایان رسیده است. جهت تمدید با پشتیبانی تماس بگیرید."
                             "device_locked" -> "ظرفیت دستگاه‌های مجاز برای این اشتراک تکمیل شده است."
+                            "traffic_exhausted" -> "حجم ترافیک اشتراک شما به پایان رسیده است. جهت شارژ مجدد با پشتیبانی تماس بگیرید."
                             else -> "کد اشتراک نامعتبر است یا توسط مدیر حذف شده است."
                         }
                         AppLogger.logUser("❌ وضعیت اشتراک: $rejectionMessageFa")

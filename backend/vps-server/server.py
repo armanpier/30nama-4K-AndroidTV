@@ -31,9 +31,9 @@ DASHBOARD_HTML_PATH = "/etc/asanvpn/dashboard.html"
 ADMIN_PASSWORD = "Arman4237340"
 SUPPORT_PHONE = "+989120000000"
 SUPPORT_TELEGRAM = "AsanSupport"
-APP_VERSION = "1.3.16"
-APP_VERSION_CODE = 22
-GITHUB_APK_URL = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.16/AsanVPN-v1.3.16-universal.apk"
+APP_VERSION = "1.3.20"
+APP_VERSION_CODE = 26
+GITHUB_APK_URL = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.20/AsanVPN-v1.3.20-universal.apk"
 EDGE_SECRET = "asanvpn-edge-internal-secret-2026"
 
 DEFAULT_INITIAL_PANELS = [
@@ -376,6 +376,10 @@ def parse_raw_proxy_link(link: str, panel_id: str = "", panel_name: str = "", pr
                 "spx": params.get("spx", [""])[0],
                 "fingerprint": params.get("fp", ["chrome"])[0],
                 "serviceName": params.get("serviceName", [""])[0],
+                "encryption": params.get("encryption", ["none"])[0],
+                "mode": params.get("mode", ["auto"])[0],
+                "headerType": params.get("headerType", ["none"])[0],
+                "raw_link": link,
                 "panel_id": panel_id,
                 "panel_name": panel_name,
                 "panel_priority": priority
@@ -397,6 +401,7 @@ def parse_raw_proxy_link(link: str, panel_id: str = "", panel_name: str = "", pr
                 "path": cfg.get("path", ""),
                 "hostHeader": cfg.get("host", ""),
                 "cipher": "auto",
+                "raw_link": link,
                 "panel_id": panel_id,
                 "panel_name": panel_name,
                 "panel_priority": priority
@@ -440,6 +445,12 @@ def fetch_subscription_data(url: str, timeout: int = 8) -> dict:
 # ==========================================
 PANEL_JWT_CACHE = {}
 
+def normalize_panel_url(panel_url: str) -> str:
+    url = (panel_url or "").strip().rstrip("/")
+    if url.endswith("/dashboard"):
+        url = url[:-10].rstrip("/")
+    return url
+
 def get_panel_jwt_token(panel_url: str, username: str, password: str, force_refresh: bool = False) -> str:
     """
     Retrieves or refreshes an OAuth2 JWT Bearer token for PasarGuard / Marzban / FastAPI panels.
@@ -447,7 +458,7 @@ def get_panel_jwt_token(panel_url: str, username: str, password: str, force_refr
     """
     if not panel_url or not username or not password:
         return ""
-    base_url = panel_url.rstrip("/")
+    base_url = normalize_panel_url(panel_url)
     cache_key = f"{base_url}:{username}"
     now = time.time()
     if not force_refresh and cache_key in PANEL_JWT_CACHE:
@@ -858,7 +869,7 @@ def get_app_update_info(abi: str = None) -> dict:
     except Exception:
         ver_code = APP_VERSION_CODE
     force_update = bool(config.get("forceUpdate", False))
-    notes = str(config.get("releaseNotes") or "سوییچ خودکار و هوشمند در صورت قطعی ۵ ثانیه‌ای به سریع‌ترین سرور طبق اولویت پنل‌ها، اشتراک‌گذاری با بارکد واقعی QR و پایداری اتصال").strip()
+    notes = str(config.get("releaseNotes") or "بهینه‌سازی هوشمند سرعت دانلود در پس‌زمینه (در منوی چرخدنده)، رفع خطای اتصال کاربران جدید، فیلتر برنامه‌ها و پایداری شبکه").strip()
 
     base_opt = "/opt/asanvpn"
     files = {
@@ -1330,15 +1341,21 @@ class RequestHandler(BaseHTTPRequestHandler):
                 now = int(time.time())
                 days = int(body.get("days", 30))
                 traffic_gb = float(body.get("traffic_gb", 0))
-                traffic_bytes = int(round(traffic_gb * (1024**3))) if traffic_gb > 0 else (body.get("traffic_total_bytes") or 0)
+                if traffic_gb > 0:
+                    traffic_bytes = int(round(traffic_gb * (1024**3)))
+                else:
+                    traffic_bytes = int(body.get("traffic_total_bytes") or 0)
                 if not body.get("created_at"):
                     body["created_at"] = now
                 if not body.get("expires_at"):
                     body["expires_at"] = now + (days * 86400)
-                if "traffic_total_bytes" not in body or not body["traffic_total_bytes"]:
+                if "traffic_total_bytes" not in body or body["traffic_total_bytes"] is None:
                     body["traffic_total_bytes"] = traffic_bytes
-                if "traffic_remaining_bytes" not in body or not body["traffic_remaining_bytes"]:
-                    body["traffic_remaining_bytes"] = traffic_bytes
+                if "traffic_remaining_bytes" not in body or body["traffic_remaining_bytes"] is None:
+                    body["traffic_remaining_bytes"] = traffic_bytes if traffic_bytes > 0 else -1
+                if traffic_bytes <= 0:
+                    body["traffic_total_bytes"] = 0
+                    body["traffic_remaining_bytes"] = -1
                 if "active" not in body:
                     body["active"] = True
 
@@ -1380,7 +1397,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 p_name = str(body.get("name", "")).strip()
                 p_type = str(body.get("type", "3xui")).strip().lower()
                 p_auth = str(body.get("authType", "apiKey")).strip()
-                p_url = str(body.get("url", "")).strip()
+                p_url = normalize_panel_url(str(body.get("url", "")))
                 p_api_key = str(body.get("apiKey", "")).strip()
                 p_user = str(body.get("username", "")).strip()
                 p_pass = str(body.get("password", "")).strip()
@@ -1493,6 +1510,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                         except Exception:
                             pass
 
+                p_url = normalize_panel_url(p_url)
                 start_t = time.time()
                 try:
                     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AsanVPN/1.0"}
@@ -1820,9 +1838,10 @@ class RequestHandler(BaseHTTPRequestHandler):
                     "support_telegram": SUPPORT_TELEGRAM
                 })
 
-            # Traffic exhaustion check
+            # Traffic exhaustion check (only applies if total quota is positive and finite)
+            total_bytes = int(user.get("traffic_total_bytes", 0) or 0)
             rem_bytes = user.get("traffic_remaining_bytes")
-            if rem_bytes is not None and rem_bytes != -1 and rem_bytes <= 0:
+            if total_bytes > 0 and rem_bytes is not None and rem_bytes != -1 and rem_bytes <= 0:
                 return self.send_json(403, {
                     "status": "traffic_exhausted",
                     "message_fa": "حجم ترافیک اشتراک شما به پایان رسیده است. جهت شارژ مجدد با پشتیبانی تماس بگیرید.",
@@ -1850,7 +1869,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             nodes = user.get("cached_nodes") or []
             if not nodes:
                 try:
-                    for cand_pin in ["22858950", "21825611", "33438704", "37600714"]:
+                    for cand_pin in ["22858950", "21825611", "33438704", "37600714", "15188776"]:
                         cand_raw = db.get(cand_pin)
                         if cand_raw:
                             c_data = json.loads(cand_raw)
@@ -1860,6 +1879,13 @@ class RequestHandler(BaseHTTPRequestHandler):
                                 break
                 except Exception:
                     pass
+
+            # If user has specific panel_ids assigned, filter nodes to those panels if available
+            user_panel_ids = user.get("panel_ids") or []
+            if user_panel_ids and nodes:
+                filtered_nodes = [n for n in nodes if n.get("panel_id") in user_panel_ids]
+                if filtered_nodes:
+                    nodes = filtered_nodes
 
             # Strictly guarantee waterfall priority assignment and sorting
             for n in nodes:
@@ -1871,7 +1897,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                         n["panel_priority"] = 2
             nodes = sorted(nodes, key=lambda x: int(x.get("panel_priority", 1)))
             days_left = max(0, (user["expires_at"] - now) // 86400) if user.get("expires_at") else "نامحدود"
-            remaining_bytes = user.get("traffic_remaining_bytes", 26843545600)
+            remaining_bytes = user.get("traffic_remaining_bytes")
+            if remaining_bytes is None or (total_bytes <= 0 and remaining_bytes == 0):
+                remaining_bytes = -1
             total_bytes = user.get("traffic_total_bytes", 26843545600)
 
             return self.send_json(200, {

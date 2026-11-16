@@ -3,6 +3,7 @@ package com.asanvpn.app.service.v2ray
 import com.asanvpn.app.data.models.VpnNode
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import java.net.URLDecoder
 
 object V2RayConfigBuilder {
 
@@ -218,8 +219,6 @@ object V2RayConfigBuilder {
         val dns = JsonObject().apply {
             addProperty("queryStrategy", "UseIPv4")
             val servers = JsonArray().apply {
-                add("https://1.1.1.1/dns-query")
-                add("https://8.8.8.8/dns-query")
                 add("1.1.1.1")
                 add("8.8.8.8")
             }
@@ -230,15 +229,52 @@ object V2RayConfigBuilder {
         return root.toString()
     }
 
+    private fun parseRawQueryParams(rawLink: String?): Map<String, String> {
+        if (rawLink.isNullOrBlank() || !rawLink.contains("?")) return emptyMap()
+        val queryPart = rawLink.substringAfter("?").substringBefore("#")
+        val map = mutableMapOf<String, String>()
+        queryPart.split("&").forEach { param ->
+            val parts = param.split("=", limit = 2)
+            if (parts.isNotEmpty()) {
+                val key = parts[0]
+                val value = if (parts.size > 1) {
+                    try { URLDecoder.decode(parts[1], "UTF-8") } catch (_: Exception) { parts[1] }
+                } else ""
+                map[key] = value
+            }
+        }
+        return map
+    }
+
     private fun buildProxyOutbound(node: VpnNode): JsonObject {
         val outbound = JsonObject()
         outbound.addProperty("tag", "proxy")
         outbound.addProperty("protocol", node.protocol.lowercase())
 
+        val rawParams = parseRawQueryParams(node.rawLink)
+
         val settings = JsonObject()
         val streamSettings = JsonObject()
-        val sec = if (!node.pbk.isNullOrBlank()) "reality" else (node.security?.lowercase() ?: "none")
-        streamSettings.addProperty("network", if (node.type.isNullOrEmpty()) "tcp" else node.type.lowercase())
+
+        // Resolve fields with direct raw link precedence to preserve 100% parameter fidelity
+        val pbk = rawParams["pbk"] ?: node.pbk
+        val sid = rawParams["sid"] ?: node.sid
+        val spx = rawParams["spx"] ?: node.spx
+        val fp = rawParams["fp"] ?: node.fingerprint ?: "chrome"
+        val rawSec = rawParams["security"] ?: node.security
+        val sec = if (!pbk.isNullOrBlank()) "reality" else (rawSec?.lowercase() ?: "none")
+
+        val rawType = rawParams["type"] ?: node.type
+        val net = if (rawType.isNullOrEmpty()) "tcp" else rawType.lowercase()
+        val headerType = rawParams["headerType"] ?: node.headerType ?: "none"
+        val rawSni = rawParams["sni"] ?: node.sni
+        val rawHost = rawParams["host"] ?: node.hostHeader ?: rawSni ?: node.server
+        val rawPath = rawParams["path"] ?: node.path ?: "/"
+        val rawMode = rawParams["mode"] ?: node.mode ?: "auto"
+        val rawFlow = rawParams["flow"] ?: node.flow
+        val rawEnc = rawParams["encryption"] ?: node.encryption ?: "none"
+
+        streamSettings.addProperty("network", net)
         streamSettings.addProperty("security", sec)
 
         when (node.protocol.lowercase()) {
@@ -251,10 +287,10 @@ object V2RayConfigBuilder {
                 val users = JsonArray()
                 val user = JsonObject()
                 user.addProperty("id", node.uuid ?: "")
-                user.addProperty("encryption", "none")
-                val isVisionCompatible = (sec == "tls" || sec == "reality") && (node.type.isNullOrBlank() || node.type.lowercase() == "tcp")
-                if (!node.flow.isNullOrBlank() && isVisionCompatible) {
-                    user.addProperty("flow", node.flow)
+                user.addProperty("encryption", rawEnc)
+                val isVisionCompatible = (sec == "tls" || sec == "reality") && (net == "tcp")
+                if (!rawFlow.isNullOrBlank() && isVisionCompatible) {
+                    user.addProperty("flow", rawFlow)
                 }
                 users.add(user)
                 serverObj.add("users", users)
@@ -302,11 +338,13 @@ object V2RayConfigBuilder {
         // Security: TLS or Reality
         if (sec == "tls") {
             val tls = JsonObject()
-            tls.addProperty("serverName", if (!node.sni.isNullOrBlank()) node.sni else node.server)
+            val serverName = if (!rawSni.isNullOrBlank()) rawSni else node.server
+            tls.addProperty("serverName", serverName)
             tls.addProperty("allowInsecure", false)
             val alpn = JsonArray()
-            if (!node.alpn.isNullOrEmpty()) {
-                node.alpn.forEach { alpn.add(it) }
+            val rawAlpn = rawParams["alpn"]?.split(",") ?: node.alpn
+            if (!rawAlpn.isNullOrEmpty()) {
+                rawAlpn.forEach { alpn.add(it.trim()) }
             } else {
                 alpn.add("http/1.1")
             }
@@ -314,41 +352,53 @@ object V2RayConfigBuilder {
             streamSettings.add("tlsSettings", tls)
         } else if (sec == "reality") {
             val reality = JsonObject()
-            val serverName = if (!node.sni.isNullOrBlank() && !node.sni.matches(Regex("""^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"""))) {
-                node.sni
+            val serverName = if (!rawSni.isNullOrBlank() && !rawSni.matches(Regex("""^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"""))) {
+                rawSni
             } else if (!node.server.matches(Regex("""^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"""))) {
                 node.server
             } else {
-                "speedtest.net"
+                "play.google.com"
             }
             reality.addProperty("serverName", serverName)
-            reality.addProperty("fingerprint", if (!node.fingerprint.isNullOrBlank()) node.fingerprint else "chrome")
-            reality.addProperty("publicKey", node.pbk ?: "")
-            reality.addProperty("shortId", node.sid ?: "")
-            reality.addProperty("spiderX", node.spx ?: "")
+            reality.addProperty("fingerprint", fp)
+            reality.addProperty("publicKey", pbk ?: "")
+            reality.addProperty("shortId", sid ?: "")
+            reality.addProperty("spiderX", spx ?: "")
             streamSettings.add("realitySettings", reality)
         }
 
-        // Network: ws / grpc / tcp
-        val net = node.type?.lowercase() ?: "tcp"
+        // Network: ws / grpc / xhttp / tcp
         if (net == "ws") {
             val ws = JsonObject()
-            ws.addProperty("path", if (!node.path.isNullOrBlank()) node.path else "/")
+            ws.addProperty("path", rawPath)
             val headers = JsonObject()
-            headers.addProperty("Host", if (!node.hostHeader.isNullOrBlank()) node.hostHeader else (node.sni ?: node.server))
+            headers.addProperty("Host", rawHost)
             ws.add("headers", headers)
             streamSettings.add("wsSettings", ws)
         } else if (net == "grpc") {
             val grpc = JsonObject()
-            grpc.addProperty("serviceName", if (!node.serviceName.isNullOrBlank()) node.serviceName else (node.path ?: ""))
+            val serviceName = rawParams["serviceName"] ?: node.serviceName ?: rawPath
+            grpc.addProperty("serviceName", serviceName)
             grpc.addProperty("multiMode", true)
             streamSettings.add("grpcSettings", grpc)
         } else if (net == "xhttp" || net == "splithttp") {
             val xhttp = JsonObject()
-            xhttp.addProperty("path", if (!node.path.isNullOrBlank()) node.path else "/")
-            xhttp.addProperty("host", if (!node.hostHeader.isNullOrBlank()) node.hostHeader else (node.sni ?: node.server))
-            xhttp.addProperty("mode", "auto")
+            xhttp.addProperty("path", rawPath)
+            xhttp.addProperty("host", rawHost)
+            xhttp.addProperty("mode", rawMode)
             streamSettings.add("xhttpSettings", xhttp)
+        } else if (net == "tcp" && headerType.lowercase() == "http") {
+            val tcp = JsonObject()
+            val header = JsonObject()
+            header.addProperty("type", "http")
+            val request = JsonObject()
+            request.addProperty("path", rawPath)
+            val headers = JsonObject()
+            headers.addProperty("Host", rawHost)
+            request.add("headers", headers)
+            header.add("request", request)
+            tcp.add("header", header)
+            streamSettings.add("tcpSettings", tcp)
         }
 
         outbound.add("streamSettings", streamSettings)
