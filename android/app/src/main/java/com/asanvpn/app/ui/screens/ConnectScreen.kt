@@ -69,7 +69,7 @@ fun ConnectScreen(
     onContactSupport: () -> Unit = {},
     onCheckUpdate: () -> Unit = {},
     onShareClick: () -> Unit = {},
-    onSaveAppFilter: (enabled: Boolean, whitelist: Set<String>, speedOptEnabled: Boolean) -> Unit = { _, _, _ -> },
+    onSaveAppFilter: (enabled: Boolean, whitelist: Set<String>, speedOptEnabled: Boolean, geminiOptEnabled: Boolean) -> Unit = { _, _, _, _ -> },
     onChangePin: () -> Unit
 ) {
     val context = LocalContext.current
@@ -79,6 +79,7 @@ fun ConnectScreen(
     var isAppFilterEnabled by remember { mutableStateOf(prefs.isAppFilterEnabled) }
     var appFilterWhitelist by remember { mutableStateOf(prefs.appFilterWhitelist) }
     var isSpeedOptimizationEnabled by remember { mutableStateOf(prefs.isSpeedOptimizationEnabled) }
+    var isGeminiOptimizationEnabled by remember { mutableStateOf(prefs.isGeminiOptimizationEnabled) }
     val isAppFilterActive = isAppFilterEnabled && appFilterWhitelist.isNotEmpty()
     var showAdminAuthDialog by remember { mutableStateOf(false) }
     var adminPasswordInput by remember { mutableStateOf("") }
@@ -1173,13 +1174,15 @@ fun ConnectScreen(
             initialEnabled = isAppFilterEnabled,
             initialWhitelist = appFilterWhitelist,
             initialSpeedOptEnabled = isSpeedOptimizationEnabled,
+            initialGeminiOptEnabled = isGeminiOptimizationEnabled,
             isVpnConnected = isConnected,
             onDismiss = { showAppFilterDialog = false },
-            onSave = { enabled, whitelist, speedOpt ->
+            onSave = { enabled, whitelist, speedOpt, geminiOpt ->
                 isAppFilterEnabled = enabled
                 appFilterWhitelist = whitelist
                 isSpeedOptimizationEnabled = speedOpt
-                onSaveAppFilter(enabled, whitelist, speedOpt)
+                isGeminiOptimizationEnabled = geminiOpt
+                onSaveAppFilter(enabled, whitelist, speedOpt, geminiOpt)
             }
         )
     }

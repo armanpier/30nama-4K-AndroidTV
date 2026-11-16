@@ -69,6 +69,8 @@ class PreferencesManager(context: Context) {
         private const val KEY_APP_FILTER_ENABLED = "app_filter_enabled"
         private const val KEY_APP_FILTER_WHITELIST = "app_filter_whitelist"
         private const val KEY_SPEED_OPTIMIZATION_ENABLED = "speed_optimization_enabled"
+        private const val KEY_GEMINI_OPTIMIZATION_ENABLED = "gemini_optimization_enabled"
+        private const val KEY_NODE_METRICS_CACHE = "node_metrics_cache"
     }
 
     var trafficTotalBytes: Long
@@ -157,6 +159,14 @@ class PreferencesManager(context: Context) {
     var isSpeedOptimizationEnabled: Boolean
         get() = prefs.getBoolean(KEY_SPEED_OPTIMIZATION_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_SPEED_OPTIMIZATION_ENABLED, value).apply()
+
+    var isGeminiOptimizationEnabled: Boolean
+        get() = prefs.getBoolean(KEY_GEMINI_OPTIMIZATION_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_GEMINI_OPTIMIZATION_ENABLED, value).apply()
+
+    var nodeMetricsCacheJson: String?
+        get() = prefs.getString(KEY_NODE_METRICS_CACHE, null)
+        set(value) = prefs.edit().putString(KEY_NODE_METRICS_CACHE, value).apply()
 
     fun clearAll() {
         prefs.edit().clear().apply()

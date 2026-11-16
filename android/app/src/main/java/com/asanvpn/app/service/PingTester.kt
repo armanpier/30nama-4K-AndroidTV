@@ -23,8 +23,16 @@ object PingTester {
     private const val TAG = "PingTester"
     private const val TEST_URL_PRIMARY = "https://cp.cloudflare.com/generate_204"
     private const val TEST_URL_FALLBACK = "https://www.gstatic.com/generate_204"
-    private const val SPEED_TEST_URL_PRIMARY = "https://speed.cloudflare.com/__down?bytes=10000000"
-    private const val SPEED_TEST_URL_FALLBACK = "https://speedtest.tele2.net/10MB.zip"
+    private const val SPEED_TEST_URL_PRIMARY = "https://speed.cloudflare.com/__down?bytes=4000000"
+    private const val SPEED_TEST_URL_FALLBACK = "https://speedtest.tele2.net/4MB.zip"
+    private const val GEMINI_TEST_URL = "https://gemini.google.com"
+    private const val GEMINI_API_TEST_URL = "https://generativelanguage.googleapis.com"
+
+    data class GeminiCheckResult(
+        val isSuccess: Boolean,
+        val latencyMs: Long,
+        val message: String
+    )
 
     /**
      * Connects IMMEDIATELY to the first verified working link (fast connect),
@@ -46,14 +54,43 @@ object PingTester {
     suspend fun connectFastAndOptimize(
         context: Context? = null,
         nodes: List<VpnNode>,
+        isGeminiOptimizationEnabled: Boolean = false,
         onFirstOkNode: suspend (VpnNode) -> Unit,
         onFastestNodeFound: suspend (VpnNode) -> Unit
     ) = withContext(Dispatchers.IO) {
         if (nodes.isEmpty()) return@withContext
+        context?.let {
+            V2RayCoreManager.initCore(it)
+            com.asanvpn.app.data.NodeMetricsCache.init(it)
+        }
+
         if (nodes.size == 1) {
             val single = nodes[0]
             val delay = measureRealDelay(single, 5000L)
             if (delay > 0) {
+                if (isGeminiOptimizationEnabled) {
+                    val cached = com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(single)
+                    val gDelay = if (cached != null) {
+                        if (cached.first) {
+                            val lat = if (cached.second > 0) cached.second else delay
+                            AppLogger.logUser("⚡ سرور [${single.remark}] سازگار با Gemini تایید شد (${lat}ms - از کش)")
+                            lat
+                        } else {
+                            AppLogger.logUser("⚠️ سرور [${single.remark}] فاقد دسترسی به Gemini (ثبت در کش)")
+                            -1L
+                        }
+                    } else {
+                        val d = measureGeminiDelay(single, 4000L)
+                        com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(single, d > 0, d)
+                        if (d > 0) {
+                            AppLogger.logUser("✨ سرور [${single.remark}] سازگار با Gemini تایید شد (${d}ms)")
+                        } else {
+                            AppLogger.logUser("⚠️ سرور [${single.remark}] فاقد دسترسی کامل به Gemini است")
+                        }
+                        d
+                    }
+                    if (gDelay <= 0) return@withContext
+                }
                 single.latencyMs = delay
                 onFirstOkNode(single)
                 onFastestNodeFound(single)
@@ -62,8 +99,6 @@ object PingTester {
             }
             return@withContext
         }
-
-        context?.let { V2RayCoreManager.initCore(it) }
 
         val usableNodes = nodes.filter { isUsableEgressNode(it) }
         val candidatePool = if (usableNodes.isNotEmpty()) usableNodes else nodes
@@ -110,6 +145,39 @@ object PingTester {
                         }
                         node.latencyMs = realDelay
                         if (realDelay > 0) {
+                            if (isGeminiOptimizationEnabled) {
+                                val cached = com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(node)
+                                val geminiDelay = if (cached != null) {
+                                    if (cached.first) {
+                                        val lat = if (cached.second > 0) cached.second else realDelay
+                                        Log.i(TAG, "Tier $tier cached Gemini OK: [${node.remark}] (${lat}ms)")
+                                        AppLogger.logUser("⚡ [${node.remark}] سازگار با Gemini (استفاده از کش: ${lat}ms)")
+                                        lat
+                                    } else {
+                                        Log.i(TAG, "Tier $tier cached Gemini failed: [${node.remark}]")
+                                        AppLogger.logUser("⚠️ [${node.remark}] فاقد دسترسی به Gemini (ثبت در کش - رد شد)")
+                                        -1L
+                                    }
+                                } else {
+                                    val measured = measureGeminiDelay(node, realDelayTimeout)
+                                    if (measured <= 0) {
+                                        com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(node, false, -1L)
+                                        Log.w(TAG, "Tier $tier candidate [${node.remark}] failed Gemini test. Saved to cache.")
+                                        AppLogger.logUser("⚠️ سرور [${node.remark}] فاقد دسترسی به Gemini (خطای تحریم گوگل)")
+                                        -1L
+                                    } else {
+                                        com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(node, true, measured)
+                                        Log.i(TAG, "Tier $tier candidate [${node.remark}] passed Gemini test (${measured}ms). Saved to cache.")
+                                        AppLogger.logUser("✨ سرور [${node.remark}] سازگار با Gemini تایید شد (${measured}ms)")
+                                        measured
+                                    }
+                                }
+
+                                if (geminiDelay <= 0) {
+                                    return@launch
+                                }
+                            }
+
                             Log.i(TAG, "Tier $tier Verified OK: [${node.remark}] -> REAL latency: ${realDelay}ms")
                             AppLogger.logLinkTest(node.remark, realDelay, isSuccess = true)
 
@@ -236,7 +304,8 @@ object PingTester {
      */
     suspend fun findNextBestNode(
         nodes: List<VpnNode>,
-        currentNodeRemark: String?
+        currentNodeRemark: String?,
+        isGeminiOptimizationEnabled: Boolean = false
     ): VpnNode? = withContext(Dispatchers.IO) {
         val usable = nodes.filter { isUsableEgressNode(it) && it.remark != currentNodeRemark }
         val candidatePool = if (usable.isNotEmpty()) usable else nodes.filter { it.remark != currentNodeRemark }
@@ -272,6 +341,17 @@ object PingTester {
                     launch {
                         val realDelay = measureRealDelay(node, realDelayTimeout)
                         if (realDelay > 0) {
+                            if (isGeminiOptimizationEnabled) {
+                                val cached = com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(node)
+                                val geminiDelay = if (cached != null) {
+                                    if (cached.first) cached.second else -1L
+                                } else {
+                                    val measured = measureGeminiDelay(node, realDelayTimeout)
+                                    com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(node, measured > 0, measured)
+                                    measured
+                                }
+                                if (geminiDelay <= 0) return@launch
+                            }
                             node.latencyMs = realDelay
                             verifiedNodes.add(Pair(node, realDelay))
                         }
@@ -321,20 +401,23 @@ object PingTester {
     }
 
     /**
-     * Tests download throughput (MB/s) of candidate nodes in the background without disconnecting.
+     * Tests download throughput (MB/s) of candidate nodes in the background sequentially without disconnecting.
+     * Uses a lightweight 4 MB payload per server (tested strictly one-by-one).
      * Takes up to 5 candidate nodes (including the currently active node).
+     * If Gemini mode is enabled, only candidate nodes passing Gemini verification are considered.
      * Returns a candidate node if it is significantly faster (at least 25% and >= 0.5 MB/s) than the active node,
      * or null if the active node is already best or testing cannot find a better candidate.
      */
     suspend fun benchmarkCandidateThroughput(
         candidates: List<VpnNode>,
         activeNode: VpnNode,
-        timeoutPerNodeMs: Long = 15000L
+        isGeminiOptimizationEnabled: Boolean = false,
+        timeoutPerNodeMs: Long = 12000L
     ): VpnNode? = withContext(Dispatchers.IO) {
         if (candidates.size <= 1) return@withContext null
 
-        Log.i(TAG, "Starting background download throughput benchmark on ${candidates.size} nodes...")
-        AppLogger.logUser("📊 شروع تست سرعت دانلود ۵ سرور برتر در پس‌زمینه...")
+        Log.i(TAG, "Starting sequential download throughput benchmark (4MB) on ${candidates.size} nodes...")
+        AppLogger.logUser("📊 شروع تست سرعت دانلود ۴ مگابایت سرورها به صورت نوبتی در پس‌زمینه...")
 
         // candidate remark -> speed in MB/s
         val speedResults = mutableMapOf<String, Double>()
@@ -348,8 +431,38 @@ object PingTester {
             }
         }
 
-        for (node in orderedCandidates) {
+        // Sequential one-by-one testing
+        for ((index, node) in orderedCandidates.withIndex()) {
             if (!isActive) return@withContext null
+
+            // 1. Check cached download speed first (reused if link is unchanged from panel)
+            val cachedSpeed = com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
+            if (cachedSpeed != null && cachedSpeed > 0.0) {
+                val roundedCached = (cachedSpeed * 10).toInt() / 10.0
+                speedResults[node.remark] = cachedSpeed
+                Log.i(TAG, "Using cached throughput for [${node.remark}]: ${roundedCached} MB/s (unchanged from panel)")
+                AppLogger.logUser("⚡ سرعت ذخیره‌شده [${node.remark}]: ${roundedCached} MB/s (از کش - بدون نیاز به دانلود مجدد)")
+                continue
+            }
+
+            AppLogger.logUser("⏳ [${index + 1}/${orderedCandidates.size}] در حال سنجش سرعت ۴ مگابایت [${node.remark}]...")
+
+            if (isGeminiOptimizationEnabled) {
+                val cachedGemini = com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(node)
+                val geminiDelay = if (cachedGemini != null) {
+                    if (cachedGemini.first) cachedGemini.second else -1L
+                } else {
+                    val delay = measureGeminiDelay(node, 3000L)
+                    com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(node, delay > 0, delay)
+                    delay
+                }
+                if (geminiDelay <= 0) {
+                    AppLogger.logUser("⚠️ سرور [${node.remark}] فاقد دسترسی کامل به Gemini (رد شد)")
+                    speedResults[node.remark] = 0.0
+                    continue
+                }
+            }
+
             val configJson = try {
                 V2RayConfigBuilder.buildTestConfig(node)
             } catch (e: Exception) {
@@ -373,14 +486,17 @@ object PingTester {
             } ?: -1L
 
             if (durationMs > 0) {
-                val speedMBs = (10.0 / (durationMs / 1000.0))
+                val speedMBs = (4.0 / (durationMs / 1000.0))
                 val roundedSpeed = (speedMBs * 10).toInt() / 10.0
                 speedResults[node.remark] = speedMBs
-                Log.i(TAG, "Throughput test [${node.remark}]: ${roundedSpeed} MB/s (${durationMs}ms)")
-                AppLogger.logUser("⚡ سرعت دانلود [${node.remark}]: ${roundedSpeed} MB/s")
+                // Save to persistent cache so future runs reuse this result as long as link is unchanged
+                com.asanvpn.app.data.NodeMetricsCache.saveSpeed(node, speedMBs)
+                Log.i(TAG, "Throughput test [${node.remark}]: ${roundedSpeed} MB/s (${durationMs}ms) - Saved to cache")
+                AppLogger.logUser("⚡ نتیجه دانلود [${node.remark}]: ${roundedSpeed} MB/s (ذخیره در کش)")
             } else {
                 Log.w(TAG, "Throughput test [${node.remark}] timed out or failed")
                 speedResults[node.remark] = 0.0
+                AppLogger.logUser("⚠️ سنجش دانلود [${node.remark}] ناموفق بود")
             }
         }
 
@@ -403,6 +519,87 @@ object PingTester {
         val roundedActive = (activeSpeed * 10).toInt() / 10.0
         AppLogger.logUser("✅ بررسی سرعت دانلود تکمیل شد: سرور فعلی [${activeNode.remark}] با سرعت ${roundedActive} MB/s در وضعیت مطلوب قرار دارد.")
         return@withContext null
+    }
+
+    /**
+     * Measures latency specifically to Google Gemini service via the candidate node tunnel.
+     * Returns delay in ms if Gemini is reachable and unblocked, or -1 if blocked/error.
+     */
+    suspend fun measureGeminiDelay(node: VpnNode, timeoutMs: Long = 4000L): Long = withContext(Dispatchers.IO) {
+        val configJson = try {
+            V2RayConfigBuilder.buildTestConfig(node)
+        } catch (e: Exception) {
+            return@withContext -1L
+        }
+
+        withTimeoutOrNull(timeoutMs) {
+            try {
+                val d1 = Libv2ray.measureOutboundDelay(configJson, GEMINI_TEST_URL)
+                if (d1 > 0) return@withTimeoutOrNull d1
+            } catch (_: Exception) {}
+
+            try {
+                val d2 = Libv2ray.measureOutboundDelay(configJson, GEMINI_API_TEST_URL)
+                if (d2 > 0) return@withTimeoutOrNull d2
+            } catch (_: Exception) {}
+
+            -1L
+        } ?: -1L
+    }
+
+    /**
+     * Live test from active connected device directly to Google Gemini.
+     * Inspects redirects and HTTP response code to confirm zero geo-restrictions or 403 blocks.
+     */
+    suspend fun testLiveGeminiConnectivity(timeoutMs: Long = 5000L): GeminiCheckResult = withContext(Dispatchers.IO) {
+        val start = System.currentTimeMillis()
+        try {
+            val client = OkHttpClient.Builder()
+                .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .followRedirects(false)
+                .build()
+
+            val req = Request.Builder()
+                .url(GEMINI_TEST_URL)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+                .build()
+
+            client.newCall(req).execute().use { resp ->
+                val latency = System.currentTimeMillis() - start
+                val code = resp.code
+                val loc = resp.header("Location") ?: ""
+
+                if (loc.contains("unavailable", ignoreCase = true) || code == 403) {
+                    return@withContext GeminiCheckResult(
+                        isSuccess = false,
+                        latencyMs = latency,
+                        message = "این سرور با خطای کشور یا محدودیت گوگل جمینای مواجه است (کد $code)"
+                    )
+                }
+
+                if (code in 200..399) {
+                    return@withContext GeminiCheckResult(
+                        isSuccess = true,
+                        latencyMs = latency,
+                        message = "اتصال پایدار و ۱۰۰٪ سازگار با Gemini (${latency}ms)"
+                    )
+                }
+
+                return@withContext GeminiCheckResult(
+                    isSuccess = false,
+                    latencyMs = latency,
+                    message = "پاسخ ناموفق از سرور جمینای: کد $code"
+                )
+            }
+        } catch (e: Exception) {
+            val latency = System.currentTimeMillis() - start
+            return@withContext GeminiCheckResult(
+                isSuccess = false,
+                latencyMs = latency,
+                message = "خطا در برقراری ارتباط با گوگل جمینای (${e.message ?: "تایم‌اوت"})"
+            )
+        }
     }
 
     /**

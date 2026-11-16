@@ -31,7 +31,11 @@ import androidx.compose.ui.window.DialogProperties
 import com.asanvpn.app.ui.theme.LuxuryTheme
 import com.asanvpn.app.ui.theme.luxuryCushion
 import com.asanvpn.app.ui.theme.luxuryWell
+import com.asanvpn.app.service.PingTester
 import com.asanvpn.app.util.AppFilterHelper
+import com.asanvpn.app.data.PreferencesManager
+import com.asanvpn.app.data.VpnRepository
+import com.asanvpn.app.data.models.VpnNode
 import com.asanvpn.app.util.AppFilterItem
 import kotlinx.coroutines.launch
 
@@ -40,9 +44,10 @@ fun AppFilterDialog(
     initialEnabled: Boolean,
     initialWhitelist: Set<String>,
     initialSpeedOptEnabled: Boolean = false,
+    initialGeminiOptEnabled: Boolean = false,
     isVpnConnected: Boolean,
     onDismiss: () -> Unit,
-    onSave: (enabled: Boolean, whitelist: Set<String>, speedOptEnabled: Boolean) -> Unit
+    onSave: (enabled: Boolean, whitelist: Set<String>, speedOptEnabled: Boolean, geminiOptEnabled: Boolean) -> Unit
 ) {
     val context = LocalContext.current
     val colors = LuxuryTheme.colors
@@ -50,6 +55,9 @@ fun AppFilterDialog(
 
     var isEnabled by remember { mutableStateOf(initialEnabled) }
     var isSpeedOptEnabled by remember { mutableStateOf(initialSpeedOptEnabled) }
+    var isGeminiOptEnabled by remember { mutableStateOf(initialGeminiOptEnabled) }
+    var isGeminiTesting by remember { mutableStateOf(false) }
+    var geminiTestStatus by remember { mutableStateOf<String?>(null) }
     val selectedPackages = remember { mutableStateListOf<String>().apply { addAll(initialWhitelist) } }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -292,13 +300,157 @@ fun AppFilterDialog(
                             }
                             Text(
                                 text = if (isSpeedOptEnabled)
-                                    "فعال: تست ۵ سرور برتر با دانلود بسته ۱۰ مگابایت در پس‌زمینه و سوییچ به پرسرعت‌ترین سرور"
+                                    "فعال: تست ۵ سرور برتر با دانلود بسته ۴ مگابایت (نوبتی و یکی‌یکی) در پس‌زمینه و سوییچ به پرسرعت‌ترین سرور"
                                 else
                                     "غیرفعال: اتصال طبق کمترین پینگ (پیش‌فرض، جهت صرفه‌جویی باتری و اینترنت)",
                                 fontSize = 11.sp,
                                 color = if (isSpeedOptEnabled) Color(0xFF38BDF8) else colors.textSecondary,
                                 textAlign = TextAlign.Right
                             )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // ==================== GEMINI AI COMPATIBILITY CARD ====================
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .luxuryCushion(shape = RoundedCornerShape(20.dp), elevation = 4.dp)
+                        .border(
+                            1.dp,
+                            if (isGeminiOptEnabled) Color(0xFFA855F7).copy(alpha = 0.5f) else Color.Transparent,
+                            RoundedCornerShape(20.dp)
+                        )
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isGeminiOptEnabled = !isGeminiOptEnabled },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Switch(
+                                checked = isGeminiOptEnabled,
+                                onCheckedChange = { isGeminiOptEnabled = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = Color(0xFF9333EA),
+                                    uncheckedThumbColor = colors.textSecondary,
+                                    uncheckedTrackColor = if (colors.isDark) Color(0xFF1E293B) else Color(0xFFCBD5E1)
+                                )
+                            )
+
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 10.dp),
+                                horizontalAlignment = Alignment.End
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "سازگاری اختصاصی هوش مصنوعی Gemini",
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary,
+                                        textAlign = TextAlign.Right
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = Color(0xFFA855F7),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Text(
+                                    text = if (isGeminiOptEnabled)
+                                        "فعال: اتصال به سرورهایی که با هوش مصنوعی Google Gemini سازگار بوده و خطای کشور یا بلاک ندارند"
+                                    else
+                                        "غیرفعال: انتخاب معمولی سرورها طبق کمترین پینگ",
+                                    fontSize = 11.sp,
+                                    color = if (isGeminiOptEnabled) Color(0xFFA855F7) else colors.textSecondary,
+                                    textAlign = TextAlign.Right
+                                )
+                            }
+                        }
+
+                        // Live Gemini Connectivity Test Button
+                        if (isVpnConnected) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            HorizontalDivider(
+                                color = colors.textSecondary.copy(alpha = 0.2f),
+                                thickness = 0.5.dp
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Button(
+                                    onClick = {
+                                        if (!isGeminiTesting) {
+                                            isGeminiTesting = true
+                                            geminiTestStatus = "در حال تست ارتباط با گوگل جمینای..."
+                                            coroutineScope.launch {
+                                                val res = PingTester.testLiveGeminiConnectivity()
+                                                isGeminiTesting = false
+                                                if (res.isSuccess) {
+                                                    geminiTestStatus = "✅ ${res.message}"
+                                                    try {
+                                                        val prefs = PreferencesManager(context)
+                                                        val activeRemark = prefs.selectedServerRemark
+                                                        val activeNode = VpnRepository(context).getCachedNodes().firstOrNull { it.remark == activeRemark }
+                                                        if (activeNode != null) {
+                                                            com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(activeNode, true, res.latencyMs)
+                                                        }
+                                                    } catch (_: Exception) {}
+                                                } else {
+                                                    geminiTestStatus = "❌ ${res.message}"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = !isGeminiTesting,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF9333EA).copy(alpha = 0.15f),
+                                        contentColor = Color(0xFFA855F7)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    if (isGeminiTesting) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(14.dp),
+                                            color = Color(0xFFA855F7),
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    }
+                                    Text(
+                                        text = if (isGeminiTesting) "در حال تست..." else "تست اتصال به Gemini",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                if (geminiTestStatus != null) {
+                                    Text(
+                                        text = geminiTestStatus ?: "",
+                                        fontSize = 10.5.sp,
+                                        color = if (geminiTestStatus?.startsWith("✅") == true) colors.jadeGreen else Color(0xFFEF4444),
+                                        textAlign = TextAlign.Right,
+                                        modifier = Modifier.weight(1f).padding(start = 8.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -634,7 +786,7 @@ fun AppFilterDialog(
                                 ).show()
                                 return@Button
                             }
-                            onSave(isEnabled, selectedPackages.toSet(), isSpeedOptEnabled)
+                            onSave(isEnabled, selectedPackages.toSet(), isSpeedOptEnabled, isGeminiOptEnabled)
                             onDismiss()
                         },
                         modifier = Modifier

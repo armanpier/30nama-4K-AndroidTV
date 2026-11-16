@@ -8,9 +8,9 @@ class SpeedOptimizationEmpiricalTest {
 
     @Test
     fun testThroughputCalculationFormula() {
-        val chunkSizeBytes = 10_000_000L // 10 MB
-        val durationMsFast = 2000L // 2.0 seconds
-        val durationMsSlow = 5000L // 5.0 seconds
+        val chunkSizeBytes = 4_000_000L // 4 MB
+        val durationMsFast = 1000L // 1.0 seconds
+        val durationMsSlow = 4000L // 4.0 seconds
 
         val speedFast = (chunkSizeBytes / (1024.0 * 1024.0)) / (durationMsFast / 1000.0)
         val speedSlow = (chunkSizeBytes / (1024.0 * 1024.0)) / (durationMsSlow / 1000.0)
@@ -18,9 +18,33 @@ class SpeedOptimizationEmpiricalTest {
         val roundedFast = (speedFast * 10).toInt() / 10.0
         val roundedSlow = (speedSlow * 10).toInt() / 10.0
 
-        assertEquals(4.7, roundedFast, 0.1)
-        assertEquals(1.9, roundedSlow, 0.1)
+        assertEquals(3.8, roundedFast, 0.1)
+        assertEquals(0.9, roundedSlow, 0.1)
         assertTrue(speedFast > speedSlow)
+    }
+
+    @Test
+    fun testGeminiOptimizationNodeFiltering() {
+        val nodes = listOf(
+            VpnNode("vless", "Turkey🇹🇷", "1.2.3.4", 443, latencyMs = 60L),
+            VpnNode("vless", "Germany🇩🇪", "1.2.3.5", 443, latencyMs = 70L),
+            VpnNode("vless", "Iran🇮🇷", "1.2.3.6", 443, latencyMs = 20L),
+            VpnNode("vless", "Russia🇷🇺", "1.2.3.7", 443, latencyMs = 80L)
+        )
+
+        // Gemini restricted keywords: Iran, IR, Russia, RU, China, CN, HK
+        val geminiCompatible = nodes.filter { node ->
+            val rem = node.remark.lowercase()
+            !rem.contains("iran") && !rem.contains("🇮🇷") &&
+            !rem.contains("russia") && !rem.contains("🇷🇺") &&
+            !rem.contains("china") && !rem.contains("🇨🇳")
+        }
+
+        assertEquals(2, geminiCompatible.size)
+        assertTrue(geminiCompatible.any { it.remark.contains("Turkey") })
+        assertTrue(geminiCompatible.any { it.remark.contains("Germany") })
+        assertFalse(geminiCompatible.any { it.remark.contains("Iran") })
+        assertFalse(geminiCompatible.any { it.remark.contains("Russia") })
     }
 
     @Test
@@ -78,5 +102,95 @@ class SpeedOptimizationEmpiricalTest {
         assertEquals("USA2🇺🇸", filtered[4].remark)
         assertFalse(filtered.any { it.remark == "Tier2Node" })
         assertFalse(filtered.any { it.remark == "SlowNode" })
+    }
+
+    @Test
+    fun testNodeSignatureStabilityAndChangeDetection() {
+        val node1 = VpnNode(
+            protocol = "vless",
+            remark = "Turkey🇹🇷",
+            server = "94.183.166.44",
+            port = 6608,
+            uuid = "09b88c53-52b1-4906-9447-2ee5e15d2b0e",
+            type = "xhttp",
+            security = "reality",
+            sni = "play.google.com",
+            pbk = "_ArxRjMxe3GA5IBqAK17lymLmYgdlLZY0hJ7ngB5lXg",
+            rawLink = "vless://09b88c53-52b1-4906-9447-2ee5e15d2b0e@94.183.166.44:6608?security=reality#Turkey%20Server"
+        )
+
+        // Same link, only remark changed after # in panel
+        val node1SameLink = VpnNode(
+            protocol = "vless",
+            remark = "Turkey New Remark",
+            server = "94.183.166.44",
+            port = 6608,
+            uuid = "09b88c53-52b1-4906-9447-2ee5e15d2b0e",
+            type = "xhttp",
+            security = "reality",
+            sni = "play.google.com",
+            pbk = "_ArxRjMxe3GA5IBqAK17lymLmYgdlLZY0hJ7ngB5lXg",
+            rawLink = "vless://09b88c53-52b1-4906-9447-2ee5e15d2b0e@94.183.166.44:6608?security=reality#DifferentRemark"
+        )
+
+        // Modified link from panel (e.g. port changed to 8808)
+        val node1ChangedPort = VpnNode(
+            protocol = "vless",
+            remark = "Turkey🇹🇷",
+            server = "94.183.166.44",
+            port = 8808,
+            uuid = "09b88c53-52b1-4906-9447-2ee5e15d2b0e",
+            type = "xhttp",
+            security = "reality",
+            sni = "play.google.com",
+            pbk = "_ArxRjMxe3GA5IBqAK17lymLmYgdlLZY0hJ7ngB5lXg",
+            rawLink = "vless://09b88c53-52b1-4906-9447-2ee5e15d2b0e@94.183.166.44:8808?security=reality#Turkey%20Server"
+        )
+
+        val sig1 = com.asanvpn.app.data.NodeMetricsCache.getSignature(node1)
+        val sig1Same = com.asanvpn.app.data.NodeMetricsCache.getSignature(node1SameLink)
+        val sig1Changed = com.asanvpn.app.data.NodeMetricsCache.getSignature(node1ChangedPort)
+
+        assertEquals("Same link config must have identical signature even if remark changes", sig1, sig1Same)
+        assertNotEquals("Changed link from panel (e.g. new port) must have different signature", sig1, sig1Changed)
+    }
+
+    @Test
+    fun testNodeMetricsCachingLifecycle() {
+        val testNode = VpnNode(
+            protocol = "vless",
+            remark = "Germany🇩🇪",
+            server = "94.183.166.44",
+            port = 8808,
+            uuid = "09b88c53-52b1-4906-9447-2ee5e15d2b0e",
+            type = "xhttp",
+            security = "reality"
+        )
+
+        // Save speed and Gemini status
+        com.asanvpn.app.data.NodeMetricsCache.saveSpeed(testNode, 4.2)
+        com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(testNode, true, 95L)
+
+        // Retrieve
+        val cachedSpeed = com.asanvpn.app.data.NodeMetricsCache.getSpeed(testNode)
+        val cachedGemini = com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(testNode)
+
+        assertNotNull(cachedSpeed)
+        assertEquals(4.2, cachedSpeed!!, 0.01)
+
+        assertNotNull(cachedGemini)
+        assertTrue(cachedGemini!!.first)
+        assertEquals(95L, cachedGemini.second)
+
+        // A new/modified node must return null (not cached)
+        val modifiedNode = VpnNode(
+            protocol = "vless",
+            remark = "Germany🇩🇪",
+            server = "94.183.166.45", // changed IP
+            port = 8808,
+            uuid = "09b88c53-52b1-4906-9447-2ee5e15d2b0e"
+        )
+        assertNull(com.asanvpn.app.data.NodeMetricsCache.getSpeed(modifiedNode))
+        assertNull(com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(modifiedNode))
     }
 }

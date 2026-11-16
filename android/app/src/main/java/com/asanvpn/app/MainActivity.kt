@@ -155,7 +155,11 @@ class MainActivity : ComponentActivity() {
 
                                 val cachedNodes = repository.getCachedNodes()
                                 if (cachedNodes.isNotEmpty()) {
-                                    val replacementNode = PingTester.findNextBestNode(cachedNodes, currentServerRemark)
+                                    val replacementNode = PingTester.findNextBestNode(
+                                        nodes = cachedNodes,
+                                        currentNodeRemark = currentServerRemark,
+                                        isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled
+                                    )
                                     if (replacementNode != null && connectionState == ConnectionState.CONNECTED) {
                                         AppLogger.logUser("🔄 اتصال با موفقیت به سرور [${replacementNode.remark}] منتقل شد (پینگ: ${replacementNode.latencyMs}ms)")
                                         AppLogger.logAdmin("Auto-failover SUCCESS: Switched to [${replacementNode.remark}] (${replacementNode.latencyMs}ms, Priority ${replacementNode.panelPriority})")
@@ -186,6 +190,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        // Initialize persistent link metrics cache (speed & Gemini results)
+        com.asanvpn.app.data.NodeMetricsCache.init(this)
 
         // Automatic fast check for update on app startup
         lifecycleScope.launch {
@@ -328,15 +335,24 @@ class MainActivity : ComponentActivity() {
                             onShareClick = {
                                 showShareDialog = true
                             },
-                            onSaveAppFilter = { enabled, whitelist, speedOpt ->
+                            onSaveAppFilter = { enabled, whitelist, speedOpt, geminiOpt ->
                                 val wasEnabled = prefs.isAppFilterEnabled
                                 val previousWhitelist = prefs.appFilterWhitelist
+                                val prevGemini = prefs.isGeminiOptimizationEnabled
                                 prefs.isAppFilterEnabled = enabled
                                 prefs.appFilterWhitelist = whitelist
                                 prefs.isSpeedOptimizationEnabled = speedOpt
+                                prefs.isGeminiOptimizationEnabled = geminiOpt
 
                                 val changed = (wasEnabled != enabled) || (previousWhitelist != whitelist)
-                                if (changed && connectionState == ConnectionState.CONNECTED) {
+                                val geminiChanged = (prevGemini != geminiOpt)
+
+                                if (geminiChanged && geminiOpt && connectionState == ConnectionState.CONNECTED) {
+                                    Toast.makeText(this@MainActivity, "حالت اختصاصی Gemini فعال شد. در حال ارزیابی سرورهای سازگار...", Toast.LENGTH_SHORT).show()
+                                    lifecycleScope.launch {
+                                        reconnectToGeminiOptimizedServer()
+                                    }
+                                } else if (changed && connectionState == ConnectionState.CONNECTED) {
                                     Toast.makeText(this@MainActivity, "تغییرات فیلتر برنامه‌ها ذخیره شد. درحال اعمال و اتصال مجدد...", Toast.LENGTH_SHORT).show()
                                     lifecycleScope.launch {
                                         disconnectVpnService()
@@ -344,7 +360,12 @@ class MainActivity : ComponentActivity() {
                                         startVpnServiceInternal()
                                     }
                                 } else {
-                                    val msg = if (speedOpt) "تنظیمات ذخیره شد (بهینه‌سازی هوشمند دانلود فعال گردید)" else "تنظیمات با موفقیت ذخیره شد"
+                                    val msg = when {
+                                        geminiOpt && speedOpt -> "تنظیمات ذخیره شد (Gemini و بهینه‌ساز ۴MB فعال شدند)"
+                                        geminiOpt -> "حالت اختصاصی هوش مصنوعی Gemini فعال شد"
+                                        speedOpt -> "بهینه‌سازی هوشمند دانلود (۴MB) فعال شد"
+                                        else -> "تنظیمات با موفقیت ذخیره شد"
+                                    }
                                     Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
                                 }
                             },
@@ -597,6 +618,7 @@ class MainActivity : ComponentActivity() {
                         PingTester.connectFastAndOptimize(
                             context = this@MainActivity,
                             nodes = nodes,
+                            isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
                             onFirstOkNode = { firstNode ->
                                 if (!this@launch.isActive) return@connectFastAndOptimize
                                 withContext(Dispatchers.Main) {
@@ -663,7 +685,11 @@ class MainActivity : ComponentActivity() {
                                     .take(5)
 
                                 if (candidatesInTier.size > 1) {
-                                    val fasterNode = PingTester.benchmarkCandidateThroughput(candidatesInTier, activeNode)
+                                    val fasterNode = PingTester.benchmarkCandidateThroughput(
+                                        candidates = candidatesInTier,
+                                        activeNode = activeNode,
+                                        isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled
+                                    )
                                     if (fasterNode != null && isActive && connectionState == ConnectionState.CONNECTED) {
                                         withContext(Dispatchers.Main) {
                                             prefs.selectedServerRemark = fasterNode.remark
@@ -729,6 +755,27 @@ class MainActivity : ComponentActivity() {
                         Toast.makeText(this@MainActivity, "عدم اتصال به خدمات دهنده", Toast.LENGTH_LONG).show()
                     }
                 }
+            }
+        }
+    }
+
+    private suspend fun reconnectToGeminiOptimizedServer() = withContext(Dispatchers.IO) {
+        val nodes = repository.getCachedNodes()
+        if (nodes.isEmpty()) return@withContext
+        val currentRemark = prefs.selectedServerRemark
+        val replacementNode = PingTester.findNextBestNode(nodes, currentRemark, isGeminiOptimizationEnabled = true)
+        if (replacementNode != null) {
+            withContext(Dispatchers.Main) {
+                prefs.selectedServerRemark = replacementNode.remark
+                currentServerRemark = replacementNode.remark
+                if (replacementNode.latencyMs > 0) {
+                    prefs.selectedServerPing = replacementNode.latencyMs
+                    currentServerPing = replacementNode.latencyMs
+                }
+                val newConfig = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(replacementNode)
+                prefs.activeV2RayConfig = newConfig
+                switchVpnConfigInternal(newConfig)
+                Toast.makeText(this@MainActivity, "سوییچ خودکار به سرور سازگار با Gemini: [${replacementNode.remark}]", Toast.LENGTH_LONG).show()
             }
         }
     }
