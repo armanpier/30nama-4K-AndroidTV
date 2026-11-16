@@ -276,6 +276,13 @@
           <span class="hidden sm:inline">کاربر جدید</span>
           <span class="sm:hidden">کاربر +</span>
         </button>
+        <button onclick="downloadBackup()" title="دانلود فایل بکاپ کامل سیستم" class="bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-xs font-medium p-1.5 sm:px-3 sm:py-2 rounded-xl transition flex items-center gap-1">
+          <i class="fa-solid fa-download"></i>
+          <span class="hidden md:inline">دانلود بکاپ</span>
+        </button>
+        <button onclick="triggerRestoreBackup()" title="بازیابی از فایل بکاپ" class="bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs p-1.5 sm:p-2 rounded-xl transition">
+          <i class="fa-solid fa-upload"></i>
+        </button>
         <button onclick="openMigrationModal()" title="انتقال دامنه یا پنل" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs p-1.5 sm:p-2 rounded-xl transition">
           <i class="fa-solid fa-shuffle"></i>
         </button>
@@ -406,7 +413,15 @@
               در این بخش می‌توانید سرورهای ۳X-UI، پاسارگارد، مرزبان یا هیدیفای خود را ثبت و مدیریت کنید. ورکر کلودفلر به صورت خودکار (هر ۱۵ دقیقه یا با کلیک دستی) کاربران، کلاینت‌ها و لینک‌های ساب‌اسکریپشن را استخراج و همگام‌سازی می‌کند.
             </p>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="downloadBackup()" class="bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-xs font-bold px-3.5 py-2.5 rounded-xl transition flex items-center gap-2 whitespace-nowrap">
+              <i class="fa-solid fa-download"></i>
+              <span>دانلود بکاپ تنظیمات و پنل‌ها</span>
+            </button>
+            <button onclick="triggerRestoreBackup()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold px-3.5 py-2.5 rounded-xl transition flex items-center gap-2 whitespace-nowrap">
+              <i class="fa-solid fa-upload"></i>
+              <span>بازیابی بکاپ</span>
+            </button>
             <button onclick="openAddPanelModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-900/30 transition flex items-center gap-2 whitespace-nowrap">
               <i class="fa-solid fa-plus"></i>
               <span>افزودن پنل جدید</span>
@@ -1968,7 +1983,11 @@
             cancelButtonText: 'بعداً'
           }).then(result => {
             if (result.isConfirmed) {
-              syncSinglePanel(data.panel.id);
+              if (data && data.panel && data.panel.id) {
+                syncSinglePanel(data.panel.id);
+              } else {
+                syncAllPanels();
+              }
             }
           });
           loadPanels();
@@ -2265,6 +2284,108 @@
       }
     }
 
+    // =========================================================
+    // SYSTEM BACKUP DOWNLOAD & RESTORE ENGINE
+    // =========================================================
+
+    async function downloadBackup() {
+      Swal.fire({
+        title: 'در حال تهیه فایل پشتیبان...',
+        text: 'در حال استخراج کلیه کاربران، تنظیمات پنل‌ها و اطلاعات سیستم',
+        didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false
+      });
+      try {
+        const res = await fetch('/api/v1/admin/backup/download', {
+          headers: { 'X-Admin-Token': currentToken }
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || 'خطا در دریافت فایل پشتیبان از سرور');
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        const now = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        a.download = `asanvpn-backup-${now}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        Swal.fire({
+          icon: 'success',
+          title: 'دانلود فایل بکاپ موفق بود!',
+          text: 'فایل پشتیبان کامل سیستم (شامل تمامی کاربران، تنظیمات پنل‌ها و نسخه اپ) در سیستم شما ذخیره شد.'
+        });
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'خطا در دانلود بکاپ', text: e.message });
+      }
+    }
+
+    function triggerRestoreBackup() {
+      const input = document.getElementById('backup-file-input');
+      if (input) {
+        input.value = '';
+        input.click();
+      }
+    }
+
+    async function handleBackupFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        const dataDict = json.kv_data || json;
+        const keyCount = Object.keys(dataDict).length;
+
+        const confirm = await Swal.fire({
+          icon: 'warning',
+          title: 'آیا از بازیابی این بکاپ اطمینان دارید؟',
+          html: `<div class="text-right text-xs space-y-2 leading-relaxed">
+                   <p>فایل انتخابی دارای <b class="text-emerald-400 font-mono text-sm">${keyCount}</b> کلید/کاربر می‌باشد.</p>
+                   <p class="text-amber-300">با تأیید شما، اطلاعات سیستم شامل کاربران و تنظیمات پنل‌ها بروزرسانی و بازگردانی خواهند شد.</p>
+                 </div>`,
+          showCancelButton: true,
+          confirmButtonColor: '#059669',
+          confirmButtonText: 'بله، بازیابی کن',
+          cancelButtonText: 'انصراف'
+        });
+        if (!confirm.isConfirmed) return;
+
+        Swal.fire({
+          title: 'در حال بازگردانی اطلاعات...',
+          text: 'لطفاً شکیبا باشید',
+          didOpen: () => Swal.showLoading(),
+          allowOutsideClick: false
+        });
+
+        const { ok, data } = await fetchJson('/api/v1/admin/backup/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Token': currentToken },
+          body: JSON.stringify(json)
+        });
+
+        if (ok && data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'بازیابی موفق!',
+            text: data.message || 'سیستم با موفقیت از روی فایل پشتیبان بازگردانی شد.'
+          });
+          loadUsers();
+          loadPanels();
+        } else {
+          Swal.fire({ icon: 'error', title: 'خطا در بازیابی', text: data.error || 'خطا در بازگردانی فایل بکاپ' });
+        }
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'فایل نامعتبر', text: 'فایل انتخاب شده ساختار JSON معتبر ندارد: ' + e.message });
+      }
+    }
+
   </script>
+  <input type="file" id="backup-file-input" accept=".json" style="display:none" onchange="handleBackupFileSelect(event)">
 </body>
 </html>

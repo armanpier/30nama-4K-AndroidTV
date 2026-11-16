@@ -1,0 +1,44 @@
+{
+  "__ADMIN_CUSTOM_PASSWORD__": "Arman4237340",
+  "__CONFIG_APP_UPDATE__": {
+    "versionName": "1.3.16",
+    "versionCode": 22,
+    "forceUpdate": false,
+    "releaseNotes": "قابلیت سوییچ خودکار ۵ ثانیه‌ای به سریع‌ترین سرور و اولویت‌بندی آبشاری پنل‌ها"
+  },
+  "__CONFIG_PANELS__": [
+    {
+      "id": "panel_3xui_default",
+      "name": "سرور ۳X-UI اصلی",
+      "type": "3xui",
+      "url": "https://95.182.87.115:14393/eX6Vvc2csV2GKtzmPF",
+      "apiKey": "Wg6BrJKRiJzcNr4NKnjlxjZSAxMUIYkh7lzvWUDUQn3gxmW9",
+      "subBaseUrl": "https://95.182.87.115:2016/xx11fs28c0ea3gr5/{subId}",
+      "priority": 1,
+      "autoSync": true,
+      "createdAt": 1794227465
+    },
+    {
+      "id": "panel_pasarguard_default",
+      "name": "سرور پاسارگاد (PasarGuard)",
+      "type": "pasarguard",
+      "url": "https://irtun.darklink.ir:8000",
+      "apiKey": "pg_key_f85f5abb-13cc-4dc5-b3fc-8a77c2026e94",
+      "subBaseUrl": "https://irsub.trafficfast.ir:9090",
+      "priority": 2,
+      "autoSync": true,
+      "createdAt": 1794227484
+    },
+    {
+      "id": "panel_goguard_default",
+      "name": "سرور گوگارد (GoGuard Core)",
+      "type": "goguard",
+      "url": "https://core.erfjab.com",
+      "apiKey": "7c704f070ae553721bfa91b4bcfeb84e2eaa8109d09e56d00b471e9001ed5206",
+      "subBaseUrl": "",
+      "priority": 3,
+      "autoSync": true,
+      "createdAt": 1792621000
+    }
+  ]
+}

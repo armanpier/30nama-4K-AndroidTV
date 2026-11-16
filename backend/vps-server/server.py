@@ -36,6 +36,78 @@ APP_VERSION_CODE = 22
 GITHUB_APK_URL = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.16/AsanVPN-v1.3.16-universal.apk"
 EDGE_SECRET = "asanvpn-edge-internal-secret-2026"
 
+DEFAULT_INITIAL_PANELS = [
+    {
+        "id": "panel_3xui_default",
+        "name": "سرور ۳X-UI اصلی",
+        "type": "3xui",
+        "url": "https://95.182.87.115:14393/eX6Vvc2csV2GKtzmPF",
+        "apiKey": "Wg6BrJKRiJzcNr4NKnjlxjZSAxMUIYkh7lzvWUDUQn3gxmW9",
+        "subBaseUrl": "https://95.182.87.115:2016/xx11fs28c0ea3gr5/{subId}",
+        "autoSync": True,
+        "priority": 1,
+        "userCount": 8,
+        "createdAt": 1794227465
+    },
+    {
+        "id": "panel_pasarguard_default",
+        "name": "سرور پاسارگاد (PasarGuard)",
+        "type": "pasarguard",
+        "url": "https://irtun.darklink.ir:8000",
+        "apiKey": "pg_key_f85f5abb-13cc-4dc5-b3fc-8a77c2026e94",
+        "subBaseUrl": "https://irsub.trafficfast.ir:9090",
+        "autoSync": True,
+        "priority": 2,
+        "userCount": 11,
+        "createdAt": 1794227484
+    },
+    {
+        "id": "panel_goguard_default",
+        "name": "سرور گوگارد (GoGuard Core)",
+        "type": "goguard",
+        "url": "https://core.erfjab.com",
+        "apiKey": "7c704f070ae553721bfa91b4bcfeb84e2eaa8109d09e56d00b471e9001ed5206",
+        "subBaseUrl": "",
+        "autoSync": True,
+        "priority": 3,
+        "userCount": 12,
+        "createdAt": 1792621000
+    }
+]
+
+def resolve_panel_for_sub_url(url: str, panels: list):
+    """
+    Identifies the source panel for a subscription URL and returns (panel_id, panel_name, priority).
+    Guarantees that 3X-UI nodes receive Priority 1, PasarGuard receives Priority 2, GoGuard receives Priority 3.
+    """
+    if not url:
+        return "panel_unknown", "External", 2
+
+    url_lower = url.lower()
+    for p in (panels or []):
+        p_sub = (p.get("subBaseUrl") or "").lower()
+        p_url = (p.get("url") or "").lower()
+        try:
+            p_sub_host = urllib.parse.urlparse(p_sub).netloc.lower() if p_sub else ""
+            p_url_host = urllib.parse.urlparse(p_url).netloc.lower() if p_url else ""
+            u_host = urllib.parse.urlparse(url_lower).netloc.lower()
+            if (p_sub_host and p_sub_host in u_host) or (p_url_host and p_url_host in u_host):
+                return p.get("id", ""), p.get("name", ""), int(p.get("priority", 1))
+        except Exception:
+            pass
+        if (p_sub and p_sub in url_lower) or (p_url and p_url in url_lower):
+            return p.get("id", ""), p.get("name", ""), int(p.get("priority", 1))
+
+    # Well-known fallback heuristics
+    if "95.182.87.115" in url_lower or ":2016" in url_lower or "3x" in url_lower:
+        return "panel_3xui_default", "سرور ۳X-UI اصلی", 1
+    elif "trafficfast.ir" in url_lower or "darklink.ir" in url_lower or "pasarguard" in url_lower:
+        return "panel_pasarguard_default", "سرور پاسارگاد (PasarGuard)", 2
+    elif "erfjab.com" in url_lower or "goguard" in url_lower:
+        return "panel_goguard_default", "سرور گوگارد (GoGuard Core)", 3
+
+    return "custom_panel", "سرور پشتیبان", 2
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # SSL context that skips verification for remote self-signed or internal panel certs
@@ -430,6 +502,27 @@ class Database:
                 pass
         return users
 
+    def get_all_full_users(self):
+        """Returns complete raw user records with all upstream URLs and settings for background sync."""
+        with self._lock:
+            cur = self.conn.cursor()
+            cur.execute("SELECT key, value FROM kv_store")
+            rows = cur.fetchall()
+        users = []
+        for key, val in rows:
+            if key.startswith("__") or key == "apk_meta":
+                continue
+            try:
+                data = json.loads(val)
+                if isinstance(data, str):
+                    data = json.loads(data)
+                if isinstance(data, dict):
+                    data["pin"] = str(data.get("pin") or key)
+                    users.append(data)
+            except Exception:
+                pass
+        return users
+
     def get_all_kv(self):
         with self._lock:
             cur = self.conn.cursor()
@@ -443,6 +536,17 @@ class Database:
                 res[key] = val
         return res
 
+    def dump_to_backup_file(self):
+        """Atomically dumps the entire database key-value store to BACKUP_PATH (data.json)."""
+        try:
+            all_kv = self.get_all_kv()
+            tmp_path = BACKUP_PATH + ".tmp"
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(all_kv, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, BACKUP_PATH)
+        except Exception as e:
+            logging.error(f"[Database] Failed to dump backup to {BACKUP_PATH}: {e}")
+
     def import_from_dict(self, data_dict):
         with self._lock, self.conn:
             for k, v in data_dict.items():
@@ -452,6 +556,7 @@ class Database:
                     VALUES (?, ?, ?)
                     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
                 """, (k, val_str, int(time.time())))
+        self.dump_to_backup_file()
 
 db = Database()
 
@@ -468,6 +573,10 @@ if not db.get("__ADMIN_CUSTOM_PASSWORD__") and os.path.exists(BACKUP_PATH):
 if not db.get("__ADMIN_CUSTOM_PASSWORD__"):
     db.put("__ADMIN_CUSTOM_PASSWORD__", ADMIN_PASSWORD)
 
+# Ensure panels configuration is seeded
+if not db.get("__CONFIG_PANELS__"):
+    db.put("__CONFIG_PANELS__", json.dumps(DEFAULT_INITIAL_PANELS, ensure_ascii=False))
+
 # ==========================================
 # BACKGROUND TRAFFIC & NODE SYNC ENGINE
 # ==========================================
@@ -480,7 +589,7 @@ def run_traffic_sync_cycle():
     4. Updates cached_nodes so mobile app connects in < 2ms without blocking.
     """
     try:
-        users = db.get_all_users()
+        users = db.get_all_full_users()
         active_users = [u for u in users if u.get("active", True) and u.get("pin")]
         if not active_users:
             return
@@ -499,6 +608,13 @@ def run_traffic_sync_cycle():
             except Exception as e:
                 logging.warning(f"[BackgroundSync] Failed reading 3X-UI client_traffics: {e}")
 
+        # Load configured panels once for matching
+        panels_raw = db.get("__CONFIG_PANELS__")
+        try:
+            current_panels = json.loads(panels_raw) if panels_raw else DEFAULT_INITIAL_PANELS
+        except Exception:
+            current_panels = DEFAULT_INITIAL_PANELS
+
         # 2. Process each active user
         for u in active_users:
             pin = u.get("pin")
@@ -508,7 +624,9 @@ def run_traffic_sync_cycle():
 
             total_limit = int(u.get("traffic_total_bytes", 0) or 0)
             max_used = 0
-            new_nodes = []
+            p1_nodes = []
+            p2_nodes = []
+            p3_nodes = []
 
             # Check 3X-UI usage
             name = (u.get("name") or "").lower()
@@ -517,10 +635,24 @@ def run_traffic_sync_cycle():
                 if (pin and pin in ident) or (clean_name and clean_name in ident):
                     max_used = max(max_used, used)
 
-            # Query up to 3 subscription URLs
-            for s_url in sub_urls[:4]:
-                if not s_url or not s_url.startswith("http"):
+            # Group subscription URLs by panel priority to guarantee balanced queries across all tiers
+            sub_by_priority = {1: [], 2: [], 3: []}
+            seen_urls = set()
+            for s_url in sub_urls:
+                if not s_url or not s_url.startswith("http") or s_url in seen_urls:
                     continue
+                seen_urls.add(s_url)
+                p_id, p_name, p_priority = resolve_panel_for_sub_url(s_url, current_panels)
+                if p_priority in sub_by_priority:
+                    if len(sub_by_priority[p_priority]) < 2:
+                        sub_by_priority[p_priority].append((s_url, p_id, p_name, p_priority))
+                else:
+                    sub_by_priority.setdefault(p_priority, []).append((s_url, p_id, p_name, p_priority))
+
+            # Prioritized execution: Always query Priority 1 (3X-UI) first!
+            ordered_query_targets = sub_by_priority.get(1, []) + sub_by_priority.get(2, []) + sub_by_priority.get(3, [])
+
+            for s_url, p_id, p_name, p_priority in ordered_query_targets:
                 sub_data = fetch_subscription_data(s_url, timeout=6)
                 if sub_data["user_info"]:
                     ui = sub_data["user_info"]
@@ -528,11 +660,21 @@ def run_traffic_sync_cycle():
                     max_used = max(max_used, used_sub)
                     if ui.get("total", 0) > total_limit:
                         total_limit = ui["total"]
-                # Parse raw nodes
+
+                # Parse raw nodes strictly tagged with panel id, name, and waterfall priority
                 for r_line in sub_data["nodes_raw"]:
-                    node_obj = parse_raw_proxy_link(r_line)
-                    if node_obj and len(new_nodes) < 25:
-                        new_nodes.append(node_obj)
+                    node_obj = parse_raw_proxy_link(r_line, panel_id=p_id, panel_name=p_name, priority=p_priority)
+                    if not node_obj:
+                        continue
+                    if p_priority == 1:
+                        if len(p1_nodes) < 12:
+                            p1_nodes.append(node_obj)
+                    elif p_priority == 2:
+                        if len(p2_nodes) < 12:
+                            p2_nodes.append(node_obj)
+                    else:
+                        if len(p3_nodes) < 12:
+                            p3_nodes.append(node_obj)
 
             # Recalculate remaining
             changed = False
@@ -543,12 +685,16 @@ def run_traffic_sync_cycle():
                     u["traffic_total_bytes"] = total_limit
                     changed = True
 
-            if new_nodes and len(new_nodes) >= 3:
-                u["cached_nodes"] = new_nodes
+            combined_nodes = p1_nodes + p2_nodes + p3_nodes
+            if combined_nodes and len(combined_nodes) >= 1:
+                u["cached_nodes"] = combined_nodes
                 changed = True
 
             if changed:
                 db.put(pin, json.dumps(u, ensure_ascii=False))
+
+        # Sync database state to backup file
+        db.dump_to_backup_file()
 
         logging.info(f"[BackgroundSync] Completed sync for {len(active_users)} active users.")
     except Exception as e:
@@ -859,8 +1005,80 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not self.check_admin_auth():
                 return self.send_json(401, {"error": "Unauthorized", "message": "رمز عبور یا توکن مدیریت نامعتبر است"})
             panels_json = db.get("__CONFIG_PANELS__")
-            panels = json.loads(panels_json) if panels_json else []
+            panels = json.loads(panels_json) if panels_json else DEFAULT_INITIAL_PANELS
             return self.send_json(200, {"panels": panels})
+
+        # ADMIN: Download / Export Full System Backup
+        if path in ["/api/v1/admin/backup/download", "/api/v1/admin/backup/export", "/api/v1/admin/backup"]:
+            if not self.check_admin_auth():
+                return self.send_json(401, {"error": "Unauthorized", "message": "رمز عبور یا توکن مدیریت نامعتبر است"})
+            all_kv = db.get_all_kv()
+            timestamp_str = time.strftime("%Y-%m-%d_%H-%M-%S")
+            backup_payload = {
+                "_asanvpn_meta": {
+                    "version": "2.0",
+                    "backup_time": int(time.time()),
+                    "backup_date": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+                    "server_ip": "95.182.87.115",
+                    "key_count": len(all_kv)
+                },
+                "kv_data": all_kv
+            }
+            raw_bytes = json.dumps(backup_payload, ensure_ascii=False, indent=2).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(raw_bytes)))
+            self.send_header("Content-Disposition", f'attachment; filename="asanvpn-backup-{timestamp_str}.json"')
+            self.send_cors_headers()
+            self.end_headers()
+            self.wfile.write(raw_bytes)
+            try:
+                self.wfile.flush()
+            except Exception:
+                pass
+            return
+
+        # ADMIN: Remote Users from Panel
+        if path == "/api/v1/admin/panels/remote_users":
+            if not self.check_admin_auth():
+                return self.send_json(401, {"error": "Unauthorized", "message": "رمز عبور یا توکن مدیریت نامعتبر است"})
+            qs = urllib.parse.parse_qs(parsed.query)
+            target_pid = qs.get("panel_id", [""])[0].strip()
+            panels_json = db.get("__CONFIG_PANELS__")
+            panels = json.loads(panels_json) if panels_json else DEFAULT_INITIAL_PANELS
+            target_panel = next((p for p in panels if p.get("id") == target_pid), None)
+            remote_users = []
+            if target_panel:
+                p_type = target_panel.get("type", "").lower()
+                p_url = target_panel.get("url", "")
+                p_key = target_panel.get("apiKey", "")
+                p_sub = target_panel.get("subBaseUrl", "")
+                if "3x" in p_type or p_type == "3xui":
+                    xui_db_path = "/etc/x-ui/x-ui.db"
+                    if os.path.exists(xui_db_path):
+                        try:
+                            with sqlite3.connect(xui_db_path, timeout=5) as conn:
+                                cur = conn.cursor()
+                                cur.execute("SELECT id, settings FROM inbounds")
+                                for inb_id, inb_settings_raw in cur.fetchall():
+                                    if inb_settings_raw:
+                                        try:
+                                            inb_cfg = json.loads(inb_settings_raw)
+                                            for c in inb_cfg.get("clients", []):
+                                                c_email = c.get("email", "")
+                                                c_sub_id = c.get("subId") or c.get("id") or ""
+                                                sub_link = p_sub.replace("{subId}", c_sub_id) if (p_sub and "{subId}" in p_sub) else f"https://95.182.87.115:2016/xx11fs28c0ea3gr5/{c_sub_id}"
+                                                remote_users.append({
+                                                    "name": c_email,
+                                                    "username": c_email,
+                                                    "subUrl": sub_link,
+                                                    "panelType": "3xui"
+                                                })
+                                        except Exception:
+                                            pass
+                        except Exception as e:
+                            logging.warning(f"Error reading 3X-UI remote users: {e}")
+            return self.send_json(200, {"success": True, "users": remote_users})
 
         # ADMIN: Get current password
         if path == "/api/v1/admin/password":
@@ -985,11 +1203,105 @@ class RequestHandler(BaseHTTPRequestHandler):
                 db.delete(pin)
                 return self.send_json(200, {"status": "success", "message": f"کاربر {pin} حذف شد."})
 
-            # ADMIN: Save Panels
+            # ADMIN: Save Panels (Supports single panel update/add OR bulk list update)
             if path in ["/api/v1/admin/panels", "/api/v1/admin/panels/save"]:
-                panels = body.get("panels", [])
-                db.put("__CONFIG_PANELS__", json.dumps(panels, ensure_ascii=False))
-                return self.send_json(200, {"success": True, "message": "لیست پنل‌ها با موفقیت ذخیره گردید."})
+                panels_raw = db.get("__CONFIG_PANELS__")
+                try:
+                    existing_panels = json.loads(panels_raw) if panels_raw else list(DEFAULT_INITIAL_PANELS)
+                except Exception:
+                    existing_panels = list(DEFAULT_INITIAL_PANELS)
+
+                # Case A: Bulk list of panels
+                if "panels" in body and isinstance(body.get("panels"), list):
+                    new_panels = body["panels"]
+                    if not new_panels and not body.get("allow_empty"):
+                        return self.send_json(400, {"error": "Refusing to overwrite panels with empty list."})
+                    db.put("__CONFIG_PANELS__", json.dumps(new_panels, ensure_ascii=False))
+                    db.dump_to_backup_file()
+                    return self.send_json(200, {"success": True, "message": "لیست پنل‌ها با موفقیت ذخیره گردید."})
+
+                # Case B: Single panel save / edit (Sent from dashboard panel modal)
+                target_id = body.get("id") or ""
+                p_name = str(body.get("name", "")).strip()
+                p_type = str(body.get("type", "3xui")).strip().lower()
+                p_url = str(body.get("url", "")).strip()
+                p_api_key = str(body.get("apiKey", "")).strip()
+                p_sub_base = str(body.get("subBaseUrl", "")).strip()
+                p_priority = int(body.get("priority", 1) or 1)
+                p_auto_sync = bool(body.get("autoSync", True))
+
+                if not p_name or not p_url:
+                    return self.send_json(400, {"error": "Missing required fields", "message": "نام و آدرس پنل الزامی هستند."})
+
+                matched = False
+                saved_panel = None
+                for i, p in enumerate(existing_panels):
+                    if target_id and p.get("id") == target_id:
+                        existing_panels[i]["name"] = p_name
+                        existing_panels[i]["type"] = p_type
+                        existing_panels[i]["url"] = p_url
+                        existing_panels[i]["apiKey"] = p_api_key
+                        existing_panels[i]["subBaseUrl"] = p_sub_base
+                        existing_panels[i]["priority"] = p_priority
+                        existing_panels[i]["autoSync"] = p_auto_sync
+                        saved_panel = existing_panels[i]
+                        matched = True
+                        break
+
+                if not matched:
+                    new_id = target_id or f"panel_{p_type}_{int(time.time())}"
+                    saved_panel = {
+                        "id": new_id,
+                        "name": p_name,
+                        "type": p_type,
+                        "url": p_url,
+                        "apiKey": p_api_key,
+                        "subBaseUrl": p_sub_base,
+                        "priority": p_priority,
+                        "autoSync": p_auto_sync,
+                        "userCount": 0,
+                        "createdAt": int(time.time()),
+                        "lastSync": None,
+                        "lastSyncStatus": None,
+                        "lastSyncMessage": None
+                    }
+                    existing_panels.append(saved_panel)
+
+                db.put("__CONFIG_PANELS__", json.dumps(existing_panels, ensure_ascii=False))
+                db.dump_to_backup_file()
+                return self.send_json(200, {
+                    "success": True,
+                    "panel": saved_panel,
+                    "message": "مشخصات پنل با موفقیت ذخیره گردید."
+                })
+
+            # ADMIN: Delete Panel
+            if path in ["/api/v1/admin/panels/delete", "/api/v1/admin/panel/delete"]:
+                target_id = body.get("id") or body.get("panel_id")
+                if not target_id:
+                    return self.send_json(400, {"error": "Missing panel id"})
+                panels_raw = db.get("__CONFIG_PANELS__")
+                existing_panels = json.loads(panels_raw) if panels_raw else []
+                new_panels = [p for p in existing_panels if p.get("id") != target_id]
+                db.put("__CONFIG_PANELS__", json.dumps(new_panels, ensure_ascii=False))
+                db.dump_to_backup_file()
+                return self.send_json(200, {"success": True, "message": "پنل مورد نظر با موفقیت حذف گردید."})
+
+            # ADMIN: Backup Restore / Import
+            if path in ["/api/v1/admin/backup/restore", "/api/v1/admin/backup/import"]:
+                if not body:
+                    return self.send_json(400, {"error": "Empty backup payload"})
+                kv_data = body.get("kv_data") if (isinstance(body, dict) and "kv_data" in body) else body
+                if not isinstance(kv_data, dict):
+                    return self.send_json(400, {"error": "Invalid backup format. Expected key-value dictionary."})
+                db.import_from_dict(kv_data)
+                db.dump_to_backup_file()
+                threading.Thread(target=run_traffic_sync_cycle, daemon=True).start()
+                return self.send_json(200, {
+                    "success": True,
+                    "restored_keys": len(kv_data),
+                    "message": f"بکاپ با موفقیت بازیابی شد ({len(kv_data)} رکورد بروزرسانی گردید)."
+                })
 
             # ADMIN: Test Panel Latency
             if path == "/api/v1/admin/panels/test":
@@ -1271,6 +1583,16 @@ class RequestHandler(BaseHTTPRequestHandler):
                                 break
                 except Exception:
                     pass
+
+            # Strictly guarantee waterfall priority assignment and sorting
+            for n in nodes:
+                if not n.get("panel_priority"):
+                    server_h = (n.get("server") or "").lower()
+                    if "95.182.87.115" in server_h or "fastly" in (n.get("remark") or "").lower():
+                        n["panel_priority"] = 1
+                    else:
+                        n["panel_priority"] = 2
+            nodes = sorted(nodes, key=lambda x: int(x.get("panel_priority", 1)))
             days_left = max(0, (user["expires_at"] - now) // 86400) if user.get("expires_at") else "نامحدود"
             remaining_bytes = user.get("traffic_remaining_bytes", 26843545600)
             total_bytes = user.get("traffic_total_bytes", 26843545600)
