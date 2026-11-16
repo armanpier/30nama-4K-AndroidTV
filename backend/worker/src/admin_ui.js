@@ -252,6 +252,10 @@ export function getAdminDashboardHtml() {
           <i class="fa-solid fa-download"></i>
           <span class="hidden md:inline">دانلود APK</span>
         </a>
+        <button onclick="openAppUpdateModal()" title="تنظیمات نسخه و نحوه انتشار آپدیت برنامه (اجباری / اختیاری)" class="bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/30 text-cyan-300 text-xs font-medium p-1.5 sm:px-3 sm:py-2 rounded-xl transition flex items-center gap-1">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span class="hidden md:inline">تنظیمات آپدیت</span>
+        </button>
         <button onclick="syncAllPanels()" id="sync-all-btn" title="همگام‌سازی فوری با تمامی پنل‌ها" class="bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs font-medium p-1.5 sm:px-3 sm:py-2 rounded-xl transition flex items-center gap-1">
           <i id="sync-all-icon" class="fa-solid fa-arrows-rotate"></i>
           <span class="hidden md:inline">همگام‌سازی پنل‌ها</span>
@@ -277,6 +281,13 @@ export function getAdminDashboardHtml() {
           <i class="fa-solid fa-user-plus"></i>
           <span class="hidden sm:inline">کاربر جدید</span>
           <span class="sm:hidden">کاربر +</span>
+        </button>
+        <button onclick="downloadBackup()" title="دانلود فایل بکاپ کامل سیستم" class="bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-xs font-medium p-1.5 sm:px-3 sm:py-2 rounded-xl transition flex items-center gap-1">
+          <i class="fa-solid fa-download"></i>
+          <span class="hidden md:inline">دانلود بکاپ</span>
+        </button>
+        <button onclick="triggerRestoreBackup()" title="بازیابی از فایل بکاپ" class="bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs p-1.5 sm:p-2 rounded-xl transition">
+          <i class="fa-solid fa-upload"></i>
         </button>
         <button onclick="openMigrationModal()" title="انتقال دامنه یا پنل" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs p-1.5 sm:p-2 rounded-xl transition">
           <i class="fa-solid fa-shuffle"></i>
@@ -408,7 +419,15 @@ export function getAdminDashboardHtml() {
               در این بخش می‌توانید سرورهای ۳X-UI، پاسارگارد، مرزبان یا هیدیفای خود را ثبت و مدیریت کنید. ورکر کلودفلر به صورت خودکار (هر ۱۵ دقیقه یا با کلیک دستی) کاربران، کلاینت‌ها و لینک‌های ساب‌اسکریپشن را استخراج و همگام‌سازی می‌کند.
             </p>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="downloadBackup()" class="bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-xs font-bold px-3.5 py-2.5 rounded-xl transition flex items-center gap-2 whitespace-nowrap">
+              <i class="fa-solid fa-download"></i>
+              <span>دانلود بکاپ تنظیمات و پنل‌ها</span>
+            </button>
+            <button onclick="triggerRestoreBackup()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold px-3.5 py-2.5 rounded-xl transition flex items-center gap-2 whitespace-nowrap">
+              <i class="fa-solid fa-upload"></i>
+              <span>بازیابی بکاپ</span>
+            </button>
             <button onclick="openAddPanelModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-900/30 transition flex items-center gap-2 whitespace-nowrap">
               <i class="fa-solid fa-plus"></i>
               <span>افزودن پنل جدید</span>
@@ -468,22 +487,54 @@ export function getAdminDashboardHtml() {
           </div>
         </div>
 
+        <div id="panel-auth-type-container">
+          <label class="block text-xs text-slate-300 mb-1.5 font-medium">شیوه احراز هویت در پنل</label>
+          <div class="grid grid-cols-2 gap-2 bg-slate-900/90 p-1.5 rounded-xl border border-slate-700">
+            <button type="button" id="panel-auth-tab-key" onclick="setPanelAuthType('apiKey')" class="py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow">
+              <i class="fa-solid fa-key"></i>
+              <span>کلید API / سشن</span>
+            </button>
+            <button type="button" id="panel-auth-tab-userpass" onclick="setPanelAuthType('userPass')" class="py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white">
+              <i class="fa-solid fa-user-lock"></i>
+              <span>نام کاربری و رمز عبور</span>
+            </button>
+          </div>
+          <input type="hidden" id="panel-form-auth-type" value="apiKey">
+        </div>
+
         <div>
-          <label class="block text-xs text-slate-300 mb-1">آدرس پنل یا لینک کانتینر (Base URL)</label>
-          <input type="text" id="panel-form-url" dir="ltr" placeholder="https://irtun.darklink.ir:8000 یا https://raw.githubusercontent.com/..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 focus:border-indigo-500 outline-none text-left font-mono text-xs">
+          <label class="block text-xs text-slate-300 mb-1 font-medium">آدرس پنل یا لینک کانتینر (Base URL)</label>
+          <input type="text" id="panel-form-url" dir="ltr" placeholder="https://pl.applemarket13.ir یا https://irtun.darklink.ir:8000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 focus:border-indigo-500 outline-none text-left font-mono text-xs text-slate-100">
           <p id="panel-url-hint" class="text-[11px] text-slate-500 mt-1">آدرس ورود به پنل یا لینک خام کانتینر نودهای Xray</p>
         </div>
 
         <div id="panel-form-api-key-container">
-          <label class="block text-xs text-slate-300 mb-1">کلید دسترسی API / سشن کوکی / توکن</label>
-          <input type="password" id="panel-form-api-key" dir="ltr" placeholder="API Key یا Session Cookie..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 focus:border-indigo-500 outline-none text-left font-mono text-xs">
+          <label class="block text-xs text-slate-300 mb-1 font-medium">کلید دسترسی API / سشن کوکی / توکن</label>
+          <input type="password" id="panel-form-api-key" dir="ltr" placeholder="API Key یا Session Cookie..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 focus:border-indigo-500 outline-none text-left font-mono text-xs text-slate-100">
           <p id="panel-key-hint" class="text-[11px] text-slate-500 mt-1">برای پاسارگاد: X-API-KEY | برای ۳X-UI: کوکی session یا توکن API</p>
         </div>
 
+        <div id="panel-form-userpass-container" class="hidden space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-slate-300 mb-1 font-medium">نام کاربری ادمین/نماینده (Username)</label>
+              <input type="text" id="panel-form-username" dir="ltr" placeholder="مثال: P9502331E507 یا admin" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 focus:border-indigo-500 outline-none text-left font-mono text-xs text-slate-100">
+            </div>
+            <div>
+              <label class="block text-xs text-slate-300 mb-1 font-medium">رمز عبور ادمین/نماینده (Password)</label>
+              <input type="password" id="panel-form-password" dir="ltr" placeholder="رمز عبور ورود به پنل..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 focus:border-indigo-500 outline-none text-left font-mono text-xs text-slate-100">
+            </div>
+          </div>
+          <p class="text-[11px] text-emerald-400/90 flex items-center gap-1">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>پشتیبانی خودکار از لاگین OAuth2 توکن Bearer برای پاسارگارد، مرزبان و پنل‌های ری‌سلر</span>
+          </p>
+        </div>
+
         <div id="panel-form-sub-base-container">
-          <label class="block text-xs text-slate-300 mb-1">قالب لینک ساب‌اسکریپشن (اختیاری برای ساخت لینک)</label>
-          <input type="text" id="panel-form-sub-base" dir="ltr" placeholder="https://sub.your-domain.com:2016/sub_path/{subId}" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 focus:border-indigo-500 outline-none text-left font-mono text-xs">
-          <p class="text-[11px] text-slate-500 mt-1">از عبارت <code class="text-indigo-400 font-mono">{subId}</code> به عنوان جایگزین کد ساب استفاده کنید.</p>
+          <label class="block text-xs text-slate-300 mb-1 font-medium">دامنه یا لینک ساب‌اسکریپشن (Sub Base URL)</label>
+          <input type="text" id="panel-form-sub-base" dir="ltr" placeholder="https://cb13.farsistar.ir یا https://irsub.trafficfast.ir:9090" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 focus:border-indigo-500 outline-none text-left font-mono text-xs text-slate-100">
+          <p class="text-[11px] text-slate-500 mt-1">دامنه اختصاصی ساب لینک‌ها (برای ۳X-UI از <code class="text-indigo-400 font-mono">{subId}</code> استفاده کنید).</p>
         </div>
 
         <div class="flex items-center gap-2 pt-1">
@@ -1169,8 +1220,8 @@ export function getAdminDashboardHtml() {
     function openMigrationModal() { document.getElementById('migration-modal').classList.remove('hidden'); }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-    function openEditModal(pin) {
-      const user = cachedUsers.find(u => u.pin === pin);
+    async function openEditModal(pin) {
+      let user = cachedUsers.find(u => u.pin === pin);
       if (!user) return;
 
       document.getElementById('edit-pin-val').value = user.pin;
@@ -1182,9 +1233,11 @@ export function getAdminDashboardHtml() {
         : (user.panel_id ? [user.panel_id] : []);
       renderPanelCheckboxes('edit-user-panels-container', userPanelIds);
 
-      const allUrls = (Array.isArray(user.upstream_sub_urls) && user.upstream_sub_urls.length > 0)
+      // Read or asynchronously load full user details including upstream URLs
+      let allUrls = (Array.isArray(user.upstream_sub_urls) && user.upstream_sub_urls.length > 0)
         ? user.upstream_sub_urls.join('\\n')
         : (user.upstream_sub_url || '');
+
       document.getElementById('edit-sub-url').value = allUrls;
       document.getElementById('edit-user-days').value = '';
       document.getElementById('edit-active-status').value = user.active !== false ? 'true' : 'false';
@@ -1199,6 +1252,23 @@ export function getAdminDashboardHtml() {
       }
 
       document.getElementById('edit-modal').classList.remove('hidden');
+
+      if (!allUrls) {
+        try {
+          const { ok, data } = await fetchJson(\`/api/v1/admin/user?pin=\${pin}\`, {
+            headers: { 'X-Admin-Token': currentToken }
+          });
+          if (ok && data && data.user) {
+            const freshUser = data.user;
+            const freshUrls = (Array.isArray(freshUser.upstream_sub_urls) && freshUser.upstream_sub_urls.length > 0)
+              ? freshUser.upstream_sub_urls.join('\\n')
+              : (freshUser.upstream_sub_url || '');
+            if (freshUrls) {
+              document.getElementById('edit-sub-url').value = freshUrls;
+            }
+          }
+        } catch (_) {}
+      }
     }
 
     async function submitEditUser() {
@@ -1447,6 +1517,97 @@ export function getAdminDashboardHtml() {
       }
     }
 
+    async function openAppUpdateModal() {
+      let curVer = '1.3.14';
+      let curCode = 20;
+      let curForce = false;
+      let curNotes = 'به‌روزرسانی بهینه‌سازی سرعت دانلود، تفکیک هوشمند معماری گوشی (v7/v8)، تفکیک آپدیت اجباری و اختیاری و پایداری اتصال';
+
+      try {
+        const { ok, data } = await fetchJson('/api/v1/admin/config/update', {
+          headers: { 'X-Admin-Token': currentToken }
+        });
+        if (ok && data && data.config) {
+          curVer = data.config.versionName || curVer;
+          curCode = data.config.versionCode || curCode;
+          curForce = !!data.config.forceUpdate;
+          curNotes = data.config.releaseNotes || curNotes;
+        }
+      } catch (err) {}
+
+      const { value: formValues } = await Swal.fire({
+        title: 'تنظیمات نسخه و انتشار آپدیت',
+        html:
+          '<div class="flex flex-col gap-3 text-right text-xs text-slate-300">' +
+            '<div class="grid grid-cols-2 gap-2">' +
+              '<div>' +
+                '<label class="block mb-1 font-bold text-slate-300">شماره نسخه (Version Name):</label>' +
+                '<input id="swal-up-ver" class="swal2-input !m-0 !w-full !text-center text-sm font-mono" value="' + curVer + '">' +
+              '</div>' +
+              '<div>' +
+                '<label class="block mb-1 font-bold text-slate-300">کد بیلد (Version Code):</label>' +
+                '<input id="swal-up-code" type="number" class="swal2-input !m-0 !w-full !text-center text-sm font-mono" value="' + curCode + '">' +
+              '</div>' +
+            '</div>' +
+            '<div class="mt-2">' +
+              '<label class="block mb-1 font-bold text-slate-300">نحوه برخورد با کاربران (نوع آپدیت):</label>' +
+              '<select id="swal-up-force" class="swal2-input !m-0 !w-full text-xs font-bold">' +
+                '<option value="false"' + (!curForce ? ' selected' : '') + '>🟢 اختیاری (کاربر می‌تواند بعداً نصب کند یا رد کند)</option>' +
+                '<option value="true"' + (curForce ? ' selected' : '') + '>🔴 اجباری (برنامه تا زمان نصب نسخه جدید مسدود می‌شود)</option>' +
+              '</select>' +
+            '</div>' +
+            '<div class="mt-2">' +
+              '<label class="block mb-1 font-bold text-slate-300">یادداشت تغییرات (Release Notes):</label>' +
+              '<textarea id="swal-up-notes" class="swal2-textarea !m-0 !w-full !h-20 text-xs text-right" placeholder="توضیحات تغییرات برای نمایش به کاربر...">' + curNotes + '</textarea>' +
+            '</div>' +
+            '<div class="p-2.5 bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 text-[11px] leading-relaxed">' +
+              '<p class="text-cyan-400 font-bold mb-1">⚡ بهینه‌سازی معماری هوشمند (ABI Splits):</p>' +
+              '<p>• فایل arm64-v8a (گوشی‌های جدید ۶۴ بیتی): حجم ۲۰.۹ مگابایت</p>' +
+              '<p>• فایل armeabi-v7a (گوشی‌های قدیمی ۳۲ بیتی): حجم ۲۱.۴ مگابایت</p>' +
+              '<p>• فایل یونیورسال (پشتیبان همگانی): حجم ۶۰.۶ مگابایت</p>' +
+            '</div>' +
+          '</div>',
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: '💾 ذخیره و اعمال آنی',
+        cancelButtonText: 'انصراف',
+        preConfirm: () => {
+          const verName = document.getElementById('swal-up-ver').value.trim();
+          const verCode = parseInt(document.getElementById('swal-up-code').value.trim(), 10);
+          const forceUpdate = document.getElementById('swal-up-force').value === 'true';
+          const releaseNotes = document.getElementById('swal-up-notes').value.trim();
+
+          if (!verName || isNaN(verCode)) {
+            Swal.showValidationMessage('شماره نسخه و کد نسخه معتبر الزامی است');
+            return false;
+          }
+          return { versionName: verName, versionCode: verCode, forceUpdate, releaseNotes };
+        }
+      });
+
+      if (!formValues) return;
+
+      try {
+        const { ok, data } = await fetchJson('/api/v1/admin/config/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Token': currentToken },
+          body: JSON.stringify(formValues)
+        });
+        if (ok) {
+          const forceText = formValues.forceUpdate ? 'اجباری (مسدودسازی نسخه قدیمی)' : 'اختیاری (پیشنهادی)';
+          Swal.fire({
+            icon: 'success',
+            title: 'تنظیمات آپدیت ذخیره شد',
+            html: '<p class="text-sm">نسخه جدید <b>' + formValues.versionName + '</b> به صورت <b>' + forceText + '</b> در سرور فعال گردید.</p>'
+          });
+        } else {
+          Swal.fire({ icon: 'error', title: 'خطا', text: data.error || 'خطا در ذخیره تنظیمات آپدیت' });
+        }
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'خطا', text: e.message });
+      }
+    }
+
     async function openUnlockLockoutModal() {
       const { value: formValues } = await Swal.fire({
         title: 'رفع مسدودی و قفل ۳۰ دقیقه',
@@ -1637,12 +1798,23 @@ export function getAdminDashboardHtml() {
 
             '<div class="bg-slate-900/80 rounded-xl p-3 border border-slate-800 text-xs font-mono space-y-1.5 overflow-hidden">' +
               '<div class="flex items-center justify-between text-slate-400 min-w-0 gap-2">' +
-                '<span class="text-slate-500 text-[10px] shrink-0">' + (isContainer ? 'لینک کانتینر:' : 'آدرس API:') + '</span>' +
+                '<span class="text-slate-500 text-[10px] shrink-0">' + (isContainer ? 'لینک کانتینر:' : 'آدرس پنل:') + '</span>' +
                 '<span class="text-slate-300 truncate min-w-0 text-left font-mono" dir="ltr">' + p.url + '</span>' +
               '</div>' +
+              (p.authType === 'userPass' || (!p.apiKey && p.username) ? (
+                '<div class="flex items-center justify-between text-slate-400 min-w-0 gap-2">' +
+                  '<span class="text-slate-500 text-[10px] shrink-0">ورود با اکانت:</span>' +
+                  '<span class="text-emerald-400 font-bold truncate min-w-0 text-left font-mono" dir="ltr"><i class="fa-solid fa-user-lock ml-1 text-slate-500"></i>' + (p.username || '') + '</span>' +
+                '</div>'
+              ) : (p.apiKey ? (
+                '<div class="flex items-center justify-between text-slate-400 min-w-0 gap-2">' +
+                  '<span class="text-slate-500 text-[10px] shrink-0">احراز هویت:</span>' +
+                  '<span class="text-indigo-300 truncate min-w-0 text-left font-mono text-[10px]" dir="ltr">کلید API (' + (p.apiKey.length > 8 ? p.apiKey.substring(0, 8) + '...' : 'ثبت‌شده') + ')</span>' +
+                '</div>'
+              ) : '')) +
               (p.subBaseUrl ? (
                 '<div class="flex items-center justify-between text-slate-400 min-w-0 gap-2">' +
-                  '<span class="text-slate-500 text-[10px] shrink-0">قالب ساب:</span>' +
+                  '<span class="text-slate-500 text-[10px] shrink-0">دامنه ساب:</span>' +
                   '<span class="text-slate-300 truncate min-w-0 text-left font-mono" dir="ltr">' + p.subBaseUrl + '</span>' +
                 '</div>'
               ) : '') +
@@ -1688,37 +1860,64 @@ export function getAdminDashboardHtml() {
       const hintKey = document.getElementById('panel-key-hint');
       const subBase = document.getElementById('panel-form-sub-base');
       const apiKeyCont = document.getElementById('panel-form-api-key-container');
+      const userPassCont = document.getElementById('panel-form-userpass-container');
       const subBaseCont = document.getElementById('panel-form-sub-base-container');
+      const authTypeTabCont = document.getElementById('panel-auth-type-container');
 
       if (type === 'container') {
-        hintUrl.innerText = 'آدرس کامل لینک Raw در گیت‌هاب یا فایل متنی حاوی کانفیگ‌های VLESS, VMess, Trojan, SS';
+        if (hintUrl) hintUrl.innerText = 'آدرس کامل لینک Raw در گیت‌هاب یا فایل متنی حاوی کانفیگ‌های VLESS, VMess, Trojan, SS';
         document.getElementById('panel-form-url').placeholder = 'https://raw.githubusercontent.com/... یا https://example.com/sub';
-        if (apiKeyCont) apiKeyCont.style.display = 'none';
-        if (subBaseCont) subBaseCont.style.display = 'none';
+        if (apiKeyCont) apiKeyCont.classList.add('hidden');
+        if (userPassCont) userPassCont.classList.add('hidden');
+        if (subBaseCont) subBaseCont.classList.add('hidden');
+        if (authTypeTabCont) authTypeTabCont.classList.add('hidden');
       } else {
-        if (apiKeyCont) apiKeyCont.style.display = 'block';
-        if (subBaseCont) subBaseCont.style.display = 'block';
+        if (subBaseCont) subBaseCont.classList.remove('hidden');
+        if (authTypeTabCont) authTypeTabCont.classList.remove('hidden');
+        const currentAuth = document.getElementById('panel-form-auth-type').value || 'apiKey';
+        setPanelAuthType(currentAuth);
+
         if (type === 'pasarguard') {
-          hintUrl.innerText = 'مثال: https://irtun.darklink.ir:8000';
-          hintKey.innerText = 'مقدار API Key پاسارگارد (مثال: pg_key_f85f5abb-...)';
-          subBase.placeholder = 'https://irsub.trafficfast.ir:9090';
+          if (hintUrl) hintUrl.innerText = 'مثال: https://pl.applemarket13.ir یا https://irtun.darklink.ir:8000';
+          if (hintKey) hintKey.innerText = 'مقدار API Key پاسارگارد (مثال: pg_key_f85f5abb-...)';
+          if (subBase) subBase.placeholder = 'https://cb13.farsistar.ir یا https://irsub.trafficfast.ir:9090';
         } else if (type === '3xui') {
-          hintUrl.innerText = 'مثال: https://13.140.94.235:14393/eX6Vvc2csV2GKtzmPF';
-          hintKey.innerText = 'کوکی سشن (session=...) یا توکن API';
-          subBase.placeholder = 'https://13.140.94.235:2096/xx11fs28c0ea3gr5/{subId}';
+          if (hintUrl) hintUrl.innerText = 'مثال: https://13.140.94.235:14393/eX6Vvc2csV2GKtzmPF';
+          if (hintKey) hintKey.innerText = 'کوکی سشن (session=...) یا توکن API';
+          if (subBase) subBase.placeholder = 'https://13.140.94.235:2096/xx11fs28c0ea3gr5/{subId}';
         } else if (type === 'goguard' || type === 'guard') {
-          hintUrl.innerText = 'مثال: https://core.erfjab.com';
-          hintKey.innerText = 'مقدار API Key (X-API-Key)';
-          subBase.placeholder = '';
+          if (hintUrl) hintUrl.innerText = 'مثال: https://core.erfjab.com';
+          if (hintKey) hintKey.innerText = 'مقدار API Key (X-API-Key)';
+          if (subBase) subBase.placeholder = '';
         } else if (type === 'marzban') {
-          hintUrl.innerText = 'مثال: https://my-marzban.example.com:8000';
-          hintKey.innerText = 'Bearer Access Token ادمین مرزبان';
-          subBase.placeholder = 'https://sub.example.com/sub/';
+          if (hintUrl) hintUrl.innerText = 'مثال: https://my-marzban.example.com:8000';
+          if (hintKey) hintKey.innerText = 'Bearer Access Token ادمین مرزبان';
+          if (subBase) subBase.placeholder = 'https://sub.example.com/sub/';
         } else if (type === 'hiddify') {
-          hintUrl.innerText = 'مثال: https://my-hiddify.example.com/secret_path/';
-          hintKey.innerText = 'Admin API Secret هیدیفای';
-          subBase.placeholder = '';
+          if (hintUrl) hintUrl.innerText = 'مثال: https://my-hiddify.example.com/secret_path/';
+          if (hintKey) hintKey.innerText = 'Admin API Secret هیدیفای';
+          if (subBase) subBase.placeholder = '';
         }
+      }
+    }
+
+    function setPanelAuthType(type) {
+      document.getElementById('panel-form-auth-type').value = type;
+      const tabKey = document.getElementById('panel-auth-tab-key');
+      const tabUserPass = document.getElementById('panel-auth-tab-userpass');
+      const apiKeyCont = document.getElementById('panel-form-api-key-container');
+      const userPassCont = document.getElementById('panel-form-userpass-container');
+
+      if (type === 'userPass') {
+        if (tabUserPass) tabUserPass.className = 'py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow';
+        if (tabKey) tabKey.className = 'py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white';
+        if (apiKeyCont) apiKeyCont.classList.add('hidden');
+        if (userPassCont) userPassCont.classList.remove('hidden');
+      } else {
+        if (tabKey) tabKey.className = 'py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow';
+        if (tabUserPass) tabUserPass.className = 'py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white';
+        if (apiKeyCont) apiKeyCont.classList.remove('hidden');
+        if (userPassCont) userPassCont.classList.add('hidden');
       }
     }
 
@@ -1729,10 +1928,13 @@ export function getAdminDashboardHtml() {
       document.getElementById('panel-form-type').value = 'pasarguard';
       document.getElementById('panel-form-url').value = '';
       document.getElementById('panel-form-api-key').value = '';
+      document.getElementById('panel-form-username').value = '';
+      document.getElementById('panel-form-password').value = '';
       document.getElementById('panel-form-sub-base').value = '';
       document.getElementById('panel-form-priority').value = (cachedPanels.length + 1);
       document.getElementById('panel-form-auto-sync').checked = true;
       onPanelTypeChange();
+      setPanelAuthType('apiKey');
       document.getElementById('panel-modal').classList.remove('hidden');
     }
 
@@ -1746,26 +1948,43 @@ export function getAdminDashboardHtml() {
       document.getElementById('panel-form-type').value = panel.type || 'pasarguard';
       document.getElementById('panel-form-url').value = panel.url || '';
       document.getElementById('panel-form-api-key').value = panel.apiKey || '';
+      document.getElementById('panel-form-username').value = panel.username || '';
+      document.getElementById('panel-form-password').value = panel.password || '';
       document.getElementById('panel-form-sub-base').value = panel.subBaseUrl || '';
       document.getElementById('panel-form-priority').value = panel.priority || 1;
       document.getElementById('panel-form-auto-sync').checked = panel.autoSync !== false;
+
       onPanelTypeChange();
+      if (panel.authType === 'userPass' || (!panel.apiKey && panel.username)) {
+        setPanelAuthType('userPass');
+      } else {
+        setPanelAuthType('apiKey');
+      }
+
       document.getElementById('panel-modal').classList.remove('hidden');
     }
 
     async function testPanelFormConnection() {
       const type = document.getElementById('panel-form-type').value;
+      const authType = document.getElementById('panel-form-auth-type').value;
       const url = document.getElementById('panel-form-url').value.trim();
       const apiKey = document.getElementById('panel-form-api-key').value.trim();
+      const username = document.getElementById('panel-form-username').value.trim();
+      const password = document.getElementById('panel-form-password').value.trim();
 
       if (!url) {
         Swal.fire({ icon: 'warning', title: 'خطا', text: 'لطفاً آدرس پنل را وارد نمایید.' });
         return;
       }
 
+      if (authType === 'userPass' && (!username || !password)) {
+        Swal.fire({ icon: 'warning', title: 'خطا', text: 'لطفاً نام کاربری و رمز عبور را وارد نمایید.' });
+        return;
+      }
+
       Swal.fire({
         title: 'در حال بررسی اتصال...',
-        text: 'ارتباط مستقیم با API پنل در حال سنجش است',
+        text: 'ارتباط مستقیم و احراز هویت با پنل در حال سنجش است',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
@@ -1774,7 +1993,7 @@ export function getAdminDashboardHtml() {
         const { ok, data } = await fetchJson('/api/v1/admin/panels/test', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Admin-Token': currentToken },
-          body: JSON.stringify({ type, url, apiKey })
+          body: JSON.stringify({ type, authType, url, apiKey, username, password })
         });
         if (ok && data.ok) {
           Swal.fire({
@@ -1786,7 +2005,7 @@ export function getAdminDashboardHtml() {
           Swal.fire({
             icon: 'error',
             title: 'خطا در برقراری ارتباط',
-            text: data.error || 'پاسخی از پنل دریافت نشد.'
+            text: data.error || data.message || 'پاسخی از پنل دریافت نشد.'
           });
         }
       } catch (e) {
@@ -1832,8 +2051,11 @@ export function getAdminDashboardHtml() {
       const id = document.getElementById('panel-form-id').value;
       const name = document.getElementById('panel-form-name').value.trim();
       const type = document.getElementById('panel-form-type').value;
+      const authType = document.getElementById('panel-form-auth-type').value;
       const url = document.getElementById('panel-form-url').value.trim();
       const apiKey = document.getElementById('panel-form-api-key').value.trim();
+      const username = document.getElementById('panel-form-username').value.trim();
+      const password = document.getElementById('panel-form-password').value.trim();
       const subBaseUrl = document.getElementById('panel-form-sub-base').value.trim();
       const priority = parseInt(document.getElementById('panel-form-priority').value, 10) || 1;
       const autoSync = document.getElementById('panel-form-auto-sync').checked;
@@ -1843,11 +2065,16 @@ export function getAdminDashboardHtml() {
         return;
       }
 
+      if (authType === 'userPass' && (!username || !password)) {
+        Swal.fire({ icon: 'warning', title: 'خطا', text: 'لطفاً نام کاربری و رمز عبور را وارد نمایید.' });
+        return;
+      }
+
       try {
         const { ok, data } = await fetchJson('/api/v1/admin/panels/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Admin-Token': currentToken },
-          body: JSON.stringify({ id: id || undefined, name, type, url, apiKey, subBaseUrl, priority, autoSync })
+          body: JSON.stringify({ id: id || undefined, name, type, authType, url, apiKey, username, password, subBaseUrl, priority, autoSync })
         });
         if (ok) {
           closeModal('panel-modal');
@@ -1860,7 +2087,11 @@ export function getAdminDashboardHtml() {
             cancelButtonText: 'بعداً'
           }).then(result => {
             if (result.isConfirmed) {
-              syncSinglePanel(data.panel.id);
+              if (data && data.panel && data.panel.id) {
+                syncSinglePanel(data.panel.id);
+              } else {
+                syncAllPanels();
+              }
             }
           });
           loadPanels();
@@ -2157,7 +2388,109 @@ export function getAdminDashboardHtml() {
       }
     }
 
+    // =========================================================
+    // SYSTEM BACKUP DOWNLOAD & RESTORE ENGINE
+    // =========================================================
+
+    async function downloadBackup() {
+      Swal.fire({
+        title: 'در حال تهیه فایل پشتیبان...',
+        text: 'در حال استخراج کلیه کاربران، تنظیمات پنل‌ها و اطلاعات سیستم',
+        didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false
+      });
+      try {
+        const res = await fetch('/api/v1/admin/backup/download', {
+          headers: { 'X-Admin-Token': currentToken }
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || 'خطا در دریافت فایل پشتیبان از سرور');
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        const now = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        a.download = \`asanvpn-backup-\${now}.json\`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        Swal.fire({
+          icon: 'success',
+          title: 'دانلود فایل بکاپ موفق بود!',
+          text: 'فایل پشتیبان کامل سیستم (شامل تمامی کاربران، تنظیمات پنل‌ها و نسخه اپ) در سیستم شما ذخیره شد.'
+        });
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'خطا در دانلود بکاپ', text: e.message });
+      }
+    }
+
+    function triggerRestoreBackup() {
+      const input = document.getElementById('backup-file-input');
+      if (input) {
+        input.value = '';
+        input.click();
+      }
+    }
+
+    async function handleBackupFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        const dataDict = json.kv_data || json;
+        const keyCount = Object.keys(dataDict).length;
+
+        const confirm = await Swal.fire({
+          icon: 'warning',
+          title: 'آیا از بازیابی این بکاپ اطمینان دارید؟',
+          html: \`<div class="text-right text-xs space-y-2 leading-relaxed">
+                   <p>فایل انتخابی دارای <b class="text-emerald-400 font-mono text-sm">\${keyCount}</b> کلید/کاربر می‌باشد.</p>
+                   <p class="text-amber-300">با تأیید شما، اطلاعات سیستم شامل کاربران و تنظیمات پنل‌ها بروزرسانی و بازگردانی خواهند شد.</p>
+                 </div>\`,
+          showCancelButton: true,
+          confirmButtonColor: '#059669',
+          confirmButtonText: 'بله، بازیابی کن',
+          cancelButtonText: 'انصراف'
+        });
+        if (!confirm.isConfirmed) return;
+
+        Swal.fire({
+          title: 'در حال بازگردانی اطلاعات...',
+          text: 'لطفاً شکیبا باشید',
+          didOpen: () => Swal.showLoading(),
+          allowOutsideClick: false
+        });
+
+        const { ok, data } = await fetchJson('/api/v1/admin/backup/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Token': currentToken },
+          body: JSON.stringify(json)
+        });
+
+        if (ok && data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'بازیابی موفق!',
+            text: data.message || 'سیستم با موفقیت از روی فایل پشتیبان بازگردانی شد.'
+          });
+          loadUsers();
+          loadPanels();
+        } else {
+          Swal.fire({ icon: 'error', title: 'خطا در بازیابی', text: data.error || 'خطا در بازگردانی فایل بکاپ' });
+        }
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'فایل نامعتبر', text: 'فایل انتخاب شده ساختار JSON معتبر ندارد: ' + e.message });
+      }
+    }
+
   </script>
+  <input type="file" id="backup-file-input" accept=".json" style="display:none" onchange="handleBackupFileSelect(event)">
 </body>
 </html>
 `;

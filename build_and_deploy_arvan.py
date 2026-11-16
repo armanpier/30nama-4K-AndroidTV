@@ -56,14 +56,34 @@ async function handleRequest(request) {{
     return new Response(null, {{ status: 302, headers: respHeaders }});
   }}
 
-  // 2. Admin Dashboard Frontend (Served INSTANTLY in <10ms from Edge Memory)
+  // 2. Admin Dashboard Frontend (Fetched live from VPS with edge in-memory fallback)
   if (path === '/' || path === '/admin' || path === '/dashboard' || path === '/panel' || path === '/portal') {{
+    try {{
+      const vpsResp = await fetch(`http://95.182.87.115${{path === '/' ? '/dashboard' : path}}`, {{
+        headers: {{
+          'User-Agent': 'ArvanEdge-Dashboard-Proxy',
+          'X-Edge-Secret': 'asanvpn-edge-internal-secret-2026'
+        }}
+      }});
+      if (vpsResp && vpsResp.status === 200) {{
+        const html = await vpsResp.text();
+        return new Response(html, {{
+          status: 200,
+          headers: {{
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'X-Served-By': 'ArvanCloud-Edge-Live'
+          }}
+        }});
+      }}
+    }} catch (_) {{}}
+
     return new Response(DASHBOARD_HTML, {{
       status: 200,
       headers: {{
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'X-Served-By': 'ArvanCloud-Edge'
+        'X-Served-By': 'ArvanCloud-Edge-Fallback'
       }}
     }});
   }}

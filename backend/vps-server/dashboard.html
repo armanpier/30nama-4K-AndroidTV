@@ -481,7 +481,7 @@
           </div>
         </div>
 
-        <div>
+        <div id="panel-auth-type-container">
           <label class="block text-xs text-slate-300 mb-1.5 font-medium">شیوه احراز هویت در پنل</label>
           <div class="grid grid-cols-2 gap-2 bg-slate-900/90 p-1.5 rounded-xl border border-slate-700">
             <button type="button" id="panel-auth-tab-key" onclick="setPanelAuthType('apiKey')" class="py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow">
@@ -1856,10 +1856,10 @@
       const apiKeyCont = document.getElementById('panel-form-api-key-container');
       const userPassCont = document.getElementById('panel-form-userpass-container');
       const subBaseCont = document.getElementById('panel-form-sub-base-container');
-      const authTypeTabCont = document.getElementById('panel-auth-tab-key')?.parentElement?.parentElement;
+      const authTypeTabCont = document.getElementById('panel-auth-type-container');
 
       if (type === 'container') {
-        hintUrl.innerText = 'آدرس کامل لینک Raw در گیت‌هاب یا فایل متنی حاوی کانفیگ‌های VLESS, VMess, Trojan, SS';
+        if (hintUrl) hintUrl.innerText = 'آدرس کامل لینک Raw در گیت‌هاب یا فایل متنی حاوی کانفیگ‌های VLESS, VMess, Trojan, SS';
         document.getElementById('panel-form-url').placeholder = 'https://raw.githubusercontent.com/... یا https://example.com/sub';
         if (apiKeyCont) apiKeyCont.classList.add('hidden');
         if (userPassCont) userPassCont.classList.add('hidden');
@@ -1872,25 +1872,25 @@
         setPanelAuthType(currentAuth);
 
         if (type === 'pasarguard') {
-          hintUrl.innerText = 'مثال: https://pl.applemarket13.ir یا https://irtun.darklink.ir:8000';
-          hintKey.innerText = 'مقدار API Key پاسارگارد (مثال: pg_key_f85f5abb-...)';
-          subBase.placeholder = 'https://cb13.farsistar.ir یا https://irsub.trafficfast.ir:9090';
+          if (hintUrl) hintUrl.innerText = 'مثال: https://pl.applemarket13.ir یا https://irtun.darklink.ir:8000';
+          if (hintKey) hintKey.innerText = 'مقدار API Key پاسارگارد (مثال: pg_key_f85f5abb-...)';
+          if (subBase) subBase.placeholder = 'https://cb13.farsistar.ir یا https://irsub.trafficfast.ir:9090';
         } else if (type === '3xui') {
-          hintUrl.innerText = 'مثال: https://13.140.94.235:14393/eX6Vvc2csV2GKtzmPF';
-          hintKey.innerText = 'کوکی سشن (session=...) یا توکن API';
-          subBase.placeholder = 'https://13.140.94.235:2096/xx11fs28c0ea3gr5/{subId}';
+          if (hintUrl) hintUrl.innerText = 'مثال: https://13.140.94.235:14393/eX6Vvc2csV2GKtzmPF';
+          if (hintKey) hintKey.innerText = 'کوکی سشن (session=...) یا توکن API';
+          if (subBase) subBase.placeholder = 'https://13.140.94.235:2096/xx11fs28c0ea3gr5/{subId}';
         } else if (type === 'goguard' || type === 'guard') {
-          hintUrl.innerText = 'مثال: https://core.erfjab.com';
-          hintKey.innerText = 'مقدار API Key (X-API-Key)';
-          subBase.placeholder = '';
+          if (hintUrl) hintUrl.innerText = 'مثال: https://core.erfjab.com';
+          if (hintKey) hintKey.innerText = 'مقدار API Key (X-API-Key)';
+          if (subBase) subBase.placeholder = '';
         } else if (type === 'marzban') {
-          hintUrl.innerText = 'مثال: https://my-marzban.example.com:8000';
-          hintKey.innerText = 'Bearer Access Token ادمین مرزبان';
-          subBase.placeholder = 'https://sub.example.com/sub/';
+          if (hintUrl) hintUrl.innerText = 'مثال: https://my-marzban.example.com:8000';
+          if (hintKey) hintKey.innerText = 'Bearer Access Token ادمین مرزبان';
+          if (subBase) subBase.placeholder = 'https://sub.example.com/sub/';
         } else if (type === 'hiddify') {
-          hintUrl.innerText = 'مثال: https://my-hiddify.example.com/secret_path/';
-          hintKey.innerText = 'Admin API Secret هیدیفای';
-          subBase.placeholder = '';
+          if (hintUrl) hintUrl.innerText = 'مثال: https://my-hiddify.example.com/secret_path/';
+          if (hintKey) hintKey.innerText = 'Admin API Secret هیدیفای';
+          if (subBase) subBase.placeholder = '';
         }
       }
     }
@@ -1903,13 +1903,13 @@
       const userPassCont = document.getElementById('panel-form-userpass-container');
 
       if (type === 'userPass') {
-        tabUserPass.className = 'py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow';
-        tabKey.className = 'py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white';
+        if (tabUserPass) tabUserPass.className = 'py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow';
+        if (tabKey) tabKey.className = 'py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white';
         if (apiKeyCont) apiKeyCont.classList.add('hidden');
         if (userPassCont) userPassCont.classList.remove('hidden');
       } else {
-        tabKey.className = 'py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow';
-        tabUserPass.className = 'py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white';
+        if (tabKey) tabKey.className = 'py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow';
+        if (tabUserPass) tabUserPass.className = 'py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white';
         if (apiKeyCont) apiKeyCont.classList.remove('hidden');
         if (userPassCont) userPassCont.classList.add('hidden');
       }
@@ -1927,8 +1927,8 @@
       document.getElementById('panel-form-sub-base').value = '';
       document.getElementById('panel-form-priority').value = (cachedPanels.length + 1);
       document.getElementById('panel-form-auto-sync').checked = true;
-      setPanelAuthType('apiKey');
       onPanelTypeChange();
+      setPanelAuthType('apiKey');
       document.getElementById('panel-modal').classList.remove('hidden');
     }
 
@@ -1948,13 +1948,13 @@
       document.getElementById('panel-form-priority').value = panel.priority || 1;
       document.getElementById('panel-form-auto-sync').checked = panel.autoSync !== false;
 
+      onPanelTypeChange();
       if (panel.authType === 'userPass' || (!panel.apiKey && panel.username)) {
         setPanelAuthType('userPass');
       } else {
         setPanelAuthType('apiKey');
       }
 
-      onPanelTypeChange();
       document.getElementById('panel-modal').classList.remove('hidden');
     }
 
