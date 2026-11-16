@@ -863,19 +863,39 @@ def get_app_update_info(abi: str = None) -> dict:
         except Exception:
             config = {}
 
-    ver_name = str(config.get("versionName") or APP_VERSION).strip()
+    ver_name = str(config.get("versionName") or config.get("version") or APP_VERSION).strip()
     try:
-        ver_code = int(config.get("versionCode") or APP_VERSION_CODE)
+        ver_code = int(config.get("versionCode") or config.get("version_code") or APP_VERSION_CODE)
     except Exception:
         ver_code = APP_VERSION_CODE
     force_update = bool(config.get("forceUpdate", False))
-    notes = str(config.get("releaseNotes") or "بهینه‌سازی هوشمند سرعت دانلود در پس‌زمینه (در منوی چرخدنده)، رفع خطای اتصال کاربران جدید، فیلتر برنامه‌ها و پایداری شبکه").strip()
+    notes = str(config.get("releaseNotes") or config.get("changelog") or "بهینه‌سازی هوشمند سرعت دانلود در پس‌زمینه (در منوی چرخدنده)، رفع خطای اتصال کاربران جدید، فیلتر برنامه‌ها و پایداری شبکه").strip()
 
     base_opt = "/opt/asanvpn"
+
+    def resolve_apk(abi_name):
+        candidates = [
+            os.path.join(base_opt, f"AsanVPN-v{ver_name}-{abi_name}.apk"),
+            os.path.join(base_opt, f"AsanVPN-{abi_name}.apk"),
+            os.path.join(base_opt, f"asanvpn-{abi_name}.apk"),
+        ]
+        if abi_name == "universal":
+            candidates.extend([
+                os.path.join(base_opt, f"AsanVPN-v{ver_name}-universal.apk"),
+                os.path.join(base_opt, "AsanVPN-universal.apk"),
+                os.path.join(base_opt, "AsanVPN.apk"),
+                os.path.join(base_opt, "AsanVPN-latest.apk"),
+                os.path.join(base_opt, "asanvpn.apk")
+            ])
+        for p in candidates:
+            if os.path.exists(p):
+                return p
+        return candidates[0]
+
     files = {
-        "arm64-v8a": os.path.join(base_opt, "AsanVPN-arm64-v8a.apk"),
-        "armeabi-v7a": os.path.join(base_opt, "AsanVPN-armeabi-v7a.apk"),
-        "universal": os.path.join(base_opt, "AsanVPN.apk"),
+        "arm64-v8a": resolve_apk("arm64-v8a"),
+        "armeabi-v7a": resolve_apk("armeabi-v7a"),
+        "universal": resolve_apk("universal"),
     }
 
     sizes = {}
@@ -883,7 +903,7 @@ def get_app_update_info(abi: str = None) -> dict:
         if os.path.exists(p):
             sizes[k] = os.path.getsize(p)
         else:
-            sizes[k] = 20965393 if "64" in k else (21494040 if "v7" in k else 60621364)
+            sizes[k] = 21188373 if "64" in k else (21717012 if "v7" in k else 60844351)
 
     abis_info = {
         "arm64-v8a": {
@@ -982,6 +1002,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
         self.send_cors_headers()
         self.end_headers()
         if self.command != "HEAD":
@@ -1060,25 +1083,45 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not abi and path.startswith("/download/"):
                 abi = path.removeprefix("/download/").strip("/")
 
+            update_info = get_app_update_info(abi)
+            ver_name = update_info.get("versionName") or APP_VERSION
+
             apk_path = None
-            filename = f"AsanVPN-v{APP_VERSION}-universal.apk"
-            if abi == "arm64-v8a":
-                candidate = "/opt/asanvpn/AsanVPN-arm64-v8a.apk"
-                if os.path.exists(candidate):
-                    apk_path = candidate
-                    filename = f"AsanVPN-v{APP_VERSION}-arm64-v8a.apk"
-            elif abi in ("armeabi-v7a", "armeabi"):
-                candidate = "/opt/asanvpn/AsanVPN-armeabi-v7a.apk"
-                if os.path.exists(candidate):
-                    apk_path = candidate
-                    filename = f"AsanVPN-v{APP_VERSION}-armeabi-v7a.apk"
+            filename = f"AsanVPN-v{ver_name}-universal.apk"
+            if abi in ("arm64-v8a", "arm64"):
+                for cand in [
+                    f"/opt/asanvpn/AsanVPN-v{ver_name}-arm64-v8a.apk",
+                    "/opt/asanvpn/AsanVPN-arm64-v8a.apk",
+                    "/opt/asanvpn/asanvpn-arm64.apk"
+                ]:
+                    if os.path.exists(cand):
+                        apk_path = cand
+                        filename = f"AsanVPN-v{ver_name}-arm64-v8a.apk"
+                        break
+            elif abi in ("armeabi-v7a", "armeabi", "armv7"):
+                for cand in [
+                    f"/opt/asanvpn/AsanVPN-v{ver_name}-armeabi-v7a.apk",
+                    "/opt/asanvpn/AsanVPN-armeabi-v7a.apk"
+                ]:
+                    if os.path.exists(cand):
+                        apk_path = cand
+                        filename = f"AsanVPN-v{ver_name}-armeabi-v7a.apk"
+                        break
 
             if not apk_path:
-                for candidate_name in ["AsanVPN-universal.apk", "AsanVPN.apk", "AsanVPN-arm64-v8a.apk", "AsanVPN-armeabi-v7a.apk"]:
+                for candidate_name in [
+                    f"AsanVPN-v{ver_name}-universal.apk",
+                    "AsanVPN-universal.apk",
+                    "AsanVPN.apk",
+                    "AsanVPN-latest.apk",
+                    "asanvpn.apk",
+                    f"AsanVPN-v{ver_name}-arm64-v8a.apk",
+                    "AsanVPN-arm64-v8a.apk"
+                ]:
                     p = os.path.join("/opt/asanvpn", candidate_name)
                     if os.path.exists(p):
                         apk_path = p
-                        filename = f"AsanVPN-v{APP_VERSION}-universal.apk"
+                        filename = f"AsanVPN-v{ver_name}-universal.apk"
                         break
 
             if apk_path and os.path.exists(apk_path):
@@ -1088,7 +1131,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Length", str(file_size))
                 self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
                 self.send_header("Accept-Ranges", "bytes")
-                self.send_header("Cache-Control", "public, max-age=3600")
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+                self.send_header("Pragma", "no-cache")
+                self.send_header("Expires", "0")
                 self.send_cors_headers()
                 self.end_headers()
                 if self.command != "HEAD":
@@ -1102,7 +1147,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 return
             else:
                 self.send_response(302)
-                self.send_header("Location", "https://github.com/armanpier/AsanVPN/releases/download/v1.3.12/AsanVPN-v1.3.12-universal.apk")
+                self.send_header("Location", f"https://github.com/armanpier/AsanVPN/releases/download/v{ver_name}/AsanVPN-v{ver_name}-universal.apk")
                 self.send_cors_headers()
                 self.end_headers()
                 return
