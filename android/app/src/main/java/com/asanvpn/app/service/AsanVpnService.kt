@@ -34,6 +34,7 @@ class AsanVpnService : VpnService() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private lateinit var prefs: PreferencesManager
     private var sessionValidatorJob: Job? = null
+    private var healthMonitorJob: Job? = null
 
     companion object {
         const val ACTION_CONNECT = "com.asanvpn.app.CONNECT"
@@ -45,6 +46,9 @@ class AsanVpnService : VpnService() {
 
         private val _vpnRunningState = MutableStateFlow(false)
         val vpnRunningState: StateFlow<Boolean> = _vpnRunningState.asStateFlow()
+
+        val currentServerRemarkFlow = MutableStateFlow("")
+        val currentServerPingFlow = MutableStateFlow(0L)
 
         var isRunning: Boolean
             get() = _vpnRunningState.value
@@ -93,6 +97,9 @@ class AsanVpnService : VpnService() {
             Log.i("AsanVpnService", "V2Ray Core loop switched: $switched")
             if (switched) {
                 prefs.activeV2RayConfig = configJson
+                currentServerRemarkFlow.value = prefs.selectedServerRemark
+                currentServerPingFlow.value = prefs.selectedServerPing
+                updateNotification(prefs.selectedServerRemark)
             } else {
                 Log.w("AsanVpnService", "Failed to switch V2Ray loop: core returned false")
             }
@@ -170,6 +177,10 @@ class AsanVpnService : VpnService() {
 
             isRunning = true
             prefs.isConnected = true
+            currentServerRemarkFlow.value = prefs.selectedServerRemark
+            currentServerPingFlow.value = prefs.selectedServerPing
+            updateNotification(prefs.selectedServerRemark)
+            startHealthMonitor()
 
             // Periodic session check: passive validation every 10 minutes to keep quota synced & save Cloudflare limits
             sessionValidatorJob?.cancel()
@@ -199,7 +210,7 @@ class AsanVpnService : VpnService() {
 
             // Start foreground notification safely
             try {
-                val notification = buildNotification()
+                val notification = buildNotification(prefs.selectedServerRemark)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     startForeground(
                         NOTIFICATION_ID,
@@ -219,12 +230,133 @@ class AsanVpnService : VpnService() {
         }
     }
 
+    private fun startHealthMonitor() {
+        healthMonitorJob?.cancel()
+        healthMonitorJob = serviceScope.launch(Dispatchers.IO) {
+            var unresponsiveStartTime = 0L
+            var isFailoverInProgress = false
+            var lastDownlinkBytes = 0L
+            var lastCheckTime = System.currentTimeMillis()
+
+            Log.i("AsanVpnService", "Auto-Failover Health Monitor STARTED (5s drop detection trigger)")
+
+            while (isRunning && isActive) {
+                try {
+                    if (!isFailoverInProgress) {
+                        val currentRemark = prefs.selectedServerRemark
+                        val stats = V2RayCoreManager.queryTrafficStats()
+                        val now = System.currentTimeMillis()
+                        val timeDelta = now - lastCheckTime
+                        lastCheckTime = now
+
+                        val downlinkDelta = if (stats != null && lastDownlinkBytes > 0) {
+                            stats.downlinkBytes - lastDownlinkBytes
+                        } else {
+                            0L
+                        }
+                        if (stats != null) {
+                            lastDownlinkBytes = stats.downlinkBytes
+                        }
+
+                        // If active user downlink traffic is flowing (> 8 KB in interval), the tunnel is 100% alive
+                        val isTrafficFlowing = (downlinkDelta > 8192L && timeDelta < 4000L)
+
+                        val isAlive = if (isTrafficFlowing) {
+                            true
+                        } else {
+                            val livePing = PingTester.testConnectedRealLatency(timeoutMs = 1800L)
+                            if (livePing > 0) {
+                                prefs.selectedServerPing = livePing
+                                currentServerPingFlow.value = livePing
+                                true
+                            } else {
+                                false
+                            }
+                        }
+
+                        if (isAlive) {
+                            unresponsiveStartTime = 0L
+                            kotlinx.coroutines.delay(2000L)
+                        } else {
+                            if (unresponsiveStartTime == 0L) {
+                                unresponsiveStartTime = System.currentTimeMillis()
+                                Log.w("AsanVpnService", "Active server [$currentRemark] not responding. Starting 5s failover timer...")
+                                kotlinx.coroutines.delay(1000L)
+                            } else {
+                                val elapsed = System.currentTimeMillis() - unresponsiveStartTime
+                                if (elapsed >= 5000L) {
+                                    isFailoverInProgress = true
+                                    AppLogger.logUser("⚠️ عدم دریافت پاسخ از سرور [$currentRemark] به مدت ۵ ثانیه؛ در حال انتخاب سریع‌ترین سرور بعدی...")
+                                    AppLogger.logAdmin("Server [$currentRemark] unresponsive for ${elapsed}ms (>= 5000ms). Initiating auto-failover across panels...")
+
+                                    val repo = VpnRepository(this@AsanVpnService)
+                                    val cachedNodes = repo.getCachedNodes()
+                                    if (cachedNodes.isNotEmpty()) {
+                                        val replacementNode = PingTester.findNextWorkingNodeCascade(
+                                            allNodes = cachedNodes,
+                                            currentNodeRemark = currentRemark,
+                                            isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
+                                            onStatusLog = { msg -> AppLogger.logUser(msg) }
+                                        )
+
+                                        if (replacementNode != null && isRunning) {
+                                            AppLogger.logUser("🔄 اتصال با موفقیت به سرور [${replacementNode.remark}] منتقل شد (تاخیر: ${replacementNode.latencyMs}ms)")
+                                            AppLogger.logAdmin("Auto-failover SUCCESS: Switched to [${replacementNode.remark}] in panel [${replacementNode.panelName}]")
+
+                                            prefs.selectedServerRemark = replacementNode.remark
+                                            prefs.selectedServerPing = replacementNode.latencyMs
+                                            currentServerRemarkFlow.value = replacementNode.remark
+                                            currentServerPingFlow.value = replacementNode.latencyMs
+                                            updateNotification(replacementNode.remark)
+
+                                            val newConfig = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(replacementNode)
+                                            prefs.activeV2RayConfig = newConfig
+                                            switchVpnConfig(newConfig)
+                                        } else {
+                                            AppLogger.logUser("⚠️ هیچ سرور فعالی در پنل‌ها پاسخ نداد. تلاش مجدد در چرخه بعدی...")
+                                            AppLogger.logAdmin("Auto-failover: No responsive candidate found across all panels")
+                                        }
+                                    }
+                                    unresponsiveStartTime = 0L
+                                    isFailoverInProgress = false
+                                    kotlinx.coroutines.delay(3000L)
+                                } else {
+                                    kotlinx.coroutines.delay(1000L)
+                                }
+                            }
+                        }
+                    } else {
+                        unresponsiveStartTime = 0L
+                        kotlinx.coroutines.delay(2000L)
+                    }
+                } catch (e: Exception) {
+                    Log.e("AsanVpnService", "Error in health monitor loop: ${e.message}", e)
+                    kotlinx.coroutines.delay(2000L)
+                }
+            }
+        }
+    }
+
+    private fun updateNotification(serverRemark: String? = null) {
+        if (!isRunning) return
+        try {
+            val notification = buildNotification(serverRemark)
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.notify(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            Log.w("AsanVpnService", "Could not update notification: ${e.message}")
+        }
+    }
+
     private fun stopVpnTunnel() {
+        healthMonitorJob?.cancel()
+        healthMonitorJob = null
         sessionValidatorJob?.cancel()
         sessionValidatorJob = null
 
         isRunning = false
         prefs.isConnected = false
+        currentServerPingFlow.value = 0L
 
         try {
             V2RayCoreManager.stopLoop()
@@ -266,7 +398,7 @@ class AsanVpnService : VpnService() {
         }
     }
 
-    private fun buildNotification(): Notification {
+    private fun buildNotification(serverRemark: String? = null): Notification {
         val openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -286,10 +418,13 @@ class AsanVpnService : VpnService() {
             this, 1, disconnectIntent, piFlags
         )
 
+        val remark = serverRemark ?: prefs.selectedServerRemark
+        val content = if (remark.isNotBlank()) "متصل به: $remark" else "اینترنت شما امن و متصل است"
+
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentTitle("آسان وی‌پی‌ان روشن است")
-            .setContentText("اینترنت شما امن و متصل است")
+            .setContentText(content)
             .setContentIntent(openAppPendingIntent)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "قطع اتصال", disconnectPendingIntent)
             .setOngoing(true)

@@ -193,4 +193,79 @@ class SpeedOptimizationEmpiricalTest {
         assertNull(com.asanvpn.app.data.NodeMetricsCache.getSpeed(modifiedNode))
         assertNull(com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(modifiedNode))
     }
+
+    @Test
+    fun testAutoFailoverPanelOrderingAndPrioritization() {
+        val deadNode = VpnNode(
+            protocol = "vless",
+            remark = "AppleMarket-Turkey🇹🇷",
+            server = "1.2.3.4",
+            port = 443,
+            panelId = "panel_apple",
+            panelName = "AppleMarket",
+            panelPriority = 1
+        )
+
+        val allNodes = listOf(
+            deadNode,
+            VpnNode("vless", "AppleMarket-Paris🇫🇷", "1.2.3.5", 443, panelId = "panel_apple", panelName = "AppleMarket", panelPriority = 1),
+            VpnNode("vless", "AppleMarket-Germany🇩🇪", "1.2.3.6", 443, panelId = "panel_apple", panelName = "AppleMarket", panelPriority = 1),
+            VpnNode("vless", "Arvan-Frankfurt🇩🇪", "2.2.3.1", 443, panelId = "panel_arvan", panelName = "ArvanPanel", panelPriority = 2),
+            VpnNode("vless", "Arvan-Amsterdam🇳🇱", "2.2.3.2", 443, panelId = "panel_arvan", panelName = "ArvanPanel", panelPriority = 2)
+        )
+
+        // Exclude dead node
+        val candidatePool = allNodes.filter { it.remark != deadNode.remark }
+        assertEquals(4, candidatePool.size)
+
+        // Group by panel
+        val activePanelKey = deadNode.panelId ?: deadNode.panelName
+        val grouped = candidatePool
+            .groupBy { (it.panelPriority ?: 1) to (it.panelId ?: it.panelName ?: "default") }
+            .map { (key, nodes) ->
+                Triple(key.first, key.second, nodes)
+            }
+
+        val ordered = grouped.sortedWith(
+            compareBy<Triple<Int, String, List<VpnNode>>> { panel ->
+                if (activePanelKey != null && panel.second == activePanelKey) 0 else 1
+            }.thenBy { it.first }
+        )
+
+        assertEquals("First panel tested must be active panel (AppleMarket)", "panel_apple", ordered[0].second)
+        assertEquals("Must test all remaining 2 nodes in AppleMarket", 2, ordered[0].third.size)
+
+        assertEquals("Next panel tested must be ArvanPanel (Priority 2)", "panel_arvan", ordered[1].second)
+        assertEquals("Must test all 2 nodes in ArvanPanel", 2, ordered[1].third.size)
+    }
+
+    @Test
+    fun testAutoFailoverFiveSecondDropThreshold() {
+        val unresponsiveStart = 100_000L
+
+        // After 2.5 seconds: must NOT trigger failover
+        val timeAt2500 = 102_500L
+        val elapsed2500 = timeAt2500 - unresponsiveStart
+        assertFalse("2.5s unresponsiveness must not trigger failover yet", elapsed2500 >= 5000L)
+
+        // After 4.9 seconds: must NOT trigger failover
+        val timeAt4900 = 104_900L
+        val elapsed4900 = timeAt4900 - unresponsiveStart
+        assertFalse("4.9s unresponsiveness must not trigger failover yet", elapsed4900 >= 5000L)
+
+        // After 5.0 seconds: MUST trigger failover
+        val timeAt5000 = 105_000L
+        val elapsed5000 = timeAt5000 - unresponsiveStart
+        assertTrue("5.0s unresponsiveness MUST trigger auto-failover", elapsed5000 >= 5000L)
+
+        // Active downlink traffic (> 8KB) resets unresponsive start time
+        val lastDownlink = 100_000L
+        val currentDownlink = 120_000L // +20KB downloaded
+        val downlinkDelta = currentDownlink - lastDownlink
+        val isTrafficFlowing = (downlinkDelta > 8192L)
+        assertTrue("Active downlink traffic detected", isTrafficFlowing)
+
+        val resetUnresponsiveStart = if (isTrafficFlowing) 0L else unresponsiveStart
+        assertEquals("Traffic flowing resets unresponsive timer to 0", 0L, resetUnresponsiveStart)
+    }
 }

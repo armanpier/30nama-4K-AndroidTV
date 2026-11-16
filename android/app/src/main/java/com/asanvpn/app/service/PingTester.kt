@@ -298,76 +298,150 @@ object PingTester {
     }
 
     /**
-     * Priority Cascade Auto-Failover:
-     * Finds the next fastest responsive node, strictly respecting panel priorities (Tier 1 first, then Tier 2, etc.),
-     * excluding the currently failing/unresponsive node.
+     * Auto-Failover Cascade when a link drops:
+     * 1. Groups candidate nodes strictly by panel (prioritizing the current panel first, then by priority).
+     * 2. Tests ALL links in the panel (no raw TCP prescan to avoid false negatives in filtered networks).
+     * 3. As soon as ONE link connects with valid real delay (> 0):
+     *    - Chooses it immediately!
+     *    - Halts testing for that panel.
+     *    - Returns the chosen link.
+     * 4. If all links in the panel fail/timeout:
+     *    - Goes to the next panel and tests all its links, and so on.
      */
+    suspend fun findNextWorkingNodeCascade(
+        allNodes: List<VpnNode>,
+        currentNodeRemark: String?,
+        isGeminiOptimizationEnabled: Boolean = false,
+        onStatusLog: (String) -> Unit = {}
+    ): VpnNode? = withContext(Dispatchers.IO) {
+        val usable = allNodes.filter { isUsableEgressNode(it) && it.remark != currentNodeRemark }
+        val candidatePool = if (usable.isNotEmpty()) usable else allNodes.filter { it.remark != currentNodeRemark }
+        if (candidatePool.isEmpty()) {
+            Log.w(TAG, "findNextWorkingNodeCascade: No candidate nodes found")
+            return@withContext null
+        }
+
+        // Identify current node's panel (if known)
+        val activeNode = allNodes.firstOrNull { it.remark == currentNodeRemark }
+        val activePanelKey = activeNode?.let { it.panelId ?: it.panelName }
+
+        data class PanelGroup(
+            val priority: Int,
+            val identifier: String,
+            val name: String,
+            val nodes: List<VpnNode>
+        )
+
+        val groupedPanels = candidatePool
+            .groupBy { (it.panelPriority ?: 1) to (it.panelId ?: it.panelName ?: "default") }
+            .map { (key, nodes) ->
+                PanelGroup(
+                    priority = key.first,
+                    identifier = key.second,
+                    name = nodes.firstOrNull()?.panelName ?: "پنل اولویت ${key.first}",
+                    nodes = nodes
+                )
+            }
+
+        // Current panel first, then ordered by panel priority (1 = highest, 2, 3...)
+        val orderedPanels = groupedPanels.sortedWith(
+            compareBy<PanelGroup> { panel ->
+                if (activePanelKey != null && panel.identifier == activePanelKey) 0 else 1
+            }.thenBy { it.priority }
+        )
+
+        Log.i(TAG, "findNextWorkingNodeCascade: Starting failover search across ${orderedPanels.size} panels...")
+
+        for (panel in orderedPanels) {
+            val panelName = panel.name
+            val panelNodes = panel.nodes
+            Log.i(TAG, ">> Failover: Testing ALL ${panelNodes.size} links in panel [$panelName] (Priority ${panel.priority})...")
+            onStatusLog("🔍 بررسی تمام لینک‌های $panelName...")
+
+            val chosenNode = testPanelLinksForFirstConnecting(
+                nodes = panelNodes,
+                isGeminiOptimizationEnabled = isGeminiOptimizationEnabled
+            )
+
+            if (chosenNode != null) {
+                Log.i(TAG, ">> Failover SUCCESS: Connected to [${chosenNode.remark}] (${chosenNode.latencyMs}ms) in panel [$panelName]")
+                return@withContext chosenNode
+            }
+
+            Log.w(TAG, ">> Failover: All ${panelNodes.size} links in panel [$panelName] failed. Moving to next panel...")
+            onStatusLog("⚠️ هیچ‌یک از سرورهای $panelName پاسخ ندادند. در حال بررسی پنل بعدی...")
+        }
+
+        Log.w(TAG, "findNextWorkingNodeCascade: No responsive candidate found across all ${orderedPanels.size} panels")
+        null
+    }
+
+    private suspend fun testPanelLinksForFirstConnecting(
+        nodes: List<VpnNode>,
+        isGeminiOptimizationEnabled: Boolean
+    ): VpnNode? = coroutineScope {
+        val foundNode = java.util.concurrent.atomic.AtomicReference<VpnNode?>(null)
+        val concurrency = 3
+        val semaphore = Semaphore(concurrency)
+
+        val jobs = nodes.map { node ->
+            launch {
+                if (foundNode.get() != null) return@launch
+
+                val delay = semaphore.withPermit {
+                    if (foundNode.get() != null) return@withPermit -1L
+                    measureRealDelay(node, timeoutMs = 3000L)
+                }
+
+                if (delay > 0) {
+                    if (isGeminiOptimizationEnabled) {
+                        val cached = com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(node)
+                        val isGeminiOk = if (cached != null) {
+                            cached.first
+                        } else {
+                            val measured = measureGeminiDelay(node, 3000L)
+                            val ok = measured > 0
+                            com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(node, ok, measured)
+                            ok
+                        }
+                        if (!isGeminiOk) {
+                            Log.w(TAG, "Failover: Node [${node.remark}] connected (${delay}ms) but failed Gemini requirement")
+                            return@launch
+                        }
+                    }
+
+                    node.latencyMs = delay
+                    if (foundNode.compareAndSet(null, node)) {
+                        Log.i(TAG, "Failover: Connecting link found: [${node.remark}] (${delay}ms)")
+                        AppLogger.logLinkTest(node.remark, delay, isSuccess = true)
+                    }
+                } else {
+                    AppLogger.logLinkTest(node.remark, -1L, isSuccess = false)
+                }
+            }
+        }
+
+        for (job in jobs) {
+            if (foundNode.get() != null) {
+                jobs.forEach { if (it.isActive) it.cancel() }
+                break
+            }
+            job.join()
+        }
+
+        foundNode.get()
+    }
+
     suspend fun findNextBestNode(
         nodes: List<VpnNode>,
         currentNodeRemark: String?,
         isGeminiOptimizationEnabled: Boolean = false
-    ): VpnNode? = withContext(Dispatchers.IO) {
-        val usable = nodes.filter { isUsableEgressNode(it) && it.remark != currentNodeRemark }
-        val candidatePool = if (usable.isNotEmpty()) usable else nodes.filter { it.remark != currentNodeRemark }
-        if (candidatePool.isEmpty()) return@withContext null
-
-        val priorityTiers = candidatePool
-            .groupBy { it.panelPriority ?: 1 }
-            .toSortedMap()
-
-        for ((tier, tierNodes) in priorityTiers) {
-            val tierName = tierNodes.firstOrNull()?.panelName ?: "پنل اولویت $tier"
-            val isTopPriority = (tier == priorityTiers.firstKey())
-            val tcpTimeout = if (isTopPriority) 2000 else 1200
-            val realDelayTimeout = if (isTopPriority) 4000L else 3000L
-
-            Log.i(TAG, "Failover cascade search in Priority Tier $tier ($tierName) with ${tierNodes.size} candidates...")
-
-            // 1. Quick TCP prescan
-            val tcpResults = tierNodes.map { node ->
-                async {
-                    val tcp = testTcpLatency(node.server, node.port, tcpTimeout)
-                    Pair(node, tcp)
-                }
-            }.awaitAll()
-
-            val responsive = tcpResults.filter { it.second > 0 }.sortedBy { it.second }.map { it.first }
-            val candidates = if (responsive.isNotEmpty()) responsive.take(8) else tierNodes.take(8)
-
-            // 2. Measure real Libv2ray delay
-            val verifiedNodes = Collections.synchronizedList(mutableListOf<Pair<VpnNode, Long>>())
-            coroutineScope {
-                candidates.forEach { node ->
-                    launch {
-                        val realDelay = measureRealDelay(node, realDelayTimeout)
-                        if (realDelay > 0) {
-                            if (isGeminiOptimizationEnabled) {
-                                val cached = com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(node)
-                                val geminiDelay = if (cached != null) {
-                                    if (cached.first) cached.second else -1L
-                                } else {
-                                    val measured = measureGeminiDelay(node, realDelayTimeout)
-                                    com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(node, measured > 0, measured)
-                                    measured
-                                }
-                                if (geminiDelay <= 0) return@launch
-                            }
-                            node.latencyMs = realDelay
-                            verifiedNodes.add(Pair(node, realDelay))
-                        }
-                    }
-                }
-            }
-
-            if (verifiedNodes.isNotEmpty()) {
-                val fastest = verifiedNodes.minByOrNull { it.second }?.first
-                if (fastest != null) {
-                    Log.i(TAG, "Failover selected [${fastest.remark}] (${fastest.latencyMs}ms) in Priority Tier $tier ($tierName)")
-                    return@withContext fastest
-                }
-            }
-        }
-        null
+    ): VpnNode? {
+        return findNextWorkingNodeCascade(
+            allNodes = nodes,
+            currentNodeRemark = currentNodeRemark,
+            isGeminiOptimizationEnabled = isGeminiOptimizationEnabled
+        )
     }
 
     /**
@@ -384,15 +458,15 @@ object PingTester {
         }
 
         withTimeoutOrNull(timeoutMs) {
-            // First attempt with primary test endpoint (Cloudflare)
+            // First attempt with fallback test endpoint (Google / gstatic - fastest & most reliable in Iran)
             try {
-                val delay1 = Libv2ray.measureOutboundDelay(configJson, TEST_URL_PRIMARY)
+                val delay1 = Libv2ray.measureOutboundDelay(configJson, TEST_URL_FALLBACK)
                 if (delay1 > 0) return@withTimeoutOrNull delay1
             } catch (_: Exception) {}
 
-            // Second attempt with fallback test endpoint (Google / gstatic)
+            // Second attempt with primary test endpoint (Cloudflare)
             try {
-                val delay2 = Libv2ray.measureOutboundDelay(configJson, TEST_URL_FALLBACK)
+                val delay2 = Libv2ray.measureOutboundDelay(configJson, TEST_URL_PRIMARY)
                 if (delay2 > 0) return@withTimeoutOrNull delay2
             } catch (_: Exception) {}
 
@@ -605,33 +679,26 @@ object PingTester {
     /**
      * Measures the live realtime latency of the active connection while the VPN is ON.
      */
-    suspend fun testConnectedRealLatency(timeoutMs: Long = 2500L): Long = withContext(Dispatchers.IO) {
-        // Method 1: Ask V2Ray Core directly
-        try {
-            val coreDelay = V2RayCoreManager.measureDelay(TEST_URL_PRIMARY)
-            if (coreDelay > 0) return@withContext coreDelay
-        } catch (_: Exception) {}
+    suspend fun testConnectedRealLatency(timeoutMs: Long = 2000L): Long = withContext(Dispatchers.IO) {
+        val coreDelay = withTimeoutOrNull(timeoutMs) {
+            async(Dispatchers.IO) {
+                try {
+                    // Try gstatic first (Google 204 is faster & more reliable in Iran)
+                    val d1 = V2RayCoreManager.measureDelay(TEST_URL_FALLBACK)
+                    if (d1 > 0) return@async d1
 
-        // Method 2: HTTP GET 204 via OkHttp (routes through the active VPN tun0 interface)
-        val start = System.currentTimeMillis()
-        try {
-            val client = OkHttpClient.Builder()
-                .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-                .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-                .build()
+                    // Fallback to Cloudflare
+                    val d2 = V2RayCoreManager.measureDelay(TEST_URL_PRIMARY)
+                    if (d2 > 0) return@async d2
 
-            val req = Request.Builder()
-                .url(TEST_URL_PRIMARY)
-                .build()
-
-            client.newCall(req).execute().use { resp ->
-                if (resp.isSuccessful || resp.code == 204) {
-                    return@withContext System.currentTimeMillis() - start
+                    -1L
+                } catch (_: Exception) {
+                    -1L
                 }
-            }
-        } catch (_: Exception) {}
+            }.await()
+        } ?: -1L
 
-        -1L
+        coreDelay
     }
 
     private fun isUsableEgressNode(node: VpnNode): Boolean {
