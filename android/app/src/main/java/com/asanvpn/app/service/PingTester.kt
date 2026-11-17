@@ -631,7 +631,7 @@ object PingTester {
             val client = OkHttpClient.Builder()
                 .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
                 .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-                .followRedirects(false)
+                .followRedirects(true)
                 .build()
 
             val req = Request.Builder()
@@ -642,9 +642,15 @@ object PingTester {
             client.newCall(req).execute().use { resp ->
                 val latency = System.currentTimeMillis() - start
                 val code = resp.code
-                val loc = resp.header("Location") ?: ""
+                val effectiveUrl = resp.request.url.toString()
+                val body = resp.body?.string() ?: ""
 
-                if (loc.contains("unavailable", ignoreCase = true) || code == 403) {
+                val isBlocked = effectiveUrl.contains("unavailable", ignoreCase = true) ||
+                        code == 403 ||
+                        body.contains("not available in your country", ignoreCase = true) ||
+                        body.contains("not supported in your country", ignoreCase = true)
+
+                if (isBlocked) {
                     return@withContext GeminiCheckResult(
                         isSuccess = false,
                         latencyMs = latency,

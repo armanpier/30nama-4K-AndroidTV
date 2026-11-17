@@ -124,6 +124,14 @@ class AsanVpnService : VpnService() {
                 .addDnsServer("8.8.8.8")
                 .addRoute("0.0.0.0", 0)
 
+            // Trap and absorb all IPv6 traffic to prevent IPv6 leaks to Iranian cellular carriers (MCI / Irancell)
+            try {
+                builder.addAddress("fdfe:dcba:9876::1", 126)
+                builder.addRoute("::", 0)
+            } catch (e: Exception) {
+                Log.w("AsanVpnService", "Could not bind IPv6 route: ${e.message}")
+            }
+
             val isFilterEnabled = prefs.isAppFilterEnabled
             val whitelist = prefs.appFilterWhitelist
 

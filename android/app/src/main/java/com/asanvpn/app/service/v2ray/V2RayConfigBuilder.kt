@@ -128,7 +128,7 @@ object V2RayConfigBuilder {
             addProperty("protocol", "blackhole")
             add("settings", JsonObject().apply {
                 add("response", JsonObject().apply {
-                    addProperty("type", "http")
+                    addProperty("type", "none")
                 })
             })
         })
