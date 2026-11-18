@@ -163,10 +163,10 @@ class MainActivity : ComponentActivity() {
             GeoAssetManager.checkAndUpdateRules(applicationContext, force = false)
         }
 
-        // Periodic background session check while app is open
+        // Periodic background session check while app is open (every 5 minutes / 300 seconds)
         lifecycleScope.launch {
             while (isActive) {
-                kotlinx.coroutines.delay(20000L)
+                kotlinx.coroutines.delay(300_000L)
                 val pin = currentPinState ?: prefs.savedPin
                 if (!pin.isNullOrBlank()) {
                     validateUserSession(pin)
@@ -174,10 +174,10 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Periodic background update check while app is open (every 30 seconds)
+        // Periodic background update check while app is open (every 5 minutes)
         lifecycleScope.launch {
             while (isActive) {
-                kotlinx.coroutines.delay(30000L)
+                kotlinx.coroutines.delay(300_000L)
                 if (!isUpdateDownloading && !showUpdateDialog) {
                     val result = AppUpdateManager.checkForUpdate(this@MainActivity)
                     result.onSuccess { info ->
