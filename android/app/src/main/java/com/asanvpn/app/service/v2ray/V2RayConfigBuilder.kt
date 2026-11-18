@@ -26,6 +26,7 @@ object V2RayConfigBuilder {
                     addProperty("connIdle", 300)
                     addProperty("uplinkOnly", 1)
                     addProperty("downlinkOnly", 1)
+                    addProperty("bufferSize", 10240) // 10MB streaming buffer prevents video/audio starvation
                 }
                 add("8", level8)
             }
@@ -46,7 +47,7 @@ object V2RayConfigBuilder {
                 addProperty("protocol", "tun")
                 add("settings", JsonObject().apply {
                     addProperty("name", "xray0")
-                    addProperty("MTU", 1500)
+                    addProperty("MTU", 1400) // 1400 MTU prevents packet fragmentation on Iranian cellular LTE (MCI/Irancell)
                     addProperty("userLevel", 8)
                 })
                 add("sniffing", JsonObject().apply {
@@ -400,6 +401,13 @@ object V2RayConfigBuilder {
             tcp.add("header", header)
             streamSettings.add("tcpSettings", tcp)
         }
+
+        // Streaming latency & throughput optimization: disable Nagle's delay, enable TCP keepalive
+        val sockopt = JsonObject().apply {
+            addProperty("tcpNoDelay", true)
+            addProperty("tcpKeepAliveInterval", 15)
+        }
+        streamSettings.add("sockopt", sockopt)
 
         outbound.add("streamSettings", streamSettings)
         return outbound

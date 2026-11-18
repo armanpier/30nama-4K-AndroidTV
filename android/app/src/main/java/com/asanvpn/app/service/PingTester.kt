@@ -77,21 +77,34 @@ object PingTester {
         val rem = (node.remark ?: "").lowercase()
         val srv = (node.server ?: "").lowercase()
         val restrictedPatterns = listOf(
-            "turkey", "tr ", "tr-", "tr_", "ترکیه", "istanbul",
-            "iran", " ir", "ir-", "ir_", "ایران", "tehran", "mashhad",
-            "russia", "ru ", "ru-", "ru_", "روسیه", "moscow",
-            "china", "cn ", "cn-", "cn_", "چین",
-            "hong kong", "hk ", "hk-"
+            "turkey", "türkiye", "turkiye", "🇹🇷", "tr ", "tr-", "tr_", "istanbul",
+            "iran", "ir ", "ir-", "ir_", "🇮🇷", "ایران", "tehran", "mashhad",
+            "russia", "ru ", "ru-", "ru_", "🇷🇺", "روسیه", "moscow",
+            "china", "cn ", "cn-", "cn_", "🇨🇳", "چین",
+            "hong kong", "hk ", "hk-", "🇭🇰",
+            "belarus", "by ", "by_", "🇧🇾",
+            "kazakhstan", "kz ", "kz_", "🇰🇿",
+            "uzbekistan", "uz ", "uz_", "🇺🇿"
         )
         return restrictedPatterns.any { rem.contains(it) || srv.contains(it) }
     }
 
     /**
-     * Checks if a node is located in high-compatibility Gemini regions (specifically USA or UK).
+     * Checks if a node is located in high-compatibility Gemini regions (specifically USA, Germany, UK, France, Netherlands, Canada).
      */
     fun isGeminiPreferredNode(node: VpnNode): Boolean {
         val rem = (node.remark ?: "").lowercase()
-        val preferredPatterns = listOf("usa", "us ", "us-", "us_", "us1", "us2", "united states", "آمریکا", "america", "uk", "london", "انگلیس")
+        val preferredPatterns = listOf(
+            "usa", "us ", "us-", "us_", "us1", "us2", "united states", "آمریکا", "america", "🇺🇸",
+            "germany", "de ", "de-", "de_", "آلمان", "deutschland", "🇩🇪",
+            "uk", "gb ", "gb-", "gb_", "london", "انگلیس", "united kingdom", "🇬🇧",
+            "france", "fr ", "fr-", "fr_", "paris", "فرانسه", "🇫🇷",
+            "netherlands", "nl ", "nl-", "nl_", "amsterdam", "هلند", "🇳🇱",
+            "canada", "ca ", "ca-", "ca_", "کانادا", "🇨🇦",
+            "norway", "no ", "no-", "no_", "نروژ", "🇳🇴",
+            "sweden", "se ", "se-", "se_", "سوئد", "🇸🇪",
+            "switzerland", "ch ", "ch-", "ch_", "سوئیس", "🇨🇭"
+        )
         return preferredPatterns.any { rem.contains(it) }
     }
 
@@ -175,11 +188,13 @@ object PingTester {
             .toSortedMap()
 
         val firstConnected = AtomicBoolean(false)
+        val hasSatisfiedSpecialOption = AtomicBoolean(!isGeminiOptimizationEnabled && !isVoiceCallOptimizationEnabled)
         val bestLatency = java.util.concurrent.atomic.AtomicLong(Long.MAX_VALUE)
         var bestNode: VpnNode? = null
 
         // WATERFALL CASCADE LOOP:
-        // Always test Priority 1 first with increased patience/timeout. Only cascade to Priority 2/3 if Priority 1 completely fails.
+        // Always test Priority 1 first with increased patience/timeout. If special options (Gemini/Voice) are requested
+        // and cannot be satisfied in Priority 1, connect to basic node so user has instant internet, and cascade to next tiers in background!
         for ((tier, tierNodes) in priorityTiers) {
             val tierName = tierNodes.firstOrNull()?.panelName ?: "پنل اولویت $tier"
             val isTopPriority = (tier == priorityTiers.firstKey())
@@ -190,20 +205,46 @@ object PingTester {
             AppLogger.logUser("🔍 بررسی سرورهای $tierName...")
             AppLogger.logAdmin("Testing Tier $tier ($tierName) with ${tierNodes.size} nodes")
 
-            val candidatePoolForTier = when {
-                isGeminiOptimizationEnabled && isVoiceCallOptimizationEnabled -> {
-                    val filtered = tierNodes.filter { !isGeminiRestrictedNode(it) && !isVoiceCallRestrictedNode(it) }
-                    if (filtered.isNotEmpty()) filtered else tierNodes.filter { !isGeminiRestrictedNode(it) }
+            val needsSpecialOption = !hasSatisfiedSpecialOption.get()
+
+            val candidatePoolForTier = if (needsSpecialOption) {
+                when {
+                    isGeminiOptimizationEnabled && isVoiceCallOptimizationEnabled -> {
+                        val f = tierNodes.filter { !isGeminiRestrictedNode(it) && !isVoiceCallRestrictedNode(it) }
+                        if (f.isNotEmpty()) f else tierNodes.filter { !isGeminiRestrictedNode(it) }
+                    }
+                    isGeminiOptimizationEnabled -> {
+                        tierNodes.filter { !isGeminiRestrictedNode(it) }
+                    }
+                    isVoiceCallOptimizationEnabled -> {
+                        tierNodes.filter { !isVoiceCallRestrictedNode(it) }
+                    }
+                    else -> tierNodes
                 }
-                isGeminiOptimizationEnabled -> {
-                    val nonRestricted = tierNodes.filter { !isGeminiRestrictedNode(it) }
-                    if (nonRestricted.isNotEmpty()) nonRestricted else tierNodes
+            } else {
+                tierNodes
+            }
+
+            // If this tier has no compatible nodes for the requested option:
+            if (candidatePoolForTier.isEmpty()) {
+                Log.w(TAG, "Tier $tier has no compatible nodes for requested options. Connecting basic node first if unconnected...")
+                if (!firstConnected.get()) {
+                    for (basicNode in tierNodes) {
+                        val basicDelay = measureRealDelay(basicNode, 3500L)
+                        if (basicDelay > 0) {
+                            basicNode.latencyMs = basicDelay
+                            bestNode = basicNode
+                            bestLatency.set(basicDelay)
+                            firstConnected.set(true)
+                            Log.i(TAG, "Connected to basic node [${basicNode.remark}] in Tier $tier while continuing cascade")
+                            AppLogger.logUser("✅ اتصال اولیه به اینترنت برقرار شد؛ جستجوی سرور سازگار در پنل بعدی ادامه دارد...")
+                            onFirstOkNode(basicNode)
+                            break
+                        }
+                    }
                 }
-                isVoiceCallOptimizationEnabled -> {
-                    val nonRestricted = tierNodes.filter { !isVoiceCallRestrictedNode(it) }
-                    if (nonRestricted.isNotEmpty()) nonRestricted else tierNodes
-                }
-                else -> tierNodes
+                // Continue to next tier in background to find compatible server!
+                continue
             }
 
             // Parallel TCP prescan for this tier to identify responsive endpoints
@@ -266,6 +307,7 @@ object PingTester {
                         }
                         node.latencyMs = realDelay
                         if (realDelay > 0) {
+                            var isNodeOptionCompatible = true
                             if (isGeminiOptimizationEnabled) {
                                 val cached = com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(node)
                                 val geminiDelay = if (cached != null) {
@@ -295,37 +337,57 @@ object PingTester {
                                 }
 
                                 if (geminiDelay <= 0) {
-                                    return@launch
+                                    isNodeOptionCompatible = false
                                 }
                             }
 
+                            if (isVoiceCallOptimizationEnabled && isVoiceCallRestrictedNode(node)) {
+                                isNodeOptionCompatible = false
+                            }
+
+                            if (!isNodeOptionCompatible) {
+                                // If user is not yet connected at all, this node still serves as a basic connected link!
+                                if (firstConnected.compareAndSet(false, true)) {
+                                    bestNode = node
+                                    bestLatency.set(realDelay)
+                                    Log.i(TAG, "Connecting basic node [${node.remark}] while searching for compatible server...")
+                                    AppLogger.logUser("🚀 اتصال اولیه به سرور [${node.remark}] برقرار شد (در حال جستجوی سرور اختصاصی...)")
+                                    AppLogger.logAdmin("Basic fallback assigned: [${node.remark}]")
+                                    onFirstOkNode(node)
+                                }
+                                return@launch
+                            }
+
+                            // This node is verified 100% compatible!
                             Log.i(TAG, "Tier $tier Verified OK: [${node.remark}] -> REAL latency: ${realDelay}ms")
                             AppLogger.logLinkTest(node.remark, realDelay, isSuccess = true)
 
                             if (firstConnected.compareAndSet(false, true)) {
                                 bestNode = node
                                 bestLatency.set(realDelay)
-                                Log.i(TAG, ">> [Cascade SUCCESS] Connecting immediately to Priority Tier $tier server [${node.remark}] (${realDelay}ms)")
+                                hasSatisfiedSpecialOption.set(true)
+                                Log.i(TAG, ">> [Cascade SUCCESS] Connecting immediately to compatible Tier $tier server [${node.remark}] (${realDelay}ms)")
                                 AppLogger.logUser("🚀 انتخاب سرور پایدار [${node.remark}]")
                                 AppLogger.logAdmin("Cascade SUCCESS. Assigned node [${node.remark}]")
                                 onFirstOkNode(node)
-                            } else if (realDelay < bestLatency.get() - 25L) {
-                                if (isGeminiOptimizationEnabled && isGeminiRestrictedNode(node)) {
-                                    Log.w(TAG, "Tier $tier: Skipping switch to [${node.remark}]: region restricted for Gemini")
-                                    return@launch
+                            } else {
+                                val wasBasic = !hasSatisfiedSpecialOption.get()
+                                if (wasBasic || realDelay < bestLatency.get() - 25L) {
+                                    val prevRemark = bestNode?.remark ?: "unknown"
+                                    val prevLat = bestLatency.get()
+                                    bestNode = node
+                                    bestLatency.set(realDelay)
+                                    hasSatisfiedSpecialOption.set(true)
+                                    if (wasBasic) {
+                                        Log.i(TAG, ">> Upgrading from basic server to fully compatible server [${node.remark}]")
+                                        AppLogger.logUser("✨ سوییچ خودکار به سرور سازگار: [${node.remark}] (${realDelay}ms)")
+                                    } else {
+                                        Log.i(TAG, ">> [Cascade OPTIMIZE] Faster server found in Priority Tier $tier [${node.remark}] (${realDelay}ms vs $prevRemark ${prevLat}ms) -> Switching")
+                                        AppLogger.logUser("⚡ تعویض به سرور سریع‌تر: [${node.remark}] (${realDelay}ms)")
+                                    }
+                                    AppLogger.logAdmin("Cascade OPTIMIZE: [${node.remark}] (${realDelay}ms vs $prevRemark ${prevLat}ms)")
+                                    onFastestNodeFound(node)
                                 }
-                                if (isVoiceCallOptimizationEnabled && isVoiceCallRestrictedNode(node)) {
-                                    Log.w(TAG, "Tier $tier: Skipping switch to [${node.remark}]: node does not support UDP / Voice Call")
-                                    return@launch
-                                }
-                                val prevRemark = bestNode?.remark ?: "unknown"
-                                val prevLat = bestLatency.get()
-                                bestNode = node
-                                bestLatency.set(realDelay)
-                                Log.i(TAG, ">> [Cascade OPTIMIZE] Faster server found in Priority Tier $tier [${node.remark}] (${realDelay}ms vs $prevRemark ${prevLat}ms) -> Switching")
-                                AppLogger.logUser("⚡ تعویض به سرور سریع‌تر: [${node.remark}] (${realDelay}ms)")
-                                AppLogger.logAdmin("Cascade OPTIMIZE: [${node.remark}] (${realDelay}ms vs $prevRemark ${prevLat}ms)")
-                                onFastestNodeFound(node)
                             }
                         } else {
                             Log.d(TAG, "Tier $tier candidate failed: [${node.remark}]")
@@ -335,17 +397,22 @@ object PingTester {
                 }
             }
 
-            // If ANY node in this priority tier succeeded, stop the cascade!
-            if (firstConnected.get()) {
-                Log.i(TAG, ">> [Cascade HALTED] Connected to working server in Priority Tier $tier ($tierName). Cascade complete.")
+            // If user is connected AND special option is satisfied, stop cascade!
+            if (firstConnected.get() && hasSatisfiedSpecialOption.get()) {
+                Log.i(TAG, ">> [Cascade HALTED] Connected to fully compatible server in Priority Tier $tier ($tierName). Cascade complete.")
                 AppLogger.logUser("✅ اتصال به سرورهای $tierName نهایی شد")
                 AppLogger.logAdmin(">> [Cascade HALTED] Tier $tier successful.")
                 return@withContext
             }
 
-            Log.w(TAG, ">> [Cascade FAILOVER] All candidate nodes in Priority Tier $tier failed real delay test! Cascading to next priority tier...")
-            AppLogger.logUser("⚠️ سرورهای $tierName پاسخ ندادند. در حال بررسی اولویت بعدی...")
-            AppLogger.logAdmin(">> [Cascade FAILOVER] Tier $tier timed out. Cascading to next tier.")
+            if (firstConnected.get() && !hasSatisfiedSpecialOption.get()) {
+                Log.i(TAG, ">> [Cascade CONTINUING] User is connected with basic node, but searching next tiers in background for compatible server...")
+                AppLogger.logUser("🔍 در حال بررسی سرورهای پنل بعدی...")
+            } else {
+                Log.w(TAG, ">> [Cascade FAILOVER] All candidate nodes in Priority Tier $tier failed real delay test! Cascading to next priority tier...")
+                AppLogger.logUser("⚠️ سرورهای $tierName پاسخ ندادند. در حال بررسی اولویت بعدی...")
+                AppLogger.logAdmin(">> [Cascade FAILOVER] Tier $tier timed out. Cascading to next tier.")
+            }
         }
 
         // If ALL priority tiers failed real delay test, NEVER fake a connection! Keep disconnected.
@@ -515,21 +582,18 @@ object PingTester {
         val candidateNodes = when {
             isGeminiOptimizationEnabled && isVoiceCallOptimizationEnabled -> {
                 val nonRestricted = nodes.filter { !isGeminiRestrictedNode(it) && !isVoiceCallRestrictedNode(it) }
-                val pool = if (nonRestricted.isNotEmpty()) nonRestricted else nodes
-                pool.sortedWith(
+                nonRestricted.sortedWith(
                     compareByDescending<VpnNode> { isGeminiPreferredNode(it) && isVoiceCallPreferredNode(it) }
                         .thenByDescending { isGeminiPreferredNode(it) }
                 )
             }
             isGeminiOptimizationEnabled -> {
                 val nonRestricted = nodes.filter { !isGeminiRestrictedNode(it) }
-                val pool = if (nonRestricted.isNotEmpty()) nonRestricted else nodes
-                pool.sortedByDescending { isGeminiPreferredNode(it) }
+                nonRestricted.sortedByDescending { isGeminiPreferredNode(it) }
             }
             isVoiceCallOptimizationEnabled -> {
                 val nonRestricted = nodes.filter { !isVoiceCallRestrictedNode(it) }
-                val pool = if (nonRestricted.isNotEmpty()) nonRestricted else nodes
-                pool.sortedByDescending { isVoiceCallPreferredNode(it) }
+                nonRestricted.sortedByDescending { isVoiceCallPreferredNode(it) }
             }
             else -> nodes
         }

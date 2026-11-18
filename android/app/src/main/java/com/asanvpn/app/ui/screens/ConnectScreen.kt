@@ -64,7 +64,7 @@ fun ConnectScreen(
     uploadTraffic: String = "۰ B",
     downloadSpeed: String = "",
     uploadSpeed: String = "",
-    appVersion: String = "1.3.32",
+    appVersion: String = "1.3.34",
     newVersionAvailable: String? = null,
     isDarkMode: Boolean = false,
     availableNodes: List<VpnNode> = emptyList(),
@@ -833,8 +833,11 @@ fun ConnectScreen(
                                     .background(if (colors.isDark) Color(0x22FFFFFF) else Color(0x12000000))
                                     .padding(horizontal = if (isSmallScreen) 6.dp else 8.dp, vertical = if (isSmallScreen) 3.dp else 4.dp)
                             ) {
+                                val topPriority = remember(availableNodes) { availableNodes.mapNotNull { it.panelPriority }.minOrNull() ?: 1 }
+                                val topNodes = remember(availableNodes, topPriority) { availableNodes.filter { (it.panelPriority ?: 1) == topPriority } }
+                                val displayCount = if (!isAutoServerMode && topNodes.isNotEmpty()) topNodes.size else availableNodes.size
                                 Text(
-                                    text = "${availableNodes.size.coerceAtLeast(1)} سرور",
+                                    text = "${displayCount.coerceAtLeast(1)} سرور",
                                     fontSize = if (isSmallScreen) 9.sp else 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textSecondary

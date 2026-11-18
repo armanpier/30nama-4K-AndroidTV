@@ -82,10 +82,15 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            startVpnServiceInternal()
-            connectionState = ConnectionState.CONNECTED
-            prefs.isConnected = true
-            startTrafficMonitoring()
+            val activeCfg = prefs.activeV2RayConfig
+            if (!activeCfg.isNullOrBlank()) {
+                startVpnServiceInternal(activeCfg)
+                connectionState = ConnectionState.CONNECTED
+                prefs.isConnected = true
+                startTrafficMonitoring()
+            } else {
+                handleToggleConnect()
+            }
         } else {
             connectionState = ConnectionState.DISCONNECTED
             prefs.isConnected = false
@@ -610,28 +615,43 @@ class MainActivity : ComponentActivity() {
                     }
                     availableNodesState = nodes
 
-                    // If manual mode is selected, connect directly to user's chosen server node
+                    // If manual mode is selected, test user's chosen server from the top-priority panel
                     if (!prefs.isAutoServerMode) {
-                        val manualNode = nodes.firstOrNull { it.remark == prefs.selectedServerRemark } ?: nodes[0]
+                        val topPriority = nodes.mapNotNull { it.panelPriority }.minOrNull() ?: 1
+                        val topNodes = nodes.filter { (it.panelPriority ?: 1) == topPriority }
+                        val candidatePool = if (topNodes.isNotEmpty()) topNodes else nodes
+                        val manualNode = candidatePool.firstOrNull { it.remark == prefs.selectedServerRemark } ?: candidatePool[0]
                         prefs.selectedServerRemark = manualNode.remark
                         currentServerRemark = manualNode.remark
-                        val ping = if (manualNode.latencyMs > 0) manualNode.latencyMs else 130L
-                        prefs.selectedServerPing = ping
-                        currentServerPing = ping
 
-                        val configJson = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(manualNode)
-                        prefs.activeV2RayConfig = configJson
+                        AppLogger.logUser("🔍 بررسی اتصال به سرور انتخابی [${manualNode.remark}]...")
+                        val measuredDelay = PingTester.measureRealDelay(manualNode, 3500L)
 
-                        val intent = VpnService.prepare(this@MainActivity)
-                        if (intent != null) {
-                            vpnPermissionLauncher.launch(intent)
+                        if (measuredDelay > 0) {
+                            manualNode.latencyMs = measuredDelay
+                            prefs.selectedServerPing = measuredDelay
+                            currentServerPing = measuredDelay
+
+                            val configJson = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(manualNode)
+                            prefs.activeV2RayConfig = configJson
+
+                            val intent = VpnService.prepare(this@MainActivity)
+                            if (intent != null) {
+                                vpnPermissionLauncher.launch(intent)
+                            } else {
+                                startVpnServiceInternal(configJson)
+                                connectionState = ConnectionState.CONNECTED
+                                prefs.isConnected = true
+                                startTrafficMonitoring()
+                                AppLogger.logUser("✅ اتصال به سرور انتخابی [${manualNode.remark}] با موفقیت برقرار شد (${measuredDelay}ms)")
+                            }
+                            return@launch
                         } else {
-                            startVpnServiceInternal(configJson)
-                            connectionState = ConnectionState.CONNECTED
-                            prefs.isConnected = true
-                            startTrafficMonitoring()
+                            // Selected manual node is dead/unresponsive! Notify user and fallback to connectFastAndOptimize!
+                            AppLogger.logUser("⚠️ سرور انتخابی [${manualNode.remark}] پاسخ نداد؛ در حال اتصال به اولین سرور فعال...")
+                            Toast.makeText(this@MainActivity, "سرور انتخابی پاسخ نداد؛ در حال اتصال به سرور جایگزین...", Toast.LENGTH_SHORT).show()
+                            // Do not return: fall through to connectFastAndOptimize below to keep user connected!
                         }
-                        return@launch
                     }
 
                     // Fast Connect & Background Optimization

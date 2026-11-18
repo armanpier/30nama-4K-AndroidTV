@@ -5,8 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
@@ -21,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,6 +48,11 @@ fun UpdateDialog(
 ) {
     val colors = LuxuryTheme.colors
 
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+    val screenWidth = configuration.screenWidthDp.dp
+    val isSmallScreen = screenHeight < 680.dp || screenWidth <= 365.dp
+
     val animatedProgress by animateFloatAsState(
         targetValue = downloadProgress,
         label = "update_download_progress"
@@ -64,25 +72,31 @@ fun UpdateDialog(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = screenHeight * 0.94f)
                 .padding(horizontal = 4.dp)
-                .luxuryCushion(shape = RoundedCornerShape(28.dp), elevation = 12.dp)
-                .padding(22.dp)
+                .luxuryCushion(
+                    shape = RoundedCornerShape(if (isSmallScreen) 22.dp else 28.dp),
+                    elevation = 12.dp
+                )
+                .padding(if (isSmallScreen) 14.dp else 22.dp)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(if (isSmallScreen) 10.dp else 16.dp)
             ) {
                 // Header 3D Icon Box
                 Box(
                     modifier = Modifier
-                        .size(68.dp)
+                        .size(if (isSmallScreen) 50.dp else 68.dp)
                         .luxuryWell(shape = CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(54.dp)
+                            .size(if (isSmallScreen) 38.dp else 54.dp)
                             .clip(CircleShape)
                             .background(
                                 if (isDownloadComplete) colors.jadeGreen.copy(alpha = 0.2f) else colors.skyBlue.copy(alpha = 0.2f)
@@ -93,7 +107,7 @@ fun UpdateDialog(
                             imageVector = if (isDownloadComplete) Icons.Default.CheckCircle else Icons.Default.SystemUpdate,
                             contentDescription = null,
                             tint = if (isDownloadComplete) colors.jadeGreen else colors.skyBlue,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(if (isSmallScreen) 22.dp else 32.dp)
                         )
                     }
                 }
@@ -101,11 +115,11 @@ fun UpdateDialog(
                 // Title & Version Chip
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(if (isSmallScreen) 4.dp else 6.dp)
                 ) {
                     Text(
                         text = "به‌روزرسانی جدید موجود است",
-                        fontSize = 18.sp,
+                        fontSize = if (isSmallScreen) 15.sp else 18.sp,
                         fontWeight = FontWeight.Black,
                         color = colors.textPrimary,
                         textAlign = TextAlign.Center

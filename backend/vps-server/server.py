@@ -16,6 +16,8 @@ import base64
 import logging
 import threading
 import ssl
+import uuid
+import secrets
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
 import urllib.parse
@@ -31,8 +33,8 @@ DASHBOARD_HTML_PATH = "/etc/asanvpn/dashboard.html"
 ADMIN_PASSWORD = "Arman4237340"
 SUPPORT_PHONE = "+989120000000"
 SUPPORT_TELEGRAM = "AsanSupport"
-APP_VERSION = "1.3.20"
-APP_VERSION_CODE = 26
+APP_VERSION = "1.3.25"
+APP_VERSION_CODE = 31
 GITHUB_APK_URL = "https://github.com/armanpier/AsanVPN/releases/download/v1.3.20/AsanVPN-v1.3.20-universal.apk"
 EDGE_SECRET = "asanvpn-edge-internal-secret-2026"
 
@@ -46,13 +48,13 @@ DEFAULT_INITIAL_PANELS = [
         "apiKey": "Wg6BrJKRiJzcNr4NKnjlxjZSAxMUIYkh7lzvWUDUQn3gxmW9",
         "subBaseUrl": "https://95.182.87.115:2016/xx11fs28c0ea3gr5/{subId}",
         "autoSync": True,
-        "priority": 1,
+        "priority": 2,
         "userCount": 8,
         "createdAt": 1794227465
     },
     {
         "id": "panel_pasarguard_applemarket",
-        "name": "سرور پاسارگاد اپل‌مارکت (AppleMarket)",
+        "name": "اپل‌مارکت (AppleMarket)",
         "type": "pasarguard",
         "authType": "userPass",
         "url": "https://pl.applemarket13.ir",
@@ -60,13 +62,13 @@ DEFAULT_INITIAL_PANELS = [
         "password": "AB!8c9c8e207dxy9$",
         "subBaseUrl": "https://cb13.farsistar.ir",
         "autoSync": True,
-        "priority": 2,
-        "userCount": 5,
+        "priority": 1,
+        "userCount": 18,
         "createdAt": 1794900000
     },
     {
         "id": "panel_pasarguard_default",
-        "name": "سرور پاسارگاد (PasarGuard)",
+        "name": "پاسارگاد (PasarGuard)",
         "type": "pasarguard",
         "authType": "apiKey",
         "url": "https://irtun.darklink.ir:8000",
@@ -84,7 +86,7 @@ DEFAULT_INITIAL_PANELS = [
         "authType": "apiKey",
         "url": "https://core.erfjab.com",
         "apiKey": "7c704f070ae553721bfa91b4bcfeb84e2eaa8109d09e56d00b471e9001ed5206",
-        "subBaseUrl": "",
+        "subBaseUrl": "https://versub.bertly.top",
         "autoSync": True,
         "priority": 3,
         "userCount": 12,
@@ -95,12 +97,22 @@ DEFAULT_INITIAL_PANELS = [
 def resolve_panel_for_sub_url(url: str, panels: list):
     """
     Identifies the source panel for a subscription URL and returns (panel_id, panel_name, priority).
-    Guarantees that 3X-UI nodes receive Priority 1, PasarGuard receives Priority 2, GoGuard receives Priority 3.
+    Dynamically maps against live panels configuration so user dashboard priority changes are strictly honored.
     """
     if not url:
-        return "panel_unknown", "External", 2
+        return "panel_unknown", "External", 99
 
     url_lower = url.lower()
+
+    # Precompute live priority and name map
+    prio_map = {}
+    name_map = {}
+    for p in (panels or []):
+        pid = p.get("id")
+        if pid:
+            prio_map[pid] = int(p.get("priority", 1))
+            name_map[pid] = p.get("name")
+
     for p in (panels or []):
         p_sub = (p.get("subBaseUrl") or "").lower()
         p_url = (p.get("url") or "").lower()
@@ -109,23 +121,29 @@ def resolve_panel_for_sub_url(url: str, panels: list):
             p_url_host = urllib.parse.urlparse(p_url).netloc.lower() if p_url else ""
             u_host = urllib.parse.urlparse(url_lower).netloc.lower()
             if (p_sub_host and p_sub_host in u_host) or (p_url_host and p_url_host in u_host):
-                return p.get("id", ""), p.get("name", ""), int(p.get("priority", 1))
+                pid = p.get("id", "")
+                return pid, p.get("name", ""), prio_map.get(pid, int(p.get("priority", 1)))
         except Exception:
             pass
         if (p_sub and p_sub in url_lower) or (p_url and p_url in url_lower):
-            return p.get("id", ""), p.get("name", ""), int(p.get("priority", 1))
+            pid = p.get("id", "")
+            return pid, p.get("name", ""), prio_map.get(pid, int(p.get("priority", 1)))
 
-    # Well-known fallback heuristics
-    if "95.182.87.115" in url_lower or ":2016" in url_lower or "3x" in url_lower:
-        return "panel_3xui_default", "سرور ۳X-UI اصلی", 1
-    elif "farsistar.ir" in url_lower or "applemarket" in url_lower:
-        return "panel_pasarguard_applemarket", "سرور پاسارگاد اپل‌مارکت (AppleMarket)", 2
-    elif "trafficfast.ir" in url_lower or "darklink.ir" in url_lower or "pasarguard" in url_lower:
-        return "panel_pasarguard_default", "سرور پاسارگاد (PasarGuard)", 2
-    elif "erfjab.com" in url_lower or "goguard" in url_lower:
-        return "panel_goguard_default", "سرور گوگارد (GoGuard Core)", 3
+    # Comprehensive fallback heuristics for all known domains
+    if any(k in url_lower for k in ["bertly.top", "erfjab.com", "goguard", "fadaei.top", "sudopen.org", "hyperlink"]):
+        pid = "panel_goguard_default"
+        return pid, name_map.get(pid, "سرور گوگارد (GoGuard Core)"), prio_map.get(pid, 1)
+    elif any(k in url_lower for k in ["farsistar.ir", "applemarket", "applemarket13.ir"]):
+        pid = "panel_pasarguard_applemarket"
+        return pid, name_map.get(pid, "اپل‌مارکت (AppleMarket)"), prio_map.get(pid, 2)
+    elif any(k in url_lower for k in ["95.182.87.115", ":2016", "3x"]):
+        pid = "panel_3xui_default"
+        return pid, name_map.get(pid, "سرور ۳X-UI اصلی"), prio_map.get(pid, 2)
+    elif any(k in url_lower for k in ["trafficfast.ir", "darklink.ir", "pasarguard"]):
+        pid = "panel_pasarguard_default"
+        return pid, name_map.get(pid, "پاسارگاد (PasarGuard)"), prio_map.get(pid, 3)
 
-    return "custom_panel", "سرور پشتیبان", 2
+    return "custom_panel", "سرور پشتیبان", 99
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -243,16 +261,17 @@ def generate_secure_10digit_pin(existing_checker) -> str:
 def sync_3xui_sqlite(user_data):
     """
     Directly synchronizes user totalGB and expiryTime into local 3X-UI SQLite database (/etc/x-ui/x-ui.db).
-    Guarantees sub-millisecond local update of 3X-UI clients without requiring external web session tokens.
+    If client does not exist, automatically creates it in inbounds 1 & 9 and client_traffics.
+    Returns (subId, email) tuple or (None, None).
     """
     xui_db_path = "/etc/x-ui/x-ui.db"
     if not os.path.exists(xui_db_path):
-        return
+        return (None, None)
     try:
         if isinstance(user_data, str):
             user_data = json.loads(user_data)
         if not isinstance(user_data, dict):
-            return
+            return (None, None)
 
         total_bytes = int(user_data.get("traffic_total_bytes", 0) or 0)
         expires_at = int(user_data.get("expires_at", 0) or 0)
@@ -282,6 +301,7 @@ def sync_3xui_sqlite(user_data):
         if pin:
             possible_identifiers.add(f"%_{pin[-6:]}")
             possible_identifiers.add(f"%{pin}%")
+            possible_identifiers.add(f"user_{pin}")
 
         with sqlite3.connect(xui_db_path, timeout=5) as conn:
             cur = conn.cursor()
@@ -301,9 +321,92 @@ def sync_3xui_sqlite(user_data):
                     if row and row[0]:
                         matched_emails.add(row[0])
 
-            if not matched_emails:
-                return
+            matched_sub_id = None
+            primary_email = None
 
+            if not matched_emails:
+                # Client does not exist in 3X-UI: Create client in inbounds 1 and 9!
+                new_uuid = str(uuid.uuid4())
+                new_sub_id = secrets.token_hex(8)
+                clean_name = re.sub(r'[^a-zA-Z0-9_]', '', name.replace(' ', '_')).strip('_')
+                if not clean_name or clean_name.lower().startswith('telegram'):
+                    new_email = f"user_{pin}" if pin else f"user_{secrets.token_hex(4)}"
+                else:
+                    new_email = f"{clean_name[:14]}_{pin[-6:]}" if pin else clean_name[:20]
+
+                now_ms = int(time.time() * 1000)
+                new_client = {
+                    "id": new_uuid,
+                    "email": new_email,
+                    "totalGB": total_bytes,
+                    "expiryTime": expiry_ms,
+                    "enable": bool(is_active),
+                    "subId": new_sub_id,
+                    "comment": "",
+                    "created_at": now_ms,
+                    "updated_at": now_ms,
+                    "limitIp": 0,
+                    "reset": 0,
+                    "resetDay": 0,
+                    "resetMax": 0,
+                    "resetWeekday": 0,
+                    "security": "",
+                    "tgId": 0,
+                    "trafficReset": "never",
+                    "trafficResetDay": 1
+                }
+
+                # Insert into clients table for direct 3X-UI subscription serving
+                try:
+                    cur.execute('''
+                        INSERT INTO clients (
+                            email, sub_id, uuid, password, auth, flow, security, reverse,
+                            wg_private_key, wg_public_key, wg_allowed_ips, wg_pre_shared_key,
+                            wg_keep_alive, wg_forwarded_ports, secret, ad_tag, limit_ip, limit_hwid,
+                            total_gb, expiry_time, enable, tg_id, group_name, comment,
+                            reset, reset_day, reset_weekday, reset_max, traffic_reset, traffic_reset_day,
+                            created_at, updated_at, sync_orphaned_at
+                        ) VALUES (
+                            ?, ?, ?, '', '', '', '', '',
+                            '', '', '', '',
+                            0, '', '', '', 0, 0,
+                            ?, ?, ?, 0, '', '',
+                            0, 0, 0, 0, 'never', 1,
+                            ?, ?, 0
+                        )
+                    ''', (new_email, new_sub_id, new_uuid, total_bytes, expiry_ms, is_active, now_ms, now_ms))
+                    created_cid = cur.lastrowid
+                    for inb_id in [1, 9]:
+                        cur.execute('INSERT INTO client_inbounds (client_id, inbound_id, flow_override, created_at) VALUES (?, ?, ?, ?)',
+                                    (created_cid, inb_id, '', now_ms))
+                except Exception as c_err:
+                    logging.warning(f"[3X-UI Create] Error inserting into clients table: {c_err}")
+
+                cur.execute("SELECT id, settings FROM inbounds WHERE id IN (1, 9)")
+                inbounds = cur.fetchall()
+                for inb_id, inb_settings_raw in inbounds:
+                    if not inb_settings_raw:
+                        continue
+                    try:
+                        inb_settings = json.loads(inb_settings_raw)
+                        clients = inb_settings.setdefault("clients", [])
+                        if not any(c.get("email") == new_email or c.get("id") == new_uuid for c in clients):
+                            clients.append(new_client)
+                            cur.execute(
+                                "UPDATE inbounds SET settings = ? WHERE id = ?",
+                                (json.dumps(inb_settings, ensure_ascii=False), inb_id)
+                            )
+                        cur.execute(
+                            "INSERT OR REPLACE INTO client_traffics (inbound_id, enable, email, up, down, expiry_time, total) VALUES (?, ?, ?, 0, 0, ?, ?)",
+                            (inb_id, is_active, new_email, expiry_ms, total_bytes)
+                        )
+                    except Exception as json_err:
+                        logging.warning(f"[3X-UI Create] Inbound {inb_id} error: {json_err}")
+                conn.commit()
+                logging.info(f"[3X-UI Sync] Created new 3X-UI client {new_email} with subId {new_sub_id}")
+                return (new_sub_id, new_email)
+
+            # Update existing client(s)
             for email in matched_emails:
                 cur.execute(
                     "UPDATE client_traffics SET total = ?, expiry_time = ?, enable = ? WHERE email = ?",
@@ -327,6 +430,9 @@ def sync_3xui_sqlite(user_data):
                             c["expiryTime"] = expiry_ms
                             c["enable"] = bool(is_active)
                             modified = True
+                            if not matched_sub_id and c.get("subId"):
+                                matched_sub_id = c.get("subId")
+                                primary_email = c_email
                     if modified:
                         cur.execute(
                             "UPDATE inbounds SET settings = ? WHERE id = ?",
@@ -337,8 +443,10 @@ def sync_3xui_sqlite(user_data):
 
             conn.commit()
             logging.info(f"[3X-UI Sync] Synced {matched_emails} in 3X-UI (Total: {total_bytes}, Expiry: {expiry_ms})")
+            return (matched_sub_id, primary_email or next(iter(matched_emails), None))
     except Exception as e:
         logging.warning(f"[3X-UI Sync] Error synchronizing with /etc/x-ui/x-ui.db: {e}")
+        return (None, None)
 
 # ==========================================
 # PARSE PROTOCOL NODES INTO JSON DICTS
@@ -429,12 +537,16 @@ def fetch_subscription_data(url: str, timeout: int = 8) -> dict:
                 res_data["user_info"] = info_dict
 
             body = res.read().decode("utf-8", errors="ignore").strip()
-            # Try base64 decoding
-            try:
-                decoded = base64.b64decode(body + "==").decode("utf-8", errors="ignore")
-                lines = [l.strip() for l in decoded.splitlines() if l.strip()]
-            except Exception:
+            # If plain-text links are returned (e.g. GoGuard or unencoded subscriptions)
+            if body.startswith("vless://") or body.startswith("vmess://") or body.startswith("trojan://") or body.startswith("ss://"):
                 lines = [l.strip() for l in body.splitlines() if l.strip()]
+            else:
+                # Try base64 decoding
+                try:
+                    decoded = base64.b64decode(body + "==").decode("utf-8", errors="ignore")
+                    lines = [l.strip() for l in decoded.splitlines() if l.strip()]
+                except Exception:
+                    lines = [l.strip() for l in body.splitlines() if l.strip()]
             res_data["nodes_raw"] = lines
     except Exception as e:
         logging.warning(f"Error fetching sub url {url}: {e}")
@@ -555,6 +667,194 @@ def fetch_pasarguard_remote_users(panel_url: str, username: str, password: str, 
         })
 
     return results
+
+def sync_user_to_panels(user_data):
+    """
+    Synchronizes user across all active panels:
+    1. AppleMarket (PasarGuard panel with userPass JWT authentication)
+    2. 3X-UI (Local SQLite database)
+    Updates user_data with sub URLs and remote_panel_mappings.
+    """
+    if isinstance(user_data, str):
+        try:
+            user_data = json.loads(user_data)
+        except Exception:
+            return user_data
+    if not isinstance(user_data, dict):
+        return user_data
+
+    pin = str(user_data.get("pin", "")).strip()
+    raw_name = str(user_data.get("name") or user_data.get("username") or "").strip()
+    if not raw_name:
+        raw_name = f"user_{pin}"
+    safe_name = re.sub(r'[^a-zA-Z0-9_]', '', raw_name.replace(' ', '_')).strip('_')
+    if not safe_name or safe_name.lower().startswith('telegram'):
+        safe_name = f"user_{pin}"
+    safe_name = safe_name[:20]
+
+    mappings = user_data.get("remote_panel_mappings")
+    if not isinstance(mappings, dict):
+        mappings = {}
+    user_data["remote_panel_mappings"] = mappings
+
+    sub_urls = list(user_data.get("upstream_sub_urls") or [])
+    if user_data.get("upstream_sub_url") and not sub_urls:
+        sub_urls = [u.strip() for u in str(user_data.get("upstream_sub_url")).split("\n") if u.strip()]
+
+    # --- 1. AppleMarket (Priority 1) ---
+    try:
+        panels_json = db.get("__CONFIG_PANELS__")
+        panels = json.loads(panels_json) if panels_json else list(DEFAULT_INITIAL_PANELS)
+        apple_panel = next((p for p in panels if p.get("id") == "panel_pasarguard_applemarket"), None)
+        if apple_panel and apple_panel.get("autoSync") is not False:
+            p_url = apple_panel.get("url", "https://pl.applemarket13.ir").rstrip("/")
+            p_user = apple_panel.get("username", "P9502331E507")
+            p_pass = apple_panel.get("password", "AB!8c9c8e207dxy9$")
+            tok = get_panel_jwt_token(p_url, p_user, p_pass)
+            if tok:
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AsanVPN/1.0",
+                    "Authorization": f"Bearer {tok}",
+                    "Content-Type": "application/json"
+                }
+
+                matched_uname = None
+                apple_sub = ""
+
+                # Specific aliases for known accounts
+                known_aliases = {
+                    "admin": "Admin",
+                    "tahoura": "Tah",
+                    "mkhatab": "Mkhtab",
+                    "abolfazl": "Abolfazl"
+                }
+                candidate_names = [safe_name]
+                for k_alias, v_alias in known_aliases.items():
+                    if k_alias in raw_name.lower():
+                        candidate_names.insert(0, v_alias)
+
+                for c_name in candidate_names:
+                    try:
+                        req_chk = urllib.request.Request(f"{p_url}/api/user/{urllib.parse.quote(c_name)}", headers=headers)
+                        with urllib.request.urlopen(req_chk, timeout=6, context=INSECURE_SSL_CTX) as res_chk:
+                            if res_chk.status == 200:
+                                chk_data = json.loads(res_chk.read().decode("utf-8"))
+                                matched_uname = chk_data.get("username")
+                                apple_sub = chk_data.get("subscription_url") or ""
+                                break
+                    except Exception:
+                        pass
+
+                if not matched_uname:
+                    # Create user on AppleMarket
+                    expire_ts = user_data.get("expires_at")
+                    if expire_ts and expire_ts < 1000000000:
+                        expire_ts = None
+                    data_limit = int(user_data.get("traffic_total_bytes") or 0)
+                    create_payload = json.dumps({
+                        "username": safe_name,
+                        "expire": expire_ts,
+                        "data_limit": data_limit,
+                        "data_limit_reset_strategy": "no_reset",
+                        "status": "active" if user_data.get("active", True) else "disabled",
+                        "group_ids": [4],
+                        "proxy_settings": {
+                            "vless": {"id": str(uuid.uuid4())},
+                            "vmess": {"id": str(uuid.uuid4())},
+                            "trojan": {"password": secrets.token_hex(16)},
+                            "shadowsocks": {"password": secrets.token_hex(16), "method": "chacha20-ietf-poly1305"}
+                        }
+                    }).encode("utf-8")
+                    try:
+                        req_cr = urllib.request.Request(f"{p_url}/api/user", data=create_payload, headers=headers, method="POST")
+                        with urllib.request.urlopen(req_cr, timeout=8, context=INSECURE_SSL_CTX) as res_cr:
+                            if res_cr.status in [200, 201]:
+                                cr_data = json.loads(res_cr.read().decode("utf-8"))
+                                matched_uname = cr_data.get("username")
+                                apple_sub = cr_data.get("subscription_url") or ""
+                    except Exception as cr_err:
+                        logging.warning(f"[AppleMarket] Create error for {safe_name}: {cr_err}")
+
+                if apple_sub:
+                    mappings["panel_pasarguard_applemarket"] = {
+                        "username": matched_uname or safe_name,
+                        "subUrl": apple_sub,
+                        "panelType": "pasarguard"
+                    }
+                    sub_urls = [u for u in sub_urls if not ("farsistar.ir" in u or "applemarket" in u)]
+                    sub_urls.insert(0, apple_sub)
+    except Exception as e:
+        logging.warning(f"Error syncing user to AppleMarket: {e}")
+
+    # --- 2. 3X-UI ---
+    try:
+        xui_sub_id, xui_email = sync_3xui_sqlite(user_data)
+        if xui_sub_id:
+            xui_sub_url = f"https://95.182.87.115:2016/xx11fs28c0ea3gr5/{xui_sub_id}"
+            mappings["panel_3xui_default"] = {
+                "username": xui_email or safe_name,
+                "subUrl": xui_sub_url,
+                "subId": xui_sub_id,
+                "panelType": "3xui"
+            }
+            sub_urls = [u for u in sub_urls if not ("95.182.87.115:2016" in u)]
+            sub_urls.append(xui_sub_url)
+    except Exception as e:
+        logging.warning(f"Error syncing user to 3X-UI: {e}")
+
+    user_data["upstream_sub_urls"] = sub_urls
+    user_data["upstream_sub_url"] = "\n".join(sub_urls)
+    user_data["remote_panel_mappings"] = mappings
+    return user_data
+
+def delete_user_from_panels(pin: str, user_data: dict = None):
+    """Deletes user from both AppleMarket and local 3X-UI."""
+    # 1. AppleMarket deletion
+    try:
+        panels_json = db.get("__CONFIG_PANELS__")
+        panels = json.loads(panels_json) if panels_json else list(DEFAULT_INITIAL_PANELS)
+        apple_panel = next((p for p in panels if p.get("id") == "panel_pasarguard_applemarket"), None)
+        if apple_panel and user_data:
+            mappings = user_data.get("remote_panel_mappings", {})
+            ap_uname = None
+            if isinstance(mappings, dict) and "panel_pasarguard_applemarket" in mappings:
+                ap_uname = mappings["panel_pasarguard_applemarket"].get("username")
+            if not ap_uname:
+                ap_uname = f"user_{pin}"
+            if ap_uname:
+                p_url = apple_panel.get("url", "https://pl.applemarket13.ir").rstrip("/")
+                tok = get_panel_jwt_token(p_url, apple_panel.get("username", "P9502331E507"), apple_panel.get("password", "AB!8c9c8e207dxy9$"))
+                if tok:
+                    del_req = urllib.request.Request(f"{p_url}/api/user/{urllib.parse.quote(ap_uname)}", headers={"Authorization": f"Bearer {tok}"}, method="DELETE")
+                    with urllib.request.urlopen(del_req, timeout=6, context=INSECURE_SSL_CTX) as _:
+                        logging.info(f"[AppleMarket] Deleted remote user {ap_uname}")
+    except Exception as e:
+        logging.warning(f"Error deleting user from AppleMarket: {e}")
+
+    # 2. 3X-UI deletion
+    try:
+        xui_db_path = "/etc/x-ui/x-ui.db"
+        if os.path.exists(xui_db_path):
+            with sqlite3.connect(xui_db_path, timeout=5) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT id FROM clients WHERE email LIKE ? OR email = ?", (f"%{pin[-6:]}%", f"user_{pin}"))
+                for d_id, in cur.fetchall():
+                    cur.execute("DELETE FROM client_inbounds WHERE client_id = ?", (d_id,))
+                cur.execute("DELETE FROM clients WHERE email LIKE ? OR email = ?", (f"%{pin[-6:]}%", f"user_{pin}"))
+                cur.execute("DELETE FROM client_traffics WHERE email LIKE ? OR email = ?", (f"%{pin[-6:]}%", f"user_{pin}"))
+                cur.execute("SELECT id, settings FROM inbounds")
+                for inb_id, raw_s in cur.fetchall():
+                    if not raw_s: continue
+                    s = json.loads(raw_s)
+                    clients = s.get("clients", [])
+                    new_clients = [c for c in clients if pin not in c.get("email", "") and (not pin or not c.get("email", "").endswith(pin[-6:]))]
+                    if len(new_clients) != len(clients):
+                        s["clients"] = new_clients
+                        cur.execute("UPDATE inbounds SET settings = ? WHERE id = ?", (json.dumps(s, ensure_ascii=False), inb_id))
+                conn.commit()
+                logging.info(f"[3X-UI] Deleted user clients for PIN {pin}")
+    except Exception as e:
+        logging.warning(f"Error deleting user from 3X-UI: {e}")
 
 # ==========================================
 # DATABASE (SQLite with WAL Mode)
@@ -755,66 +1055,88 @@ def run_traffic_sync_cycle():
         except Exception:
             current_panels = DEFAULT_INITIAL_PANELS
 
+        # Map GoGuard remote user subscriptions dynamically
+        goguard_map = {}
+        try:
+            g_panel = next((p for p in current_panels if p.get("id") == "panel_goguard_default" or p.get("type") == "goguard"), None)
+            if g_panel and g_panel.get("autoSync") is not False:
+                g_url = (g_panel.get("url") or "https://core.erfjab.com").rstrip("/")
+                g_key = g_panel.get("apiKey") or "7c704f070ae553721bfa91b4bcfeb84e2eaa8109d09e56d00b471e9001ed5206"
+                g_req = urllib.request.Request(f"{g_url}/api/subscriptions?limit=100", headers={"X-API-Key": g_key})
+                with urllib.request.urlopen(g_req, timeout=6, context=INSECURE_SSL_CTX) as g_res:
+                    if g_res.status == 200:
+                        g_data = json.loads(g_res.read().decode("utf-8"))
+                        for it in g_data.get("items", []):
+                            uname = (it.get("username") or "").lower()
+                            sub_link = it.get("subscription_link")
+                            if uname and sub_link:
+                                goguard_map[uname] = sub_link
+        except Exception as ge:
+            logging.warning(f"[BackgroundSync] Failed mapping GoGuard subscriptions: {ge}")
+
         # 2. Process each active user
         for u in active_users:
-            pin = u.get("pin")
-            sub_urls = u.get("upstream_sub_urls") or []
+            pin = str(u.get("pin") or "").strip()
+            name = (u.get("name") or "").lower()
+            sub_urls = list(u.get("upstream_sub_urls") or [])
             if not sub_urls and u.get("upstream_sub_url"):
                 sub_urls = [s.strip() for s in u["upstream_sub_url"].splitlines() if s.strip()]
 
+            # Associate GoGuard subscription URL if matched
+            if goguard_map:
+                matched_g_sub = None
+                for g_uname, g_sub in goguard_map.items():
+                    if (pin and pin[-6:] in g_uname) or (name and name in g_uname):
+                        matched_g_sub = g_sub
+                        break
+                if matched_g_sub and matched_g_sub not in sub_urls:
+                    sub_urls.append(matched_g_sub)
+                    u["upstream_sub_urls"] = sub_urls
+                    if not u.get("remote_panel_mappings"):
+                        u["remote_panel_mappings"] = {}
+                    u["remote_panel_mappings"]["panel_goguard_default"] = {
+                        "subUrl": matched_g_sub,
+                        "panelType": "goguard"
+                    }
+
             total_limit = int(u.get("traffic_total_bytes", 0) or 0)
             max_used = 0
-            p1_nodes = []
-            p2_nodes = []
-            p3_nodes = []
 
             # Check 3X-UI usage
-            name = (u.get("name") or "").lower()
             clean_name = re.sub(r'[^a-zA-Z0-9_]', '', name.replace('@', ''))
             for ident, used in xui_usage.items():
                 if (pin and pin in ident) or (clean_name and clean_name in ident):
                     max_used = max(max_used, used)
 
-            # Group subscription URLs by panel priority to guarantee balanced queries across all tiers
-            sub_by_priority = {1: [], 2: [], 3: []}
+            # Group subscription URLs dynamically by panel priority
+            sub_by_priority = {}
             seen_urls = set()
             for s_url in sub_urls:
                 if not s_url or not s_url.startswith("http") or s_url in seen_urls:
                     continue
                 seen_urls.add(s_url)
                 p_id, p_name, p_priority = resolve_panel_for_sub_url(s_url, current_panels)
-                if p_priority in sub_by_priority:
-                    if len(sub_by_priority[p_priority]) < 2:
-                        sub_by_priority[p_priority].append((s_url, p_id, p_name, p_priority))
-                else:
-                    sub_by_priority.setdefault(p_priority, []).append((s_url, p_id, p_name, p_priority))
+                sub_by_priority.setdefault(p_priority, []).append((s_url, p_id, p_name))
 
-            # Prioritized execution: Always query Priority 1 (3X-UI) first!
-            ordered_query_targets = sub_by_priority.get(1, []) + sub_by_priority.get(2, []) + sub_by_priority.get(3, [])
+            tier_nodes_map = {}
+            for p_priority in sorted(sub_by_priority.keys()):
+                tier_nodes_map[p_priority] = []
+                for s_url, p_id, p_name in sub_by_priority[p_priority]:
+                    sub_data = fetch_subscription_data(s_url, timeout=7)
+                    if sub_data["user_info"]:
+                        ui = sub_data["user_info"]
+                        used_sub = (ui.get("upload", 0) + ui.get("download", 0))
+                        max_used = max(max_used, used_sub)
+                        if ui.get("total", 0) > total_limit:
+                            total_limit = ui["total"]
 
-            for s_url, p_id, p_name, p_priority in ordered_query_targets:
-                sub_data = fetch_subscription_data(s_url, timeout=6)
-                if sub_data["user_info"]:
-                    ui = sub_data["user_info"]
-                    used_sub = (ui.get("upload", 0) + ui.get("download", 0))
-                    max_used = max(max_used, used_sub)
-                    if ui.get("total", 0) > total_limit:
-                        total_limit = ui["total"]
-
-                # Parse raw nodes strictly tagged with panel id, name, and waterfall priority
-                for r_line in sub_data["nodes_raw"]:
-                    node_obj = parse_raw_proxy_link(r_line, panel_id=p_id, panel_name=p_name, priority=p_priority)
-                    if not node_obj:
-                        continue
-                    if p_priority == 1:
-                        if len(p1_nodes) < 12:
-                            p1_nodes.append(node_obj)
-                    elif p_priority == 2:
-                        if len(p2_nodes) < 12:
-                            p2_nodes.append(node_obj)
-                    else:
-                        if len(p3_nodes) < 12:
-                            p3_nodes.append(node_obj)
+                    # Parse raw nodes strictly tagged with panel id, name, and waterfall priority
+                    for r_line in sub_data["nodes_raw"]:
+                        node_obj = parse_raw_proxy_link(r_line, panel_id=p_id, panel_name=p_name, priority=p_priority)
+                        if not node_obj:
+                            continue
+                        if len(tier_nodes_map[p_priority]) < 150:
+                            tier_nodes_map[p_priority].append(node_obj)
 
             # Recalculate remaining
             changed = False
@@ -825,9 +1147,13 @@ def run_traffic_sync_cycle():
                     u["traffic_total_bytes"] = total_limit
                     changed = True
 
-            combined_nodes = p1_nodes + p2_nodes + p3_nodes
+            combined_nodes = []
+            for p_priority in sorted(tier_nodes_map.keys()):
+                combined_nodes.extend(tier_nodes_map[p_priority])
+
             if combined_nodes and len(combined_nodes) >= 1:
                 u["cached_nodes"] = combined_nodes
+                changed = True
                 changed = True
 
             if changed:
@@ -1404,6 +1730,12 @@ class RequestHandler(BaseHTTPRequestHandler):
                 if "active" not in body:
                     body["active"] = True
 
+                # Synchronize user to all panels (AppleMarket, 3X-UI, etc.)
+                try:
+                    body = sync_user_to_panels(body)
+                except Exception as sync_e:
+                    logging.warning(f"Error during user panel sync: {sync_e}")
+
                 db.put(pin, json.dumps(body, ensure_ascii=False))
                 return self.send_json(200, {
                     "success": True,
@@ -1417,8 +1749,19 @@ class RequestHandler(BaseHTTPRequestHandler):
                 pin = str(body.get("pin", "")).strip()
                 if not pin:
                     return self.send_json(400, {"error": "Missing PIN"})
+                raw_user = db.get(pin)
+                u_del = None
+                if raw_user:
+                    try:
+                        u_del = json.loads(raw_user)
+                    except Exception:
+                        pass
+                try:
+                    delete_user_from_panels(pin, u_del)
+                except Exception as e:
+                    logging.warning(f"Error during panel user deletion: {e}")
                 db.delete(pin)
-                return self.send_json(200, {"status": "success", "message": f"کاربر {pin} حذف شد."})
+                return self.send_json(200, {"status": "success", "message": f"کاربر {pin} با موفقیت از سرور و تمامی پنل‌ها حذف شد."})
 
             # ADMIN: Save Panels (Supports single panel update/add OR bulk list update)
             if path in ["/api/v1/admin/panels", "/api/v1/admin/panels/save"]:
@@ -1495,6 +1838,11 @@ class RequestHandler(BaseHTTPRequestHandler):
 
                 db.put("__CONFIG_PANELS__", json.dumps(existing_panels, ensure_ascii=False))
                 db.dump_to_backup_file()
+                # Trigger live background sync so nodes and priorities across all users reflect changes immediately
+                try:
+                    threading.Thread(target=run_traffic_sync_cycle, daemon=True).start()
+                except Exception as te:
+                    logging.warning(f"Failed to spawn background sync after panel update: {te}")
                 return self.send_json(200, {
                     "success": True,
                     "panel": saved_panel,
@@ -1522,6 +1870,16 @@ class RequestHandler(BaseHTTPRequestHandler):
                     return self.send_json(400, {"error": "Invalid backup format. Expected key-value dictionary."})
                 db.import_from_dict(kv_data)
                 db.dump_to_backup_file()
+                # Also ensure all users in DB are synced to panels
+                try:
+                    for u_obj in db.get_all_users():
+                        u_pin = u_obj.get("pin")
+                        if u_pin:
+                            synced_u = sync_user_to_panels(u_obj)
+                            db.put(u_pin, json.dumps(synced_u, ensure_ascii=False))
+                except Exception as sync_all_err:
+                    logging.warning(f"Error syncing users across panels: {sync_all_err}")
+
                 threading.Thread(target=run_traffic_sync_cycle, daemon=True).start()
                 return self.send_json(200, {
                     "success": True,
@@ -1740,6 +2098,16 @@ class RequestHandler(BaseHTTPRequestHandler):
                     db.put("__CONFIG_PANELS__", json.dumps(panels, ensure_ascii=False))
                     db.dump_to_backup_file()
 
+                # Also ensure all users in DB are synced to panels
+                try:
+                    for u_obj in db.get_all_users():
+                        u_pin = u_obj.get("pin")
+                        if u_pin:
+                            synced_u = sync_user_to_panels(u_obj)
+                            db.put(u_pin, json.dumps(synced_u, ensure_ascii=False))
+                except Exception as sync_all_err:
+                    logging.warning(f"Error syncing users across panels: {sync_all_err}")
+
                 threading.Thread(target=run_traffic_sync_cycle, daemon=True).start()
                 return self.send_json(200, {
                     "success": True,
@@ -1895,21 +2263,35 @@ class RequestHandler(BaseHTTPRequestHandler):
                 })
 
             # Device lock check
-            max_dev = int(user.get("max_devices", 1) or 1)
-            devices = user.get("devices") or ([] if not user.get("device_id") else [user.get("device_id")])
+            raw_max = user.get("max_devices")
+            try:
+                max_dev = int(raw_max) if raw_max is not None and str(raw_max).strip() != "" else 1
+            except Exception:
+                max_dev = 1
+
+            devices = list(user.get("devices") or ([] if not user.get("device_id") else [user.get("device_id")]))
             if device_id:
-                if device_id not in devices:
-                    if len(devices) >= max_dev:
-                        return self.send_json(403, {
-                            "status": "device_locked",
-                            "message_fa": f"این اشتراک روی دستگاه دیگری فعال است (حداکثر {max_dev} دستگاه).",
-                            "support_phone": SUPPORT_PHONE,
-                            "support_telegram": SUPPORT_TELEGRAM
-                        })
-                    devices.append(device_id)
-                    user["devices"] = devices
-                    user["device_id"] = devices[0]
-                    db.put(pin, json.dumps(user, ensure_ascii=False))
+                if max_dev > 0:
+                    if device_id not in devices:
+                        if len(devices) >= max_dev:
+                            return self.send_json(403, {
+                                "status": "device_locked",
+                                "message_fa": f"این اشتراک روی دستگاه دیگری فعال است (حداکثر {max_dev} دستگاه).",
+                                "support_phone": SUPPORT_PHONE,
+                                "support_telegram": SUPPORT_TELEGRAM
+                            })
+                        devices.append(device_id)
+                        user["devices"] = devices
+                        user["device_id"] = devices[0]
+                        db.put(pin, json.dumps(user, ensure_ascii=False))
+                else:
+                    # Unlimited devices (max_dev <= 0)
+                    if device_id not in devices:
+                        devices.append(device_id)
+                        user["devices"] = devices
+                        if not user.get("device_id"):
+                            user["device_id"] = device_id
+                        db.put(pin, json.dumps(user, ensure_ascii=False))
 
             nodes = user.get("cached_nodes") or []
             if not nodes:
@@ -1932,14 +2314,50 @@ class RequestHandler(BaseHTTPRequestHandler):
                 if filtered_nodes:
                     nodes = filtered_nodes
 
-            # Strictly guarantee waterfall priority assignment and sorting
-            for n in nodes:
-                if not n.get("panel_priority"):
-                    server_h = (n.get("server") or "").lower()
-                    if "95.182.87.115" in server_h or "fastly" in (n.get("remark") or "").lower():
-                        n["panel_priority"] = 1
+            # Strictly guarantee waterfall priority assignment and sorting based on LIVE __CONFIG_PANELS__
+            panels_raw = db.get("__CONFIG_PANELS__")
+            try:
+                live_panels = json.loads(panels_raw) if panels_raw else DEFAULT_INITIAL_PANELS
+            except Exception:
+                live_panels = DEFAULT_INITIAL_PANELS
+
+            panel_prio_map = {}
+            panel_name_map = {}
+            for p in live_panels:
+                pid = p.get("id")
+                if pid:
+                    panel_prio_map[pid] = int(p.get("priority", 1))
+                    panel_name_map[pid] = p.get("name")
+
+            def get_node_live_info(n):
+                pid = n.get("panel_id")
+                raw_l = (n.get("raw_link") or "").lower()
+                srv = (n.get("server") or "").lower()
+                rem = (n.get("remark") or "").lower()
+                p_name = (n.get("panel_name") or "").lower()
+
+                if not pid or pid == "custom_panel" or pid not in panel_prio_map:
+                    if any(k in raw_l for k in ["bertly.top", "erfjab.com", "fadaei.top", "sudopen.org", "hyperlink"]) or "goguard" in p_name or "go guard" in p_name:
+                        pid = "panel_goguard_default"
+                    elif "95.182.87.115" in srv or "fastly" in rem or "3x" in p_name:
+                        pid = "panel_3xui_default"
+                    elif "94.183.166.44" in srv or "94.139.179.53" in srv or "farsistar" in raw_l or "apple" in p_name:
+                        pid = "panel_pasarguard_applemarket"
+                    elif "trafficfast" in raw_l or "darklink" in raw_l or "pasarguard" in p_name:
+                        pid = "panel_pasarguard_default"
                     else:
-                        n["panel_priority"] = 2
+                        pid = "panel_3xui_default"
+
+                prio = panel_prio_map.get(pid, int(n.get("panel_priority", 2)))
+                name = panel_name_map.get(pid, n.get("panel_name") or "سرور")
+                return pid, name, prio
+
+            for n in nodes:
+                pid, pname, prio = get_node_live_info(n)
+                n["panel_id"] = pid
+                n["panel_name"] = pname
+                n["panel_priority"] = prio
+
             nodes = sorted(nodes, key=lambda x: int(x.get("panel_priority", 1)))
             days_left = max(0, (user["expires_at"] - now) // 86400) if user.get("expires_at") else "نامحدود"
             remaining_bytes = user.get("traffic_remaining_bytes")

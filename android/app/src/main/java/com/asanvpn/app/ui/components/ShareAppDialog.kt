@@ -18,6 +18,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -39,6 +42,11 @@ fun ShareAppDialog(
     val context = LocalContext.current
     val colors = LuxuryTheme.colors
 
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+    val screenWidth = configuration.screenWidthDp.dp
+    val isSmallScreen = screenHeight < 680.dp || screenWidth <= 365.dp
+
     // Generate real, high-contrast, camera-friendly QR Code Bitmap via ZXing
     val qrBitmap: Bitmap? = remember(downloadUrl) {
         QrCodeGenerator.generate(downloadUrl, size = 640)
@@ -54,14 +62,20 @@ fun ShareAppDialog(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = screenHeight * 0.94f)
                 .padding(horizontal = 4.dp)
-                .luxuryCushion(shape = RoundedCornerShape(28.dp), elevation = 12.dp)
-                .padding(22.dp)
+                .luxuryCushion(
+                    shape = RoundedCornerShape(if (isSmallScreen) 22.dp else 28.dp),
+                    elevation = 12.dp
+                )
+                .padding(if (isSmallScreen) 12.dp else 22.dp)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(if (isSmallScreen) 10.dp else 16.dp)
             ) {
                 // Header with Close Button
                 Row(
@@ -71,7 +85,7 @@ fun ShareAppDialog(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(if (isSmallScreen) 32.dp else 36.dp)
                             .luxuryCushion(shape = CircleShape, elevation = 2.dp)
                             .clickable { onDismiss() },
                         contentAlignment = Alignment.Center
@@ -80,7 +94,7 @@ fun ShareAppDialog(
                             imageVector = Icons.Default.Close,
                             contentDescription = "بستن",
                             tint = colors.textSecondary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(if (isSmallScreen) 16.dp else 18.dp)
                         )
                     }
 
@@ -90,37 +104,37 @@ fun ShareAppDialog(
                     ) {
                         Text(
                             text = "اشتراک‌گذاری آسان وی‌پی‌ان",
-                            fontSize = 17.sp,
+                            fontSize = if (isSmallScreen) 14.sp else 17.sp,
                             fontWeight = FontWeight.Black,
                             color = colors.textPrimary,
                             textAlign = TextAlign.Center
                         )
                         Text(
                             text = "نسخه Universal (سازگار با همه گوشی‌ها)",
-                            fontSize = 11.5.sp,
+                            fontSize = if (isSmallScreen) 10.sp else 11.5.sp,
                             color = colors.textSecondary,
                             textAlign = TextAlign.Center
                         )
                     }
 
                     // Balance spacer
-                    Spacer(modifier = Modifier.size(36.dp))
+                    Spacer(modifier = Modifier.size(if (isSmallScreen) 32.dp else 36.dp))
                 }
 
                 // QR CODE CONTENT
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(if (isSmallScreen) 10.dp else 14.dp)
                 ) {
                     // High-contrast clean white plate for 100% reliable camera scanning
                     Box(
                         modifier = Modifier
-                            .size(220.dp)
-                            .clip(RoundedCornerShape(22.dp))
+                            .size(if (isSmallScreen) 160.dp else 220.dp)
+                            .clip(RoundedCornerShape(if (isSmallScreen) 16.dp else 22.dp))
                             .background(Color.White)
-                            .border(2.dp, Color(0xFFE2E8F0), RoundedCornerShape(22.dp))
-                            .padding(14.dp),
+                            .border(2.dp, Color(0xFFE2E8F0), RoundedCornerShape(if (isSmallScreen) 16.dp else 22.dp))
+                            .padding(if (isSmallScreen) 10.dp else 14.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         if (qrBitmap != null) {
