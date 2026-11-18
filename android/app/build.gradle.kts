@@ -12,8 +12,8 @@ android {
         applicationId = "com.asanvpn.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 30
-        versionName = "1.3.24"
+        versionCode = 37
+        versionName = "1.3.31"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

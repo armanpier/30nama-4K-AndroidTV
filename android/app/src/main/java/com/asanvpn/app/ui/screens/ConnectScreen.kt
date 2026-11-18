@@ -43,13 +43,16 @@ import androidx.compose.ui.unit.sp
 import com.asanvpn.app.data.PreferencesManager
 import com.asanvpn.app.data.VpnRepository
 import com.asanvpn.app.data.models.ConnectionState
+import com.asanvpn.app.data.models.VpnNode
 import com.asanvpn.app.ui.components.AppFilterDialog
+import com.asanvpn.app.ui.components.ServerSelectionDialog
 import com.asanvpn.app.ui.theme.*
 import com.asanvpn.app.util.AppLogger
 import kotlinx.coroutines.delay
 
 @Composable
 fun ConnectScreen(
+    userPin: String = "",
     userName: String,
     daysLeft: Int,
     trafficRemainingBytes: Long = 25L * 1024 * 1024 * 1024,
@@ -61,26 +64,32 @@ fun ConnectScreen(
     uploadTraffic: String = "۰ B",
     downloadSpeed: String = "",
     uploadSpeed: String = "",
-    appVersion: String = "1.3.16",
+    appVersion: String = "1.3.31",
     newVersionAvailable: String? = null,
     isDarkMode: Boolean = false,
+    availableNodes: List<VpnNode> = emptyList(),
+    isAutoServerMode: Boolean = true,
+    onToggleAutoServerMode: (Boolean) -> Unit = {},
+    onSelectServerNode: (VpnNode) -> Unit = {},
     onToggleTheme: () -> Unit = {},
     onToggleConnect: () -> Unit,
     onContactSupport: () -> Unit = {},
     onCheckUpdate: () -> Unit = {},
     onShareClick: () -> Unit = {},
-    onSaveAppFilter: (enabled: Boolean, whitelist: Set<String>, speedOptEnabled: Boolean, geminiOptEnabled: Boolean) -> Unit = { _, _, _, _ -> },
+    onSaveAppFilter: (enabled: Boolean, whitelist: Set<String>, speedOptEnabled: Boolean, geminiOptEnabled: Boolean, voiceCallOptEnabled: Boolean) -> Unit = { _, _, _, _, _ -> },
     onChangePin: () -> Unit
 ) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     var showDebugDialog by remember { mutableStateOf(false) }
     var showAppFilterDialog by remember { mutableStateOf(false) }
+    var showServerSelectDialog by remember { mutableStateOf(false) }
     var isAppFilterEnabled by remember { mutableStateOf(prefs.isAppFilterEnabled) }
     var appFilterWhitelist by remember { mutableStateOf(prefs.appFilterWhitelist) }
     var isSpeedOptimizationEnabled by remember { mutableStateOf(prefs.isSpeedOptimizationEnabled) }
     var isGeminiOptimizationEnabled by remember { mutableStateOf(prefs.isGeminiOptimizationEnabled) }
-    val isAppFilterActive = isAppFilterEnabled && appFilterWhitelist.isNotEmpty()
+    var isVoiceCallOptimizationEnabled by remember { mutableStateOf(prefs.isVoiceCallOptimizationEnabled) }
+    val isAppFilterActive = (isAppFilterEnabled && appFilterWhitelist.isNotEmpty()) || isSpeedOptimizationEnabled || isGeminiOptimizationEnabled || isVoiceCallOptimizationEnabled
     var showAdminAuthDialog by remember { mutableStateOf(false) }
     var adminPasswordInput by remember { mutableStateOf("") }
     var isAdminMode by remember { mutableStateOf(prefs.isAdmin) }
@@ -181,18 +190,40 @@ fun ConnectScreen(
         ConnectionState.CONNECTED -> colors.jadeGreen
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.backgroundBrush)
+            .navigationBarsPadding()
     ) {
+        val screenHeight = maxHeight
+        val screenWidth = maxWidth
+        val isSmallScreen = screenHeight < 680.dp || screenWidth <= 365.dp
+        val isMediumScreen = screenHeight < 780.dp
+
+        // Responsive dimensions tuned specifically for small 16:9 phones & large screens:
+        val orbTotalSize = when {
+            isSmallScreen -> 126.dp
+            isMediumScreen -> 160.dp
+            else -> 190.dp
+        }
+        val auraSize = orbTotalSize + 4.dp
+        val torusSize = orbTotalSize - 12.dp
+        val haloSize = torusSize - 20.dp
+        val capSize = haloSize - 20.dp
+        val powerIconSize = (capSize * 0.40f)
+
+        val headerBtnSize = if (isSmallScreen) 32.dp else if (isMediumScreen) 36.dp else 40.dp
+        val headerIconSize = if (isSmallScreen) 15.dp else if (isMediumScreen) 17.dp else 19.dp
+        val sectionSpacing = if (isSmallScreen) 4.dp else if (isMediumScreen) 6.dp else 8.dp
+        val orbVerticalSpacing = if (isSmallScreen) 5.dp else if (isMediumScreen) 8.dp else 12.dp
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = if (isSmallScreen) 10.dp else 14.dp, vertical = if (isSmallScreen) 4.dp else 8.dp)
                 .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // ==================== TOP NAVIGATION BAR ====================
             Column(
@@ -202,21 +233,21 @@ fun ConnectScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        .padding(top = if (isSmallScreen) 2.dp else 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (isSmallScreen) 4.dp else 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // 1. Info (i) Sculpted Pebble Button
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 4.dp)
+                            .size(headerBtnSize)
+                            .luxuryCushion(shape = RoundedCornerShape(14.dp), elevation = 3.dp)
                             .clickable { showDebugDialog = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(22.dp)
+                                .size(if (isSmallScreen) 18.dp else 22.dp)
                                 .clip(CircleShape)
                                 .background(
                                     if (colors.isDark) Color(0xFF334155) else Color(0xFF475569)
@@ -225,7 +256,7 @@ fun ConnectScreen(
                         ) {
                             Text(
                                 text = "i",
-                                fontSize = 11.5.sp,
+                                fontSize = if (isSmallScreen) 10.sp else 11.5.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color.White
                             )
@@ -235,8 +266,8 @@ fun ConnectScreen(
                     // 2. Gear (Settings & App Filter Whitelist) Sculpted Pebble Button
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 4.dp)
+                            .size(headerBtnSize)
+                            .luxuryCushion(shape = RoundedCornerShape(14.dp), elevation = 3.dp)
                             .clickable { showAppFilterDialog = true },
                         contentAlignment = Alignment.Center
                     ) {
@@ -245,12 +276,12 @@ fun ConnectScreen(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "فیلتر برنامه‌ها (App Filter)",
                                 tint = if (isAppFilterActive) colors.jadeGreen else colors.textSecondary,
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(headerIconSize)
                             )
                             if (isAppFilterActive) {
                                 Box(
                                     modifier = Modifier
-                                        .size(7.dp)
+                                        .size(6.dp)
                                         .offset(x = 2.dp, y = (-2).dp)
                                         .clip(CircleShape)
                                         .background(colors.jadeGreen)
@@ -262,8 +293,8 @@ fun ConnectScreen(
                     // 3. Luxury Theme Switcher (Light Porcelain <-> Dark Obsidian)
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 4.dp)
+                            .size(headerBtnSize)
+                            .luxuryCushion(shape = RoundedCornerShape(14.dp), elevation = 3.dp)
                             .clickable { onToggleTheme() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -271,15 +302,15 @@ fun ConnectScreen(
                             imageVector = if (colors.isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
                             contentDescription = if (colors.isDark) "حالت روز" else "حالت شب",
                             tint = if (colors.isDark) Color(0xFFFBBF24) else Color(0xFF6366F1),
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(headerIconSize)
                         )
                     }
 
                     // 4. QR Share Button
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 4.dp)
+                            .size(headerBtnSize)
+                            .luxuryCushion(shape = RoundedCornerShape(14.dp), elevation = 3.dp)
                             .clickable { onShareClick() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -287,7 +318,7 @@ fun ConnectScreen(
                             imageVector = Icons.Default.QrCode2,
                             contentDescription = "اشتراک‌گذاری با بارکد QR",
                             tint = colors.skyBlue,
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(headerIconSize)
                         )
                     }
 
@@ -295,8 +326,8 @@ fun ConnectScreen(
                     Row(
                         modifier = Modifier
                             .weight(1f)
-                            .height(40.dp)
-                            .luxuryCushion(shape = RoundedCornerShape(18.dp), elevation = 4.dp)
+                            .height(headerBtnSize)
+                            .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 3.dp)
                             .clickable { onCheckUpdate() }
                             .padding(horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -309,7 +340,7 @@ fun ConnectScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
+                                    .size(if (isSmallScreen) 20.dp else 24.dp)
                                     .clip(CircleShape)
                                     .background(
                                         Brush.radialGradient(
@@ -322,12 +353,12 @@ fun ConnectScreen(
                                     imageVector = Icons.Default.Person,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(if (isSmallScreen) 11.dp else 14.dp)
                                 )
                             }
                             Text(
                                 text = userName,
-                                fontSize = 11.5.sp,
+                                fontSize = if (isSmallScreen) 10.sp else 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = colors.textPrimary,
                                 maxLines = 1,
@@ -360,67 +391,177 @@ fun ConnectScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(sectionSpacing))
 
-                // ==================== DUAL SCULPTED 3D METRIC CUSHIONS ====================
+                // ==================== 1. FULL SUBSCRIPTION ID / CODE BAR ====================
+                val displayPin = if (userPin.isNotBlank()) userPin else (prefs.savedPin ?: "---")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .luxuryCushion(shape = RoundedCornerShape(14.dp), elevation = 3.dp)
+                        .padding(horizontal = if (isSmallScreen) 10.dp else 12.dp, vertical = if (isSmallScreen) 4.dp else 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Left actions: Copy & Share
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // Share button
+                            Box(
+                                modifier = Modifier
+                                    .size(if (isSmallScreen) 26.dp else 30.dp)
+                                    .luxuryWell(shape = RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        try {
+                                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                                putExtra(Intent.EXTRA_TEXT, "کد اشتراک من در آسان وی‌پی‌ان:\n$displayPin")
+                                                type = "text/plain"
+                                            }
+                                            val shareIntent = Intent.createChooser(sendIntent, "اشتراک‌گذاری کد اشتراک")
+                                            shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            context.startActivity(shareIntent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "خطا در اشتراک‌گذاری", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "اشتراک‌گذاری کد",
+                                    tint = colors.skyBlue,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            // Copy button
+                            Box(
+                                modifier = Modifier
+                                    .size(if (isSmallScreen) 26.dp else 30.dp)
+                                    .luxuryWell(shape = RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("AsanVPN PIN", displayPin))
+                                        Toast.makeText(context, "کد اشتراک کپی شد: $displayPin", Toast.LENGTH_SHORT).show()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "کپی کد اشتراک",
+                                    tint = colors.jadeGreen,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        // Right side: Label & Full Code
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = displayPin,
+                                fontSize = if (isSmallScreen) 12.5.sp else 13.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                color = colors.textPrimary,
+                                letterSpacing = 1.sp
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "کد اشتراک:",
+                                    fontSize = if (isSmallScreen) 10.sp else 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textSecondary
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.Key,
+                                    contentDescription = null,
+                                    tint = colors.amberWarning,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(sectionSpacing))
+
+                // ==================== 2. COMPACT DUAL METRIC CUSHIONS ====================
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(if (isSmallScreen) 6.dp else 8.dp)
                 ) {
                     // Right Card (In RTL): حجم اشتراک
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .luxuryCushion(shape = RoundedCornerShape(26.dp), elevation = 5.dp)
-                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                            .wrapContentHeight()
+                            .defaultMinSize(minHeight = if (isSmallScreen) 44.dp else 50.dp)
+                            .luxuryCushion(shape = RoundedCornerShape(14.dp), elevation = 3.dp)
+                            .padding(horizontal = if (isSmallScreen) 8.dp else 10.dp, vertical = if (isSmallScreen) 4.dp else 6.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.Start,
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.weight(1f).padding(end = 5.dp)
                             ) {
                                 Text(
                                     text = "حجم اشتراک",
-                                    fontSize = 11.5.sp,
+                                    fontSize = if (isSmallScreen) 9.sp else 10.sp,
+                                    lineHeight = if (isSmallScreen) 11.sp else 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textSecondary
                                 )
-                                Box(
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .luxuryWell(shape = RoundedCornerShape(12.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Canvas(modifier = Modifier.size(18.dp)) {
-                                        drawCircle(
-                                            color = colors.jadeGreen.copy(alpha = 0.22f),
-                                            radius = size.minDimension / 2,
-                                            style = Stroke(width = 3.dp.toPx())
-                                        )
-                                        drawArc(
-                                            color = if (isExhaustedRemaining) colors.coralRed else colors.jadeGreen,
-                                            startAngle = -90f,
-                                            sweepAngle = if (isTrafficUnlimited) 360f else 280f,
-                                            useCenter = false,
-                                            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-                                        )
-                                    }
+                                Text(
+                                    text = if (isTrafficUnlimited) "نامحدود" else formatTrafficRemaining(trafficRemainingBytes),
+                                    fontSize = if (isSmallScreen) 13.sp else 14.5.sp,
+                                    lineHeight = if (isSmallScreen) 16.sp else 18.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = when {
+                                        isExhaustedRemaining -> colors.coralRed
+                                        isLowRemaining -> colors.amberWarning
+                                        else -> colors.textPrimary
+                                    },
+                                    maxLines = 1
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(if (isSmallScreen) 26.dp else 32.dp)
+                                    .luxuryWell(shape = RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Canvas(modifier = Modifier.size(if (isSmallScreen) 15.dp else 18.dp)) {
+                                    drawCircle(
+                                        color = colors.jadeGreen.copy(alpha = 0.22f),
+                                        radius = size.minDimension / 2,
+                                        style = Stroke(width = 2.4.dp.toPx())
+                                    )
+                                    drawArc(
+                                        color = if (isExhaustedRemaining) colors.coralRed else colors.jadeGreen,
+                                        startAngle = -90f,
+                                        sweepAngle = if (isTrafficUnlimited) 360f else 280f,
+                                        useCenter = false,
+                                        style = Stroke(width = 2.4.dp.toPx(), cap = StrokeCap.Round)
+                                    )
                                 }
                             }
-                            Text(
-                                text = if (isTrafficUnlimited) "نامحدود" else formatTrafficRemaining(trafficRemainingBytes),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = when {
-                                    isExhaustedRemaining -> colors.coralRed
-                                    isLowRemaining -> colors.amberWarning
-                                    else -> colors.textPrimary
-                                }
-                            )
                         }
                     }
 
@@ -431,48 +572,55 @@ fun ConnectScreen(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .luxuryCushion(shape = RoundedCornerShape(26.dp), elevation = 5.dp)
-                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                            .wrapContentHeight()
+                            .defaultMinSize(minHeight = if (isSmallScreen) 44.dp else 50.dp)
+                            .luxuryCushion(shape = RoundedCornerShape(14.dp), elevation = 3.dp)
+                            .padding(horizontal = if (isSmallScreen) 8.dp else 10.dp, vertical = if (isSmallScreen) 4.dp else 6.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.Start,
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.weight(1f).padding(end = 5.dp)
                             ) {
                                 Text(
                                     text = "اعتبار زمانی",
-                                    fontSize = 11.5.sp,
+                                    fontSize = if (isSmallScreen) 9.sp else 10.sp,
+                                    lineHeight = if (isSmallScreen) 11.sp else 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textSecondary
                                 )
-                                Box(
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .luxuryWell(shape = RoundedCornerShape(12.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Schedule,
-                                        contentDescription = null,
-                                        tint = if (isCriticalDays) colors.coralRed else colors.skyBlue,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                                Text(
+                                    text = when {
+                                        isUnlimitedDays -> "نامحدود"
+                                        daysLeft == 0 -> "پایان امروز"
+                                        else -> "$daysLeft روز"
+                                    },
+                                    fontSize = if (isSmallScreen) 13.sp else 14.5.sp,
+                                    lineHeight = if (isSmallScreen) 16.sp else 18.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (isCriticalDays) colors.coralRed else colors.textPrimary,
+                                    maxLines = 1
+                                )
                             }
-                            Text(
-                                text = when {
-                                    isUnlimitedDays -> "نامحدود"
-                                    daysLeft == 0 -> "پایان امروز"
-                                    else -> "$daysLeft روز"
-                                },
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = if (isCriticalDays) colors.coralRed else colors.textPrimary
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(if (isSmallScreen) 26.dp else 32.dp)
+                                    .luxuryWell(shape = RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    tint = if (isCriticalDays) colors.coralRed else colors.skyBlue,
+                                    modifier = Modifier.size(if (isSmallScreen) 15.dp else 18.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -538,14 +686,15 @@ fun ConnectScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(sectionSpacing))
 
-                // ==================== SERVER SELECTOR 3D SCULPTED CARD ====================
+                // ==================== 3. SERVER SELECTOR CARD WITH AUTO SWITCH ====================
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .luxuryCushion(shape = RoundedCornerShape(26.dp), elevation = 5.dp)
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                        .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 3.dp)
+                        .clickable { showServerSelectDialog = true }
+                        .padding(horizontal = if (isSmallScreen) 10.dp else 12.dp, vertical = if (isSmallScreen) 6.dp else 8.dp)
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Row(
@@ -553,101 +702,156 @@ fun ConnectScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Ping Badge on Left
-                            Box(
-                                modifier = Modifier
-                                    .luxuryWell(shape = RoundedCornerShape(16.dp))
-                                    .padding(horizontal = 12.dp, vertical = 7.dp)
+                            // Ping Badge & Dropdown Chevron on Left
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .luxuryWell(shape = RoundedCornerShape(12.dp))
+                                        .padding(horizontal = if (isSmallScreen) 6.dp else 8.dp, vertical = if (isSmallScreen) 3.dp else 5.dp)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isConnected) colors.jadeGreen else colors.textMuted)
-                                    )
-                                    Text(
-                                        text = "$serverPing ms",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = if (isConnected) colors.jadeGreen else colors.textSecondary
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(7.dp)
+                                                .clip(CircleShape)
+                                                .background(if (isConnected) colors.jadeGreen else colors.textMuted)
+                                        )
+                                        Text(
+                                            text = "$serverPing ms",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = if (isConnected) colors.jadeGreen else colors.textSecondary
+                                        )
+                                    }
+                                }
+
+                                // Dropdown chevron indicator
+                                Box(
+                                    modifier = Modifier
+                                        .size(if (isSmallScreen) 22.dp else 26.dp)
+                                        .luxuryWell(shape = CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ExpandMore,
+                                        contentDescription = "لیست سرورها",
+                                        tint = colors.textSecondary,
+                                        modifier = Modifier.size(if (isSmallScreen) 14.dp else 17.dp)
                                     )
                                 }
                             }
 
-                            // Server Name & Stats on Right
+                            // Server Remark on Right
                             Column(
                                 horizontalAlignment = Alignment.End,
                                 modifier = Modifier.weight(1f).padding(start = 10.dp)
                             ) {
                                 Text(
                                     text = serverRemark,
-                                    fontSize = 13.5.sp,
+                                    fontSize = if (isSmallScreen) 11.sp else 12.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = colors.textPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     textAlign = TextAlign.Right
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(3.dp))
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                                 ) {
-                                    // Days remaining
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.HourglassBottom,
-                                            contentDescription = null,
-                                            tint = colors.amberWarning,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                        Text(
-                                            text = if (daysLeft >= 0) "${daysLeft}D" else "∞",
-                                            fontSize = 11.5.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = colors.textPrimary
-                                        )
-                                    }
-                                    Text(text = "|", fontSize = 11.sp, color = colors.textMuted.copy(alpha = 0.5f))
-                                    // Quota remaining
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.SignalCellularAlt,
-                                            contentDescription = null,
-                                            tint = colors.jadeGreen,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                        Text(
-                                            text = if (trafficRemainingBytes >= 0) formatTrafficRemaining(trafficRemainingBytes) else "∞",
-                                            fontSize = 11.5.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = colors.textPrimary
-                                        )
-                                    }
+                                    Text(
+                                        text = if (isAutoServerMode) "انتخاب هوشمند فعال" else "انتخاب دستی",
+                                        fontSize = if (isSmallScreen) 9.sp else 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isAutoServerMode) colors.jadeGreen else colors.amberWarning
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isAutoServerMode) colors.jadeGreen else colors.amberWarning)
+                                    )
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "انتخاب هوشمند بهترین سرور با پینگ پایین",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = colors.textSecondary,
-                            textAlign = TextAlign.Right,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Spacer(modifier = Modifier.height(if (isSmallScreen) 3.dp else 6.dp))
+
+                        // Bottom row: Auto switch & sleek server count chip (never wraps!)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Auto Mode Switch Chip
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(if (isSmallScreen) 4.dp else 6.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(
+                                        if (isAutoServerMode) colors.jadeGreen.copy(alpha = 0.12f)
+                                        else colors.textMuted.copy(alpha = 0.1f)
+                                    )
+                                    .clickable {
+                                        onToggleAutoServerMode(!isAutoServerMode)
+                                    }
+                                    .padding(horizontal = if (isSmallScreen) 6.dp else 8.dp, vertical = if (isSmallScreen) 2.dp else 4.dp)
+                            ) {
+                                Switch(
+                                    checked = isAutoServerMode,
+                                    onCheckedChange = { onToggleAutoServerMode(it) },
+                                    modifier = Modifier.scale(if (isSmallScreen) 0.58f else 0.70f),
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = colors.jadeGreen,
+                                        uncheckedThumbColor = Color.White,
+                                        uncheckedTrackColor = colors.textMuted.copy(alpha = 0.4f)
+                                    )
+                                )
+                                Text(
+                                    text = if (isAutoServerMode) "حالت خودکار" else "حالت دستی",
+                                    fontSize = if (isSmallScreen) 9.sp else 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isAutoServerMode) colors.jadeGreen else colors.textSecondary
+                                )
+                            }
+
+                            // Compact Server List Chip
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (colors.isDark) Color(0x22FFFFFF) else Color(0x12000000))
+                                    .padding(horizontal = if (isSmallScreen) 6.dp else 8.dp, vertical = if (isSmallScreen) 3.dp else 4.dp)
+                            ) {
+                                Text(
+                                    text = "${availableNodes.size.coerceAtLeast(1)} سرور",
+                                    fontSize = if (isSmallScreen) 9.sp else 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textSecondary
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.SwapVert,
+                                    contentDescription = "تغییر سرور",
+                                    tint = colors.textSecondary,
+                                    modifier = Modifier.size(if (isSmallScreen) 12.dp else 14.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(orbVerticalSpacing))
 
             // ==================== CENTERPIECE: 3D POWER ORB ====================
             Column(
@@ -656,7 +860,7 @@ fun ConnectScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(228.dp)
+                        .size(orbTotalSize)
                         .clip(CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -669,7 +873,7 @@ fun ConnectScreen(
                     // 1. Breathing Subsurface Aura
                     Box(
                         modifier = Modifier
-                            .size(232.dp)
+                            .size(auraSize)
                             .scale(if (isConnecting) pulseScale else if (isConnected) 1.02f else 1f)
                             .clip(CircleShape)
                             .background(
@@ -689,7 +893,7 @@ fun ConnectScreen(
                     // 2. Outer Smooth Torus Cushion Ring
                     Box(
                         modifier = Modifier
-                            .size(214.dp)
+                            .size(torusSize)
                             .shadow(
                                 elevation = if (isConnected) 12.dp else 8.dp,
                                 shape = CircleShape,
@@ -737,7 +941,7 @@ fun ConnectScreen(
 
                         Box(
                             modifier = Modifier
-                                .size(184.dp)
+                                .size(haloSize)
                                 .clip(CircleShape)
                                 .background(channelGradient)
                                 .border(
@@ -751,7 +955,7 @@ fun ConnectScreen(
                             if (isConnected || isConnecting) {
                                 Box(
                                     modifier = Modifier
-                                        .size(184.dp)
+                                        .size(haloSize)
                                         .rotate(silkSheenRotation)
                                         .background(
                                             Brush.sweepGradient(
@@ -777,7 +981,7 @@ fun ConnectScreen(
 
                             Box(
                                 modifier = Modifier
-                                    .size(152.dp)
+                                    .size(capSize)
                                     .shadow(
                                         elevation = 8.dp,
                                         shape = CircleShape,
@@ -801,7 +1005,7 @@ fun ConnectScreen(
                                     modifier = Modifier
                                         .align(Alignment.TopCenter)
                                         .padding(top = 6.dp)
-                                        .size(width = 96.dp, height = 38.dp)
+                                        .size(width = capSize * 0.62f, height = capSize * 0.25f)
                                         .clip(CircleShape)
                                         .background(colors.domeGlossBrush)
                                 )
@@ -815,19 +1019,19 @@ fun ConnectScreen(
                                         isConnecting -> colors.amberWarning
                                         else -> if (colors.isDark) Color(0xFF64748B) else Color(0xFF94A3B8)
                                     },
-                                    modifier = Modifier.size(56.dp)
+                                    modifier = Modifier.size(powerIconSize)
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(if (isSmallScreen) 4.dp else 8.dp))
 
                 // Status Title & Subtitle
                 Text(
                     text = statusBadgeText,
-                    fontSize = 20.sp,
+                    fontSize = if (isSmallScreen) 14.5.sp else 17.5.sp,
                     fontWeight = FontWeight.Black,
                     color = statusTitleColor,
                     textAlign = TextAlign.Center
@@ -836,28 +1040,29 @@ fun ConnectScreen(
                 Spacer(modifier = Modifier.height(3.dp))
 
                 Text(
-                    text = statusSubText,
-                    fontSize = 11.5.sp,
+                    text = if (isSmallScreen && !isConnected && !isConnecting) "جهت برقراری اتصال دکمه را لمس کنید" else statusSubText,
+                    fontSize = if (isSmallScreen) 9.sp else 10.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textSecondary,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
                 )
 
                 // Floating Duration Pill
                 AnimatedVisibility(visible = isConnected) {
                     Box(
                         modifier = Modifier
-                            .padding(top = 10.dp)
-                            .luxuryWell(shape = RoundedCornerShape(20.dp))
-                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                            .padding(top = if (isSmallScreen) 3.dp else 6.dp)
+                            .luxuryWell(shape = RoundedCornerShape(14.dp))
+                            .padding(horizontal = if (isSmallScreen) 10.dp else 12.dp, vertical = if (isSmallScreen) 3.dp else 4.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
                                 text = "مدت اتصال: ${formatDuration(connectedSeconds)}",
-                                fontSize = 12.sp,
+                                fontSize = if (isSmallScreen) 10.5.sp else 11.5.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = colors.textPrimary
                             )
@@ -882,60 +1087,15 @@ fun ConnectScreen(
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(if (isSmallScreen) 4.dp else 8.dp))
 
-            // ==================== BOTTOM SECTION ====================
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // 1. Direct Iranian Routing Pill
+                // ==================== LIVE TRAFFIC CAPSULE (Directly under timer) ====================
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .luxuryCushion(shape = RoundedCornerShape(22.dp), elevation = 4.dp)
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "بانک‌ها و سایت‌های ایرانی مستقیم باز می‌شوند",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = colors.textPrimary,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        // Glossy 3D Iranian Flag Pebble
-                        Box(
-                            modifier = Modifier
-                                .size(width = 24.dp, height = 15.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .border(0.5.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                        ) {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                Box(modifier = Modifier.weight(1f).fillMaxWidth().background(IranFlagGreen))
-                                Box(modifier = Modifier.weight(1f).fillMaxWidth().background(IranFlagWhite), contentAlignment = Alignment.Center) {
-                                    Box(modifier = Modifier.size(3.dp).clip(CircleShape).background(IranFlagRed))
-                                }
-                                Box(modifier = Modifier.weight(1f).fillMaxWidth().background(IranFlagRed))
-                            }
-                        }
-                    }
-                }
-
-                // 2. Unified 3D Traffic Capsule (In / Out)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .luxuryCushion(shape = RoundedCornerShape(26.dp), elevation = 5.dp)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .luxuryCushion(shape = RoundedCornerShape(14.dp), elevation = 3.dp)
+                        .padding(horizontal = if (isSmallScreen) 12.dp else 14.dp, vertical = if (isSmallScreen) 4.dp else 7.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -949,7 +1109,7 @@ fun ConnectScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(38.dp)
+                                    .size(if (isSmallScreen) 24.dp else 30.dp)
                                     .luxuryWell(shape = CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -957,20 +1117,20 @@ fun ConnectScreen(
                                     imageVector = Icons.Default.ArrowDownward,
                                     contentDescription = "دریافت",
                                     tint = colors.skyBlue,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(if (isSmallScreen) 13.dp else 16.dp)
                                 )
                             }
                             Column {
                                 Text(
                                     text = "دریافت (In)",
-                                    fontSize = 11.sp,
+                                    fontSize = if (isSmallScreen) 8.5.sp else 9.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textSecondary
                                 )
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = downloadTraffic,
-                                        fontSize = 13.5.sp,
+                                        fontSize = if (isSmallScreen) 11.5.sp else 12.5.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = colors.textPrimary
                                     )
@@ -978,7 +1138,7 @@ fun ConnectScreen(
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
                                             text = downloadSpeed,
-                                            fontSize = 10.sp,
+                                            fontSize = 9.5.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = colors.skyBlue
                                         )
@@ -990,7 +1150,7 @@ fun ConnectScreen(
                         // Soft Vertical Divider
                         Box(
                             modifier = Modifier
-                                .height(32.dp)
+                                .height(if (isSmallScreen) 18.dp else 24.dp)
                                 .width(1.dp)
                                 .background(colors.dividerSoft)
                         )
@@ -1002,7 +1162,7 @@ fun ConnectScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(38.dp)
+                                    .size(if (isSmallScreen) 24.dp else 30.dp)
                                     .luxuryWell(shape = CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -1010,20 +1170,20 @@ fun ConnectScreen(
                                     imageVector = Icons.Default.ArrowUpward,
                                     contentDescription = "ارسال",
                                     tint = colors.jadeGreen,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(if (isSmallScreen) 13.dp else 16.dp)
                                 )
                             }
                             Column {
                                 Text(
                                     text = "ارسال (Out)",
-                                    fontSize = 11.sp,
+                                    fontSize = if (isSmallScreen) 8.5.sp else 9.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textSecondary
                                 )
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = uploadTraffic,
-                                        fontSize = 13.5.sp,
+                                        fontSize = if (isSmallScreen) 11.5.sp else 12.5.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = colors.textPrimary
                                     )
@@ -1031,7 +1191,7 @@ fun ConnectScreen(
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
                                             text = uploadSpeed,
-                                            fontSize = 10.sp,
+                                            fontSize = 9.5.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = colors.jadeGreen
                                         )
@@ -1041,63 +1201,154 @@ fun ConnectScreen(
                         }
                     }
                 }
+            }
 
-                // 3. Bottom CTA: Coral Pearl Sculpted Pill
+            Spacer(modifier = Modifier.height(if (isSmallScreen) 4.dp else 8.dp))
+
+            // ==================== BOTTOM SECTION ====================
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(if (isSmallScreen) 4.dp else 6.dp)
+            ) {
+                // 1. Direct Iranian Routing Pill
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
-                        .shadow(
-                            elevation = 4.dp,
-                            shape = RoundedCornerShape(24.dp),
-                            ambientColor = colors.coralRed.copy(alpha = 0.2f),
-                            spotColor = colors.coralRed.copy(alpha = 0.2f)
-                        )
-                        .background(colors.coralCtaBrush, RoundedCornerShape(24.dp))
-                        .border(1.dp, colors.coralCtaBorder, RoundedCornerShape(24.dp))
-                        .clickable {
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/asan_vpn_p_bot"))
-                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "تلگرام یافت نشد: t.me/asan_vpn_p_bot", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                    contentAlignment = Alignment.Center
+                        .luxuryCushion(shape = RoundedCornerShape(14.dp), elevation = 2.dp)
+                        .padding(horizontal = if (isSmallScreen) 10.dp else 12.dp, vertical = if (isSmallScreen) 4.dp else 6.dp)
                 ) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.ShoppingCart,
-                            contentDescription = null,
-                            tint = colors.coralCtaText,
-                            modifier = Modifier.size(18.dp)
+                        Text(
+                            text = "بانک‌ها و سایت‌های ایرانی مستقیم باز می‌شوند",
+                            fontSize = if (isSmallScreen) 9.5.sp else 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = colors.textPrimary,
+                            textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "خرید یا تمدید اشتراک در تلگرام",
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = colors.coralCtaText
-                        )
+                        // Glossy 3D Iranian Flag Pebble
+                        Box(
+                            modifier = Modifier
+                                .size(width = if (isSmallScreen) 20.dp else 24.dp, height = if (isSmallScreen) 12.dp else 15.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .border(0.5.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(3.dp))
+                        ) {
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                Box(modifier = Modifier.weight(1f).fillMaxWidth().background(IranFlagGreen))
+                                Box(modifier = Modifier.weight(1f).fillMaxWidth().background(IranFlagWhite), contentAlignment = Alignment.Center) {
+                                    Box(modifier = Modifier.size(3.dp).clip(CircleShape).background(IranFlagRed))
+                                }
+                                Box(modifier = Modifier.weight(1f).fillMaxWidth().background(IranFlagRed))
+                            }
+                        }
                     }
                 }
 
-                // 4. Switch PIN & Footer Version
+                // 2. Dual Action Row: Support Bot & Purchase Bot
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(if (isSmallScreen) 6.dp else 8.dp)
+                ) {
+                    // Button 1: ارتباط با پشتیبانی (Support Bot)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(if (isSmallScreen) 34.dp else 40.dp)
+                            .luxuryCushion(shape = RoundedCornerShape(14.dp), elevation = 3.dp)
+                            .clickable {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/Asanvpnsupport_bot"))
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "تلگرام یافت نشد: t.me/Asanvpnsupport_bot", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SupportAgent,
+                                contentDescription = null,
+                                tint = colors.skyBlue,
+                                modifier = Modifier.size(if (isSmallScreen) 14.dp else 17.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "ارتباط با پشتیبانی",
+                                fontSize = if (isSmallScreen) 9.5.sp else 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = colors.textPrimary
+                            )
+                        }
+                    }
+
+                    // Button 2: خرید یا تمدید (Purchase / Renewal Bot)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(if (isSmallScreen) 34.dp else 40.dp)
+                            .shadow(
+                                elevation = 4.dp,
+                                shape = RoundedCornerShape(18.dp),
+                                ambientColor = colors.coralRed.copy(alpha = 0.2f),
+                                spotColor = colors.coralRed.copy(alpha = 0.2f)
+                            )
+                            .background(colors.coralCtaBrush, RoundedCornerShape(18.dp))
+                            .border(1.dp, colors.coralCtaBorder, RoundedCornerShape(18.dp))
+                            .clickable {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/asan_vpn_p_bot"))
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "تلگرام یافت نشد: t.me/asan_vpn_p_bot", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ShoppingCart,
+                                contentDescription = null,
+                                tint = colors.coralCtaText,
+                                modifier = Modifier.size(if (isSmallScreen) 13.dp else 16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "خرید یا تمدید",
+                                fontSize = if (isSmallScreen) 9.5.sp else 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = colors.coralCtaText
+                            )
+                        }
+                    }
+                }
+
+                // 3. Switch PIN & Footer Version
                 TextButton(
                     onClick = onChangePin,
-                    modifier = Modifier.padding(top = 2.dp)
+                    modifier = Modifier.padding(top = 0.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         Text(
                             text = "ورود با کد اشتراک دیگر",
-                            fontSize = 12.sp,
+                            fontSize = if (isSmallScreen) 9.5.sp else 11.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = colors.textSecondary
                         )
@@ -1112,12 +1363,30 @@ fun ConnectScreen(
 
                 Text(
                     text = "نسخه $appVersion • سامانه ابری آسان وی‌پی‌ان",
-                    fontSize = 10.sp,
+                    fontSize = if (isSmallScreen) 8.5.sp else 9.5.sp,
                     fontWeight = FontWeight.Medium,
                     color = colors.textMuted
                 )
             }
         }
+    }
+
+    // Server Selection Dialog (for choosing from 200+ links with search and Auto mode toggle)
+    if (showServerSelectDialog) {
+        ServerSelectionDialog(
+            availableNodes = availableNodes,
+            currentSelectedRemark = serverRemark,
+            isAutoServerMode = isAutoServerMode,
+            onDismiss = { showServerSelectDialog = false },
+            onSelectAuto = {
+                onToggleAutoServerMode(true)
+                showServerSelectDialog = false
+            },
+            onSelectNode = { selectedNode ->
+                onSelectServerNode(selectedNode)
+                showServerSelectDialog = false
+            }
+        )
     }
 
     // Debug Report Dialog
@@ -1175,14 +1444,16 @@ fun ConnectScreen(
             initialWhitelist = appFilterWhitelist,
             initialSpeedOptEnabled = isSpeedOptimizationEnabled,
             initialGeminiOptEnabled = isGeminiOptimizationEnabled,
+            initialVoiceCallOptEnabled = isVoiceCallOptimizationEnabled,
             isVpnConnected = isConnected,
             onDismiss = { showAppFilterDialog = false },
-            onSave = { enabled, whitelist, speedOpt, geminiOpt ->
+            onSave = { enabled, whitelist, speedOpt, geminiOpt, voiceCallOpt ->
                 isAppFilterEnabled = enabled
                 appFilterWhitelist = whitelist
                 isSpeedOptimizationEnabled = speedOpt
                 isGeminiOptimizationEnabled = geminiOpt
-                onSaveAppFilter(enabled, whitelist, speedOpt, geminiOpt)
+                isVoiceCallOptimizationEnabled = voiceCallOpt
+                onSaveAppFilter(enabled, whitelist, speedOpt, geminiOpt, voiceCallOpt)
             }
         )
     }

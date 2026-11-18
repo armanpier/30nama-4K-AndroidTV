@@ -118,7 +118,7 @@ class AsanVpnService : VpnService() {
         try {
             val builder = Builder()
                 .setSession("آسان وی‌پی‌ان")
-                .setMtu(1500)
+                .setMtu(1400)
                 .addAddress("172.19.0.1", 30)
                 .addDnsServer("1.1.1.1")
                 .addDnsServer("8.8.8.8")
@@ -304,6 +304,7 @@ class AsanVpnService : VpnService() {
                                             allNodes = cachedNodes,
                                             currentNodeRemark = currentRemark,
                                             isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
+                                            isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
                                             onStatusLog = { msg -> AppLogger.logUser(msg) }
                                         )
 

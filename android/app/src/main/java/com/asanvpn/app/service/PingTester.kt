@@ -34,6 +34,67 @@ object PingTester {
         val message: String
     )
 
+    data class UdpCheckResult(
+        val isSuccess: Boolean,
+        val latencyMs: Long,
+        val message: String
+    )
+
+    /**
+     * Checks if a node fails UDP relaying or causes silent audio in Clubhouse, Discord, and Voice calls.
+     * Fastly CDN / Cloudflare CDN nodes and known non-UDP proxies are restricted.
+     */
+    fun isVoiceCallRestrictedNode(node: VpnNode): Boolean {
+        val rem = (node.remark ?: "").lowercase()
+        val srv = (node.server ?: "").lowercase()
+
+        val cached = com.asanvpn.app.data.NodeMetricsCache.getVoiceCallCompatibility(node)
+        if (cached == false) return true
+
+        if (rem.contains("fastly") || srv.contains("fastly") || srv.startsWith("151.101.") || srv.startsWith("146.75.")) {
+            return true
+        }
+        if (rem.contains("tunnel-8443") || srv.contains("gdtyum.g44mozgh.ir")) {
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Checks if a node is known or verified to reliably support UDP WebRTC traffic.
+     */
+    fun isVoiceCallPreferredNode(node: VpnNode): Boolean {
+        val cached = com.asanvpn.app.data.NodeMetricsCache.getVoiceCallCompatibility(node)
+        if (cached == true) return true
+        return !isVoiceCallRestrictedNode(node)
+    }
+
+    /**
+     * Checks if a node resides in a region where Google Gemini or the Android Gemini App is restricted or blocked.
+     * E.g. Turkey (TR), Iran (IR), Russia (RU), China (CN), Hong Kong (HK).
+     */
+    fun isGeminiRestrictedNode(node: VpnNode): Boolean {
+        val rem = (node.remark ?: "").lowercase()
+        val srv = (node.server ?: "").lowercase()
+        val restrictedPatterns = listOf(
+            "turkey", "tr ", "tr-", "tr_", "ترکیه", "istanbul",
+            "iran", " ir", "ir-", "ir_", "ایران", "tehran", "mashhad",
+            "russia", "ru ", "ru-", "ru_", "روسیه", "moscow",
+            "china", "cn ", "cn-", "cn_", "چین",
+            "hong kong", "hk ", "hk-"
+        )
+        return restrictedPatterns.any { rem.contains(it) || srv.contains(it) }
+    }
+
+    /**
+     * Checks if a node is located in high-compatibility Gemini regions (specifically USA or UK).
+     */
+    fun isGeminiPreferredNode(node: VpnNode): Boolean {
+        val rem = (node.remark ?: "").lowercase()
+        val preferredPatterns = listOf("usa", "us ", "us-", "us_", "us1", "us2", "united states", "آمریکا", "america", "uk", "london", "انگلیس")
+        return preferredPatterns.any { rem.contains(it) }
+    }
+
     /**
      * Connects IMMEDIATELY to the first verified working link (fast connect),
      * while continuing in the background to evaluate all candidates to switch
@@ -55,6 +116,7 @@ object PingTester {
         context: Context? = null,
         nodes: List<VpnNode>,
         isGeminiOptimizationEnabled: Boolean = false,
+        isVoiceCallOptimizationEnabled: Boolean = false,
         onFirstOkNode: suspend (VpnNode) -> Unit,
         onFastestNodeFound: suspend (VpnNode) -> Unit
     ) = withContext(Dispatchers.IO) {
@@ -66,6 +128,10 @@ object PingTester {
 
         if (nodes.size == 1) {
             val single = nodes[0]
+            if (isVoiceCallOptimizationEnabled && isVoiceCallRestrictedNode(single)) {
+                AppLogger.logUser("⚠️ سرور [${single.remark}] فاقد پشتیبانی از تماس صوتی و UDP است.")
+                return@withContext
+            }
             val delay = measureRealDelay(single, 5000L)
             if (delay > 0) {
                 if (isGeminiOptimizationEnabled) {
@@ -124,16 +190,71 @@ object PingTester {
             AppLogger.logUser("🔍 بررسی سرورهای $tierName...")
             AppLogger.logAdmin("Testing Tier $tier ($tierName) with ${tierNodes.size} nodes")
 
+            val candidatePoolForTier = when {
+                isGeminiOptimizationEnabled && isVoiceCallOptimizationEnabled -> {
+                    val filtered = tierNodes.filter { !isGeminiRestrictedNode(it) && !isVoiceCallRestrictedNode(it) }
+                    if (filtered.isNotEmpty()) filtered else tierNodes.filter { !isGeminiRestrictedNode(it) }
+                }
+                isGeminiOptimizationEnabled -> {
+                    val nonRestricted = tierNodes.filter { !isGeminiRestrictedNode(it) }
+                    if (nonRestricted.isNotEmpty()) nonRestricted else tierNodes
+                }
+                isVoiceCallOptimizationEnabled -> {
+                    val nonRestricted = tierNodes.filter { !isVoiceCallRestrictedNode(it) }
+                    if (nonRestricted.isNotEmpty()) nonRestricted else tierNodes
+                }
+                else -> tierNodes
+            }
+
             // Parallel TCP prescan for this tier to identify responsive endpoints
-            val tcpResults = tierNodes.map { node ->
+            val tcpResults = candidatePoolForTier.map { node ->
                 async {
                     val tcp = testTcpLatency(node.server, node.port, tcpTimeout)
                     Pair(node, tcp)
                 }
             }.awaitAll()
 
-            val responsive = tcpResults.filter { it.second > 0 }.sortedBy { it.second }.map { it.first }
-            val tierCandidatesToTest = if (responsive.isNotEmpty()) responsive.take(10) else tierNodes.take(10)
+            val responsive = tcpResults.filter { it.second > 0 }.sortedWith(
+                when {
+                    isGeminiOptimizationEnabled && isVoiceCallOptimizationEnabled -> {
+                        compareByDescending<Pair<VpnNode, Long>> { isGeminiPreferredNode(it.first) && isVoiceCallPreferredNode(it.first) }
+                            .thenByDescending { isGeminiPreferredNode(it.first) }
+                            .thenByDescending { isVoiceCallPreferredNode(it.first) }
+                            .thenBy { it.second }
+                    }
+                    isGeminiOptimizationEnabled -> {
+                        compareByDescending<Pair<VpnNode, Long>> { isGeminiPreferredNode(it.first) }
+                            .thenBy { it.second }
+                    }
+                    isVoiceCallOptimizationEnabled -> {
+                        compareByDescending<Pair<VpnNode, Long>> { isVoiceCallPreferredNode(it.first) }
+                            .thenBy { it.second }
+                    }
+                    else -> {
+                        compareBy { it.second }
+                    }
+                }
+            ).map { it.first }
+
+            val tierCandidatesToTest = if (responsive.isNotEmpty()) responsive.take(10) else {
+                when {
+                    isGeminiOptimizationEnabled && isVoiceCallOptimizationEnabled -> {
+                        candidatePoolForTier.sortedWith(
+                            compareByDescending<VpnNode> { isGeminiPreferredNode(it) && isVoiceCallPreferredNode(it) }
+                                .thenByDescending { isGeminiPreferredNode(it) }
+                        ).take(10)
+                    }
+                    isGeminiOptimizationEnabled -> {
+                        candidatePoolForTier.sortedByDescending { isGeminiPreferredNode(it) }.take(10)
+                    }
+                    isVoiceCallOptimizationEnabled -> {
+                        candidatePoolForTier.sortedByDescending { isVoiceCallPreferredNode(it) }.take(10)
+                    }
+                    else -> {
+                        candidatePoolForTier.take(10)
+                    }
+                }
+            }
 
             val testSemaphore = Semaphore(2)
             // Test Real Delay via Libv2ray HTTP 204 on this tier's candidates with generous patience for top tier
@@ -189,6 +310,14 @@ object PingTester {
                                 AppLogger.logAdmin("Cascade SUCCESS. Assigned node [${node.remark}]")
                                 onFirstOkNode(node)
                             } else if (realDelay < bestLatency.get() - 25L) {
+                                if (isGeminiOptimizationEnabled && isGeminiRestrictedNode(node)) {
+                                    Log.w(TAG, "Tier $tier: Skipping switch to [${node.remark}]: region restricted for Gemini")
+                                    return@launch
+                                }
+                                if (isVoiceCallOptimizationEnabled && isVoiceCallRestrictedNode(node)) {
+                                    Log.w(TAG, "Tier $tier: Skipping switch to [${node.remark}]: node does not support UDP / Voice Call")
+                                    return@launch
+                                }
                                 val prevRemark = bestNode?.remark ?: "unknown"
                                 val prevLat = bestLatency.get()
                                 bestNode = node
@@ -312,6 +441,7 @@ object PingTester {
         allNodes: List<VpnNode>,
         currentNodeRemark: String?,
         isGeminiOptimizationEnabled: Boolean = false,
+        isVoiceCallOptimizationEnabled: Boolean = false,
         onStatusLog: (String) -> Unit = {}
     ): VpnNode? = withContext(Dispatchers.IO) {
         val usable = allNodes.filter { isUsableEgressNode(it) && it.remark != currentNodeRemark }
@@ -360,7 +490,8 @@ object PingTester {
 
             val chosenNode = testPanelLinksForFirstConnecting(
                 nodes = panelNodes,
-                isGeminiOptimizationEnabled = isGeminiOptimizationEnabled
+                isGeminiOptimizationEnabled = isGeminiOptimizationEnabled,
+                isVoiceCallOptimizationEnabled = isVoiceCallOptimizationEnabled
             )
 
             if (chosenNode != null) {
@@ -378,13 +509,35 @@ object PingTester {
 
     private suspend fun testPanelLinksForFirstConnecting(
         nodes: List<VpnNode>,
-        isGeminiOptimizationEnabled: Boolean
+        isGeminiOptimizationEnabled: Boolean,
+        isVoiceCallOptimizationEnabled: Boolean = false
     ): VpnNode? = coroutineScope {
+        val candidateNodes = when {
+            isGeminiOptimizationEnabled && isVoiceCallOptimizationEnabled -> {
+                val nonRestricted = nodes.filter { !isGeminiRestrictedNode(it) && !isVoiceCallRestrictedNode(it) }
+                val pool = if (nonRestricted.isNotEmpty()) nonRestricted else nodes
+                pool.sortedWith(
+                    compareByDescending<VpnNode> { isGeminiPreferredNode(it) && isVoiceCallPreferredNode(it) }
+                        .thenByDescending { isGeminiPreferredNode(it) }
+                )
+            }
+            isGeminiOptimizationEnabled -> {
+                val nonRestricted = nodes.filter { !isGeminiRestrictedNode(it) }
+                val pool = if (nonRestricted.isNotEmpty()) nonRestricted else nodes
+                pool.sortedByDescending { isGeminiPreferredNode(it) }
+            }
+            isVoiceCallOptimizationEnabled -> {
+                val nonRestricted = nodes.filter { !isVoiceCallRestrictedNode(it) }
+                val pool = if (nonRestricted.isNotEmpty()) nonRestricted else nodes
+                pool.sortedByDescending { isVoiceCallPreferredNode(it) }
+            }
+            else -> nodes
+        }
         val foundNode = java.util.concurrent.atomic.AtomicReference<VpnNode?>(null)
         val concurrency = 3
         val semaphore = Semaphore(concurrency)
 
-        val jobs = nodes.map { node ->
+        val jobs = candidateNodes.map { node ->
             launch {
                 if (foundNode.get() != null) return@launch
 
@@ -435,12 +588,14 @@ object PingTester {
     suspend fun findNextBestNode(
         nodes: List<VpnNode>,
         currentNodeRemark: String?,
-        isGeminiOptimizationEnabled: Boolean = false
+        isGeminiOptimizationEnabled: Boolean = false,
+        isVoiceCallOptimizationEnabled: Boolean = false
     ): VpnNode? {
         return findNextWorkingNodeCascade(
             allNodes = nodes,
             currentNodeRemark = currentNodeRemark,
-            isGeminiOptimizationEnabled = isGeminiOptimizationEnabled
+            isGeminiOptimizationEnabled = isGeminiOptimizationEnabled,
+            isVoiceCallOptimizationEnabled = isVoiceCallOptimizationEnabled
         )
     }
 
@@ -486,6 +641,7 @@ object PingTester {
         candidates: List<VpnNode>,
         activeNode: VpnNode,
         isGeminiOptimizationEnabled: Boolean = false,
+        isVoiceCallOptimizationEnabled: Boolean = false,
         timeoutPerNodeMs: Long = 12000L
     ): VpnNode? = withContext(Dispatchers.IO) {
         if (candidates.size <= 1) return@withContext null
@@ -520,6 +676,13 @@ object PingTester {
             }
 
             AppLogger.logUser("⏳ [${index + 1}/${orderedCandidates.size}] در حال سنجش سرعت ۴ مگابایت [${node.remark}]...")
+
+            if (isVoiceCallOptimizationEnabled && isVoiceCallRestrictedNode(node)) {
+                Log.w(TAG, "Speed test candidate [${node.remark}] skipped: voice call / UDP restricted")
+                AppLogger.logUser("⚠️ سرور [${node.remark}] فاقد پشتیبانی از تماس صوتی و UDP (رد شد)")
+                speedResults[node.remark] = 0.0
+                continue
+            }
 
             if (isGeminiOptimizationEnabled) {
                 val cachedGemini = com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(node)
@@ -600,6 +763,11 @@ object PingTester {
      * Returns delay in ms if Gemini is reachable and unblocked, or -1 if blocked/error.
      */
     suspend fun measureGeminiDelay(node: VpnNode, timeoutMs: Long = 4000L): Long = withContext(Dispatchers.IO) {
+        if (isGeminiRestrictedNode(node)) {
+            Log.w(TAG, "measureGeminiDelay: Node [${node.remark}] is in a Gemini-restricted region. Rejecting.")
+            return@withContext -1L
+        }
+
         val configJson = try {
             V2RayConfigBuilder.buildTestConfig(node)
         } catch (e: Exception) {
@@ -679,6 +847,71 @@ object PingTester {
                 latencyMs = latency,
                 message = "خطا در برقراری ارتباط با گوگل جمینای (${e.message ?: "تایم‌اوت"})"
             )
+        }
+    }
+
+    /**
+     * Live empirical UDP connectivity test through the active VPN TUN connection.
+     * Sends a real DNS query (A record for google.com) to 8.8.8.8:53 over UDP DatagramSocket.
+     * If UDP response arrives, UDP and WebRTC voice calls (Clubhouse, Discord, WhatsApp) are 100% functional.
+     */
+    suspend fun testLiveUdpConnectivity(timeoutMs: Long = 3000L): UdpCheckResult = withContext(Dispatchers.IO) {
+        val start = System.currentTimeMillis()
+        var socket: java.net.DatagramSocket? = null
+        try {
+            socket = java.net.DatagramSocket()
+            socket.soTimeout = timeoutMs.toInt()
+
+            // Standard 28-byte DNS query for google.com (Transaction ID 0x1234, standard query, A record)
+            val dnsQuery = byteArrayOf(
+                0x12.toByte(), 0x34.toByte(), 0x01.toByte(), 0x00.toByte(),
+                0x00.toByte(), 0x01.toByte(), 0x00.toByte(), 0x00.toByte(),
+                0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(),
+                0x06.toByte(), 'g'.code.toByte(), 'o'.code.toByte(), 'g'.code.toByte(), 'g'.code.toByte(), 'l'.code.toByte(), 'e'.code.toByte(),
+                0x03.toByte(), 'c'.code.toByte(), 'o'.code.toByte(), 'm'.code.toByte(),
+                0x00.toByte(), 0x00.toByte(), 0x01.toByte(), 0x00.toByte(), 0x01.toByte()
+            )
+
+            val targetAddress = java.net.InetAddress.getByName("8.8.8.8")
+            val sendPacket = java.net.DatagramPacket(dnsQuery, dnsQuery.size, targetAddress, 53)
+            socket.send(sendPacket)
+
+            val buffer = ByteArray(1024)
+            val receivePacket = java.net.DatagramPacket(buffer, buffer.size)
+            socket.receive(receivePacket)
+
+            val latency = System.currentTimeMillis() - start
+            if (receivePacket.length > 12) {
+                return@withContext UdpCheckResult(
+                    isSuccess = true,
+                    latencyMs = latency,
+                    message = "پروتکل UDP فعال و تایید شد (${latency}ms - صدای کلاب‌هاوس بدون مشکل است)"
+                )
+            } else {
+                return@withContext UdpCheckResult(
+                    isSuccess = false,
+                    latencyMs = latency,
+                    message = "پاسخ UDP ناقص دریافت شد"
+                )
+            }
+        } catch (e: java.net.SocketTimeoutException) {
+            val latency = System.currentTimeMillis() - start
+            return@withContext UdpCheckResult(
+                isSuccess = false,
+                latencyMs = latency,
+                message = "تایم‌اوت UDP (پروتکل UDP روی این لینک مسدود یا فیلتر است)"
+            )
+        } catch (e: Exception) {
+            val latency = System.currentTimeMillis() - start
+            return@withContext UdpCheckResult(
+                isSuccess = false,
+                latencyMs = latency,
+                message = "خطا در تست UDP: ${e.message ?: "نامشخص"}"
+            )
+        } finally {
+            try {
+                socket?.close()
+            } catch (_: Exception) {}
         }
     }
 

@@ -52,6 +52,8 @@ class MainActivity : ComponentActivity() {
     private var isPinLoading by mutableStateOf(false)
     private var isPinSuccess by mutableStateOf(false)
     private var pinError by mutableStateOf<String?>(null)
+    private var availableNodesState by mutableStateOf<List<com.asanvpn.app.data.models.VpnNode>>(emptyList())
+    private var isAutoServerModeState by mutableStateOf(true)
 
     // In-App Auto Update & Share States
     private var availableUpdate by mutableStateOf<AppVersionInfo?>(null)
@@ -105,6 +107,8 @@ class MainActivity : ComponentActivity() {
         currentServerRemark = prefs.selectedServerRemark
         currentServerPing = prefs.selectedServerPing
         isDarkMode = prefs.isDarkMode
+        isAutoServerModeState = prefs.isAutoServerMode
+        availableNodesState = repository.getCachedNodes()
 
         handleIncomingIntent(intent)
 
@@ -258,6 +262,7 @@ class MainActivity : ComponentActivity() {
                     }
                     else -> {
                         ConnectScreen(
+                            userPin = savedPin ?: "",
                             userName = currentUserName,
                             daysLeft = currentDaysLeft,
                             trafficRemainingBytes = currentTrafficRemaining,
@@ -272,6 +277,32 @@ class MainActivity : ComponentActivity() {
                             appVersion = currentName,
                             newVersionAvailable = availableUpdate?.versionName,
                             isDarkMode = isDarkMode,
+                            availableNodes = availableNodesState,
+                            isAutoServerMode = isAutoServerModeState,
+                            onToggleAutoServerMode = { isAuto ->
+                                isAutoServerModeState = isAuto
+                                prefs.isAutoServerMode = isAuto
+                                if (isAuto) {
+                                    Toast.makeText(this@MainActivity, "حالت انتخاب خودکار سرور فعال شد", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(this@MainActivity, "حالت انتخاب دستی سرور فعال شد", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            onSelectServerNode = { selectedNode ->
+                                isAutoServerModeState = false
+                                prefs.isAutoServerMode = false
+                                prefs.selectedServerRemark = selectedNode.remark
+                                currentServerRemark = selectedNode.remark
+                                val ping = if (selectedNode.latencyMs > 0) selectedNode.latencyMs else 125L
+                                prefs.selectedServerPing = ping
+                                currentServerPing = ping
+                                val configJson = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(selectedNode)
+                                prefs.activeV2RayConfig = configJson
+                                if (connectionState == ConnectionState.CONNECTED) {
+                                    Toast.makeText(this@MainActivity, "تغییر سرور به ${selectedNode.remark}...", Toast.LENGTH_SHORT).show()
+                                    switchVpnConfigInternal(configJson)
+                                }
+                            },
                             onToggleTheme = {
                                 isDarkMode = !isDarkMode
                                 prefs.isDarkMode = isDarkMode
@@ -288,21 +319,30 @@ class MainActivity : ComponentActivity() {
                             onShareClick = {
                                 showShareDialog = true
                             },
-                            onSaveAppFilter = { enabled, whitelist, speedOpt, geminiOpt ->
+                            onSaveAppFilter = { enabled, whitelist, speedOpt, geminiOpt, voiceCallOpt ->
                                 val wasEnabled = prefs.isAppFilterEnabled
                                 val previousWhitelist = prefs.appFilterWhitelist
                                 val prevGemini = prefs.isGeminiOptimizationEnabled
+                                val prevVoiceCall = prefs.isVoiceCallOptimizationEnabled
                                 prefs.isAppFilterEnabled = enabled
                                 prefs.appFilterWhitelist = whitelist
                                 prefs.isSpeedOptimizationEnabled = speedOpt
                                 prefs.isGeminiOptimizationEnabled = geminiOpt
+                                prefs.isVoiceCallOptimizationEnabled = voiceCallOpt
 
                                 val changed = (wasEnabled != enabled) || (previousWhitelist != whitelist)
                                 val geminiChanged = (prevGemini != geminiOpt)
+                                val voiceCallChanged = (prevVoiceCall != voiceCallOpt)
 
-                                if (geminiChanged && geminiOpt && connectionState == ConnectionState.CONNECTED) {
+                                if (voiceCallChanged && voiceCallOpt && connectionState == ConnectionState.CONNECTED) {
+                                    Toast.makeText(this@MainActivity, "حالت اختصاصی تماس صوتی و کلاب‌هاوس فعال شد. در حال ارزیابی سرورهای پایدار UDP...", Toast.LENGTH_SHORT).show()
+                                    lifecycleScope.launch {
+                                        reconnectToVoiceCallOptimizedServer()
+                                    }
+                                } else if (geminiChanged && geminiOpt && connectionState == ConnectionState.CONNECTED) {
                                     Toast.makeText(this@MainActivity, "حالت اختصاصی Gemini فعال شد. در حال ارزیابی سرورهای سازگار...", Toast.LENGTH_SHORT).show()
                                     lifecycleScope.launch {
+                                        com.asanvpn.app.data.NodeMetricsCache.clearGeminiCache()
                                         reconnectToGeminiOptimizedServer()
                                     }
                                 } else if (changed && connectionState == ConnectionState.CONNECTED) {
@@ -314,6 +354,8 @@ class MainActivity : ComponentActivity() {
                                     }
                                 } else {
                                     val msg = when {
+                                        voiceCallOpt && geminiOpt -> "حالت مکالمه صوتی و Gemini با موفقیت فعال شدند"
+                                        voiceCallOpt -> "حالت اختصاصی تماس صوتی و کلاب‌هاوس فعال شد"
                                         geminiOpt && speedOpt -> "تنظیمات ذخیره شد (Gemini و بهینه‌ساز ۴MB فعال شدند)"
                                         geminiOpt -> "حالت اختصاصی هوش مصنوعی Gemini فعال شد"
                                         speedOpt -> "بهینه‌سازی هوشمند دانلود (۴MB) فعال شد"
@@ -467,6 +509,7 @@ class MainActivity : ComponentActivity() {
             result.onSuccess { response ->
                 val nodes = response.nodes
                 if (!nodes.isNullOrEmpty()) {
+                    availableNodesState = nodes
                     val initialNode = nodes.firstOrNull { it.remark.contains("DE") || it.remark.contains("FR") } ?: nodes[0]
                     prefs.selectedServerRemark = initialNode.remark
                     currentServerRemark = initialNode.remark
@@ -565,6 +608,31 @@ class MainActivity : ComponentActivity() {
                         Toast.makeText(this@MainActivity, "سرور فعالی یافت نشد", Toast.LENGTH_SHORT).show()
                         return@launch
                     }
+                    availableNodesState = nodes
+
+                    // If manual mode is selected, connect directly to user's chosen server node
+                    if (!prefs.isAutoServerMode) {
+                        val manualNode = nodes.firstOrNull { it.remark == prefs.selectedServerRemark } ?: nodes[0]
+                        prefs.selectedServerRemark = manualNode.remark
+                        currentServerRemark = manualNode.remark
+                        val ping = if (manualNode.latencyMs > 0) manualNode.latencyMs else 130L
+                        prefs.selectedServerPing = ping
+                        currentServerPing = ping
+
+                        val configJson = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(manualNode)
+                        prefs.activeV2RayConfig = configJson
+
+                        val intent = VpnService.prepare(this@MainActivity)
+                        if (intent != null) {
+                            vpnPermissionLauncher.launch(intent)
+                        } else {
+                            startVpnServiceInternal(configJson)
+                            connectionState = ConnectionState.CONNECTED
+                            prefs.isConnected = true
+                            startTrafficMonitoring()
+                        }
+                        return@launch
+                    }
 
                     // Fast Connect & Background Optimization
                     optimizationJob?.cancel()
@@ -575,6 +643,7 @@ class MainActivity : ComponentActivity() {
                             context = this@MainActivity,
                             nodes = nodes,
                             isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
+                            isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
                             onFirstOkNode = { firstNode ->
                                 if (!this@launch.isActive) return@connectFastAndOptimize
                                 withContext(Dispatchers.Main) {
@@ -644,7 +713,8 @@ class MainActivity : ComponentActivity() {
                                     val fasterNode = PingTester.benchmarkCandidateThroughput(
                                         candidates = candidatesInTier,
                                         activeNode = activeNode,
-                                        isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled
+                                        isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
+                                        isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled
                                     )
                                     if (fasterNode != null && isActive && connectionState == ConnectionState.CONNECTED) {
                                         withContext(Dispatchers.Main) {
@@ -732,6 +802,32 @@ class MainActivity : ComponentActivity() {
                 prefs.activeV2RayConfig = newConfig
                 switchVpnConfigInternal(newConfig)
                 Toast.makeText(this@MainActivity, "سوییچ خودکار به سرور سازگار با Gemini: [${replacementNode.remark}]", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private suspend fun reconnectToVoiceCallOptimizedServer() = withContext(Dispatchers.IO) {
+        val nodes = repository.getCachedNodes()
+        if (nodes.isEmpty()) return@withContext
+        val currentRemark = prefs.selectedServerRemark
+        val replacementNode = PingTester.findNextBestNode(
+            nodes = nodes,
+            currentNodeRemark = currentRemark,
+            isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
+            isVoiceCallOptimizationEnabled = true
+        )
+        if (replacementNode != null) {
+            withContext(Dispatchers.Main) {
+                prefs.selectedServerRemark = replacementNode.remark
+                currentServerRemark = replacementNode.remark
+                if (replacementNode.latencyMs > 0) {
+                    prefs.selectedServerPing = replacementNode.latencyMs
+                    currentServerPing = replacementNode.latencyMs
+                }
+                val newConfig = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(replacementNode)
+                prefs.activeV2RayConfig = newConfig
+                switchVpnConfigInternal(newConfig)
+                Toast.makeText(this@MainActivity, "سوییچ خودکار به سرور پایدار تماس صوتی: [${replacementNode.remark}]", Toast.LENGTH_LONG).show()
             }
         }
     }

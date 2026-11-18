@@ -13,7 +13,9 @@ data class CachedNodeMetric(
     var speedTestedAt: Long = 0L,
     var isGeminiCompatible: Boolean? = null,
     var geminiLatencyMs: Long = -1L,
-    var geminiTestedAt: Long = 0L
+    var geminiTestedAt: Long = 0L,
+    var isVoiceCallCompatible: Boolean? = null,
+    var voiceCallTestedAt: Long = 0L
 )
 
 /**
@@ -118,6 +120,41 @@ object NodeMetricsCache {
         entry.isGeminiCompatible = isCompatible
         entry.geminiLatencyMs = latencyMs
         entry.geminiTestedAt = System.currentTimeMillis()
+        persistToDisk()
+    }
+
+    fun clearGeminiCache() {
+        ensureLoaded()
+        for (entry in memoryCache.values) {
+            entry.isGeminiCompatible = null
+            entry.geminiLatencyMs = -1L
+            entry.geminiTestedAt = 0L
+        }
+        persistToDisk()
+    }
+
+    fun getVoiceCallCompatibility(node: VpnNode): Boolean? {
+        ensureLoaded()
+        val sig = getSignature(node)
+        val entry = memoryCache[sig] ?: return null
+        return entry.isVoiceCallCompatible
+    }
+
+    fun saveVoiceCallCompatibility(node: VpnNode, isCompatible: Boolean) {
+        ensureLoaded()
+        val sig = getSignature(node)
+        val entry = memoryCache.getOrPut(sig) { CachedNodeMetric(linkSignature = sig) }
+        entry.isVoiceCallCompatible = isCompatible
+        entry.voiceCallTestedAt = System.currentTimeMillis()
+        persistToDisk()
+    }
+
+    fun clearVoiceCallCache() {
+        ensureLoaded()
+        for (entry in memoryCache.values) {
+            entry.isVoiceCallCompatible = null
+            entry.voiceCallTestedAt = 0L
+        }
         persistToDisk()
     }
 

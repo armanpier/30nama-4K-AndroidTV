@@ -70,6 +70,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_APP_FILTER_WHITELIST = "app_filter_whitelist"
         private const val KEY_SPEED_OPTIMIZATION_ENABLED = "speed_optimization_enabled"
         private const val KEY_GEMINI_OPTIMIZATION_ENABLED = "gemini_optimization_enabled"
+        private const val KEY_VOICE_CALL_OPTIMIZATION_ENABLED = "voice_call_optimization_enabled"
         private const val KEY_NODE_METRICS_CACHE = "node_metrics_cache"
     }
 
@@ -163,6 +164,14 @@ class PreferencesManager(context: Context) {
     var isGeminiOptimizationEnabled: Boolean
         get() = prefs.getBoolean(KEY_GEMINI_OPTIMIZATION_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_GEMINI_OPTIMIZATION_ENABLED, value).apply()
+
+    var isVoiceCallOptimizationEnabled: Boolean
+        get() = prefs.getBoolean(KEY_VOICE_CALL_OPTIMIZATION_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_VOICE_CALL_OPTIMIZATION_ENABLED, value).apply()
+
+    var isAutoServerMode: Boolean
+        get() = prefs.getBoolean("is_auto_server_mode", true)
+        set(value) = prefs.edit().putBoolean("is_auto_server_mode", value).apply()
 
     var nodeMetricsCacheJson: String?
         get() = prefs.getString(KEY_NODE_METRICS_CACHE, null)

@@ -29,22 +29,37 @@ class SpeedOptimizationEmpiricalTest {
             VpnNode("vless", "Turkey🇹🇷", "1.2.3.4", 443, latencyMs = 60L),
             VpnNode("vless", "Germany🇩🇪", "1.2.3.5", 443, latencyMs = 70L),
             VpnNode("vless", "Iran🇮🇷", "1.2.3.6", 443, latencyMs = 20L),
-            VpnNode("vless", "Russia🇷🇺", "1.2.3.7", 443, latencyMs = 80L)
+            VpnNode("vless", "Russia🇷🇺", "1.2.3.7", 443, latencyMs = 80L),
+            VpnNode("vless", "USA1🇺🇸", "1.2.3.8", 443, latencyMs = 120L)
         )
 
-        // Gemini restricted keywords: Iran, IR, Russia, RU, China, CN, HK
-        val geminiCompatible = nodes.filter { node ->
-            val rem = node.remark.lowercase()
-            !rem.contains("iran") && !rem.contains("🇮🇷") &&
-            !rem.contains("russia") && !rem.contains("🇷🇺") &&
-            !rem.contains("china") && !rem.contains("🇨🇳")
-        }
+        // Gemini restricted keywords: Turkey, Iran, Russia, China, HK
+        val geminiCompatible = nodes.filter { !com.asanvpn.app.service.PingTester.isGeminiRestrictedNode(it) }
 
         assertEquals(2, geminiCompatible.size)
-        assertTrue(geminiCompatible.any { it.remark.contains("Turkey") })
+        assertTrue(geminiCompatible.any { it.remark.contains("USA1") })
         assertTrue(geminiCompatible.any { it.remark.contains("Germany") })
+        assertFalse(geminiCompatible.any { it.remark.contains("Turkey") })
         assertFalse(geminiCompatible.any { it.remark.contains("Iran") })
         assertFalse(geminiCompatible.any { it.remark.contains("Russia") })
+    }
+
+    @Test
+    fun testVoiceCallOptimizationNodeFiltering() {
+        val nodes = listOf(
+            VpnNode("vless", "Fastly-XHTTP🇺🇸", "151.101.65.67", 443, latencyMs = 80L),
+            VpnNode("vless", "Tunnel-8443🇩🇪", "188.121.110.232", 8443, latencyMs = 90L),
+            VpnNode("vless", "AppleMarket-USA1🇺🇸", "94.183.166.44", 6608, latencyMs = 120L),
+            VpnNode("vless", "PasarGuard-Germany🇩🇪", "45.14.225.10", 443, latencyMs = 75L)
+        )
+
+        val voiceCallCompatible = nodes.filter { !com.asanvpn.app.service.PingTester.isVoiceCallRestrictedNode(it) }
+
+        assertEquals(2, voiceCallCompatible.size)
+        assertTrue(voiceCallCompatible.any { it.remark.contains("AppleMarket-USA1") })
+        assertTrue(voiceCallCompatible.any { it.remark.contains("PasarGuard-Germany") })
+        assertFalse(voiceCallCompatible.any { it.remark.contains("Fastly") })
+        assertFalse(voiceCallCompatible.any { it.remark.contains("Tunnel-8443") })
     }
 
     @Test
