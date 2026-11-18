@@ -140,7 +140,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 video=video_file_id,
                 caption=welcome_text,
                 parse_mode=ParseMode.HTML,
-                reply_markup=inline_kb
+                reply_markup=inline_kb,
+                supports_streaming=True
             )
             video_sent = True
         except Exception as e:
@@ -156,7 +157,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     video=vf,
                     caption=welcome_text,
                     parse_mode=ParseMode.HTML,
-                    reply_markup=inline_kb
+                    reply_markup=inline_kb,
+                    supports_streaming=True
                 )
             video_sent = True
             if sent_msg.video:
@@ -2627,19 +2629,20 @@ async def send_download_info(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer()
 
     support_username = await db.get_setting("support_username", "@Asanvpnsupport_bot")
-    universal_apk_url = await db.get_setting("app_download_url", "https://github.com/armanpier/AsanVPN/releases/download/v1.3.12/AsanVPN-v1.3.12-universal.apk")
+    universal_apk_url = await db.get_setting("app_download_url", "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download")
     cdn_download_url = "https://asanvpn-dashboard.armanpier-oxvrx.arvanedge.ir/download"
 
     text = (
-        "📱 <b>دانلود نرم‌افزار رسمی آسان وی‌پی‌ان (نسخه جدید v1.3.12)</b>\n"
+        "📱 <b>دانلود نرم‌افزار رسمی آسان وی‌پی‌ان (نسخه جدید v1.3.32)</b>\n"
         "✦ ━━━━━━━━━━━━━━━━━ ✦\n\n"
         "✨ <b>طراحی سه‌بعدی لوکس با دو تم روشن و تاریک (Porcelain و Obsidian)</b>\n"
         "📦 <b>نسخه همگانی (Universal APK) — سازگار با ۱۰۰٪ دستگاه‌ها</b>\n\n"
         "🔹 <b>امکانات و قابلیت‌های نسخه جدید:</b>\n"
+        "• <b>حالت اختصاصی تماس صوتی و کلاب‌هاوس (WebRTC/UDP):</b> انتقال بدون افت صدا در Clubhouse و تماس‌ها\n"
         "• <b>تست تاخیر واقعی (Real Delay):</b> سنجش دقیق پینگ سرورها قبل از برقراری ارتباط برای تضمین نهایت سرعت\n"
-        "• <b>اتصال هوشمند آبشاری:</b> تضمین پایداری بدون قطعی و سوئیچ خودکار بین سرورها\n"
+        "• <b>اتصال هوشمند آبشاری ۵ ثانیه‌ای:</b> تضمین پایداری بدون قطعی و سوئیچ خودکار بین سرورها\n"
         "• <b>تفکیک خودکار ترافیک ایران:</b> باز شدن پرسرعت و مستقیم بانک‌ها و برنامه‌های داخلی\n"
-        "• <b>به‌روزرسانی خودکار داخلی:</b> دانلود و نصب نسخه‌های جدید مستقیماً از داخل اپلیکیشن\n"
+        "• <b>به‌روزرسانی خودکار داخلی:</b> دانلود و نصب نسخه‌های جدید مستقیماً از داخل اپلیکیشن بدون اسکن مجدد\n"
         "• <b>پشتیبانی از دیپ‌لینک:</b> باز شدن و فعال‌سازی خودکار برنامه با یک لمس\n\n"
         "✦ ━━━━━━━━━━━━━━━━━ ✦\n"
         "📷 <b>بارکد اختصاصی (QR Code):</b> با دوربین گوشی یا بارکدخوان بارکد بالا را اسکن کنید تا دانلود بلافاصله روی گوشی آغاز شود.\n\n"
@@ -2648,10 +2651,10 @@ async def send_download_info(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("⚡ دانلود از سرور پرسرعت کمکی (Cloudflare CDN)", url=cdn_download_url, style="primary")
+            InlineKeyboardButton("⚡ دانلود مستقیم نسخه جامع (Android Universal)", url=cdn_download_url, style="primary")
         ],
         [
-            InlineKeyboardButton("📥 دانلود نسخه همگانی (گیت‌هاب رسمی)", url=universal_apk_url, style="success")
+            InlineKeyboardButton("🛡️ راهنمای رفع اخطار اسکن در شیائومی و سامسونگ", callback_data="guide_install_scan", style="success")
         ],
         [
             InlineKeyboardButton("💬 راهنمایی و پشتیبانی", url=f"https://t.me/{support_username.lstrip('@')}", style="primary"),
@@ -2681,6 +2684,39 @@ async def send_download_info(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard, disable_web_page_preview=True)
         elif update.message:
             await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard, disable_web_page_preview=True)
+
+async def guide_install_scan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if query:
+        await query.answer()
+
+    guide_text = (
+        "🛡️ <b>راهنمای نصب آسان و رفع اخطار امنیتی در گوشی‌ها:</b>\n"
+        "✦ ━━━━━━━━━━━━━━━━━ ✦\n\n"
+        "هنگام نصب هر برنامه‌ای خارج از گوگل‌پلی، سیستم امنیتی گوشی‌ها به دلیل عدم وجود لایسنس استور، پیام بررسی یا اسکن نمایش می‌دهند که کاملاً طبیعی است:\n\n"
+        "📱 <b>گوشی‌های شیائومی، پوکو و ردمی (Xiaomi / Poco / Redmi):</b>\n"
+        "۱. در صفحه اسکن امنیتی (Security Scan)، چند ثانیه صبر فرمایید.\n"
+        "۲. سپس دکمه <b>Install</b> (یا <b>نصب</b>) در پایین صفحه فعال می‌شود؛ آن را لمس نمایید.\n"
+        "💡 <i>ترفند: با زدن آیکون چرخ‌دنده در بالای صفحه اسکن، می‌توانید گزینه Scan before installing را غیرفعال کنید.</i>\n\n"
+        "📱 <b>گوشی‌های سامسونگ (Samsung One UI):</b>\n"
+        "در صورت نمایش پیام مسدودکننده (Auto Blocker یا Play Protect):\n"
+        "۱. روی گزینه <b>جزئیات بیشتر (More Details)</b> بزنید.\n"
+        "۲. سپس گزینه <b>نصب در هر صورت (Install anyway)</b> را انتخاب نمایید.\n\n"
+        "✨ <b>نکته مهم:</b>\n"
+        "پس از یک‌بار نصب اولیه، تمامی نسخه‌های بعدی به صورت خودکار و امن از داخل خود اپلیکیشن آپدیت می‌شوند و دیگر با این صفحات مواجه نخواهید شد.\n\n"
+        "✦ ━━━━━━━━━━━━━━━━━ ✦"
+    )
+
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📥 بازگشت به لینک دانلود اپلیکیشن", callback_data="download_app_post", style="primary")],
+        [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="back_to_home", style="primary")]
+    ])
+
+    if query and query.message:
+        try:
+            await query.message.reply_text(guide_text, parse_mode=ParseMode.HTML, reply_markup=kb)
+        except Exception:
+            await query.edit_message_caption(caption=guide_text, parse_mode=ParseMode.HTML, reply_markup=kb)
 
 async def send_support_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     support_username = await db.get_setting("support_username", "@Asanvpnsupport_bot")
@@ -2923,6 +2959,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(show_plans_menu, pattern=r"^buy_new_plan$"))
     app.add_handler(CallbackQueryHandler(claim_free_test_plan, pattern=r"^claim_free_test$"))
     app.add_handler(CallbackQueryHandler(send_download_info, pattern=r"^download_app_post$"))
+    app.add_handler(CallbackQueryHandler(guide_install_scan_callback, pattern=r"^guide_install_scan$"))
     app.add_handler(CallbackQueryHandler(ask_renew_pin, pattern=r"^renew_flow$"))
     app.add_handler(CallbackQueryHandler(show_user_status_flow, pattern=r"^status_flow$"))
     app.add_handler(CallbackQueryHandler(status_manual_input_callback, pattern=r"^status_manual_input$"))
