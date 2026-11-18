@@ -168,10 +168,10 @@ class MainActivity : ComponentActivity() {
             GeoAssetManager.checkAndUpdateRules(applicationContext, force = false)
         }
 
-        // Periodic background session check while app is open (every 5 minutes / 300 seconds)
+        // Periodic background session check while app is open (every 60 seconds)
         lifecycleScope.launch {
             while (isActive) {
-                kotlinx.coroutines.delay(300_000L)
+                kotlinx.coroutines.delay(60_000L)
                 val pin = currentPinState ?: prefs.savedPin
                 if (!pin.isNullOrBlank()) {
                     validateUserSession(pin)
@@ -488,6 +488,13 @@ class MainActivity : ComponentActivity() {
                             currentTrafficRemaining = rem
                         }
                     }
+                    val nodes = response.nodes
+                    if (!nodes.isNullOrEmpty()) {
+                        availableNodesState = nodes
+                        if (connectionState == ConnectionState.CONNECTED && AsanVpnService.isRunning) {
+                            checkAndApplyPanelPriorityChange(nodes)
+                        }
+                    }
                 }
             }
             result.onFailure { error ->
@@ -498,6 +505,60 @@ class MainActivity : ComponentActivity() {
                             kickoutRevokedUser(error.message)
                         }
                     }
+                }
+            }
+        }
+    }
+
+    private var isPrioritySwitching = false
+
+    private fun checkAndApplyPanelPriorityChange(nodes: List<com.asanvpn.app.data.models.VpnNode>) {
+        if (!prefs.isAutoServerMode || isPrioritySwitching) return
+
+        val currentRemark = prefs.selectedServerRemark
+        val currentNode = nodes.firstOrNull { it.remark == currentRemark }
+        val currentTier = currentNode?.panelPriority ?: 99
+
+        val topPriority = nodes.mapNotNull { it.panelPriority }.minOrNull() ?: 1
+        if (topPriority < currentTier) {
+            isPrioritySwitching = true
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val candidateNodes = nodes.filter { (it.panelPriority ?: 1) == topPriority }
+                    val targetPanelName = candidateNodes.firstOrNull()?.panelName ?: "پنل با اولویت $topPriority"
+
+                    AppLogger.logUser("📡 اولویت پنل‌ها در داشبورد تغییر یافت؛ بررسی سرورهای $targetPanelName...")
+                    AppLogger.logAdmin("Live priority shift detected: Top priority is now $topPriority ($targetPanelName), current active priority is $currentTier")
+
+                    val replacementNode = PingTester.findNextWorkingNodeCascade(
+                        allNodes = candidateNodes,
+                        currentNodeRemark = currentRemark,
+                        isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
+                        isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
+                        onStatusLog = { msg -> AppLogger.logUser(msg) }
+                    )
+
+                    if (replacementNode != null && connectionState == ConnectionState.CONNECTED && AsanVpnService.isRunning) {
+                        withContext(Dispatchers.Main) {
+                            AppLogger.logUser("🔄 اتصال با موفقیت به $targetPanelName - سرور [${replacementNode.remark}] منتقل شد (تاخیر: ${replacementNode.latencyMs}ms)")
+                            AppLogger.logAdmin("Live priority migration SUCCESS: Switched to [${replacementNode.remark}] in panel [$targetPanelName]")
+
+                            prefs.selectedServerRemark = replacementNode.remark
+                            currentServerRemark = replacementNode.remark
+                            prefs.selectedServerPing = replacementNode.latencyMs
+                            currentServerPing = replacementNode.latencyMs
+
+                            val newConfig = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(replacementNode)
+                            prefs.activeV2RayConfig = newConfig
+                            switchVpnConfigInternal(newConfig)
+                            Toast.makeText(this@MainActivity, "اتصال به پنل با اولویت بالاتر سوییچ شد: [${replacementNode.remark}]", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        AppLogger.logUser("⚠️ سرورهای $targetPanelName در حال حاضر پاسخ ندادند؛ حفظ اتصال پایدار روی سرور فعلی [${currentRemark}]")
+                        AppLogger.logAdmin("Live priority migration: Candidate nodes in top priority panel $targetPanelName did not respond; maintaining active connection")
+                    }
+                } finally {
+                    isPrioritySwitching = false
                 }
             }
         }

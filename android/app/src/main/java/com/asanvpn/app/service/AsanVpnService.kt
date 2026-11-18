@@ -190,12 +190,12 @@ class AsanVpnService : VpnService() {
             updateNotification(prefs.selectedServerRemark)
             startHealthMonitor()
 
-            // Periodic session check: passive validation every 10 minutes to keep quota synced & save Cloudflare limits
+            // Periodic session check & live panel priority sync every 120 seconds
             sessionValidatorJob?.cancel()
             sessionValidatorJob = serviceScope.launch {
                 val repo = VpnRepository(this@AsanVpnService)
                 while (isRunning && isActive) {
-                    kotlinx.coroutines.delay(600_000L) // 10 minutes
+                    kotlinx.coroutines.delay(120_000L) // 2 minutes
                     val pin = prefs.savedPin
                     if (pin.isNullOrBlank()) {
                         Log.i("AsanVpnService", "No saved PIN found, stopping VPN tunnel")
@@ -203,6 +203,12 @@ class AsanVpnService : VpnService() {
                         break
                     }
                     val res = repo.syncWithWorker(pin)
+                    res.onSuccess { response ->
+                        val nodes = response.nodes
+                        if (!nodes.isNullOrEmpty() && prefs.isAutoServerMode) {
+                            checkAndApplyPrioritySwitch(nodes)
+                        }
+                    }
                     res.onFailure { error ->
                         val isRevoked = error is com.asanvpn.app.data.AuthRevokedException &&
                             (error.status == "invalid_pin" || error.status == "deleted" || error.status == "disabled")
@@ -349,6 +355,57 @@ class AsanVpnService : VpnService() {
                 } catch (e: Exception) {
                     Log.e("AsanVpnService", "Error in health monitor loop: ${e.message}", e)
                     kotlinx.coroutines.delay(2000L)
+                }
+            }
+        }
+    }
+
+    private var isPrioritySwitching = false
+
+    private fun checkAndApplyPrioritySwitch(nodes: List<com.asanvpn.app.data.models.VpnNode>) {
+        if (!isRunning || !prefs.isAutoServerMode || isPrioritySwitching) return
+
+        val currentRemark = prefs.selectedServerRemark
+        val currentNode = nodes.firstOrNull { it.remark == currentRemark }
+        val currentTier = currentNode?.panelPriority ?: 99
+
+        val topPriority = nodes.mapNotNull { it.panelPriority }.minOrNull() ?: 1
+        if (topPriority < currentTier) {
+            isPrioritySwitching = true
+            serviceScope.launch(Dispatchers.IO) {
+                try {
+                    val candidateNodes = nodes.filter { (it.panelPriority ?: 1) == topPriority }
+                    val targetPanelName = candidateNodes.firstOrNull()?.panelName ?: "پنل اولویت $topPriority"
+
+                    AppLogger.logUser("📡 اولویت پنل‌ها در داشبورد تغییر یافت؛ بررسی سرورهای $targetPanelName...")
+                    AppLogger.logAdmin("Service: Live priority shift detected ($topPriority < $currentTier), testing $targetPanelName...")
+
+                    val replacementNode = PingTester.findNextWorkingNodeCascade(
+                        allNodes = candidateNodes,
+                        currentNodeRemark = currentRemark,
+                        isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
+                        isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
+                        onStatusLog = { msg -> AppLogger.logUser(msg) }
+                    )
+
+                    if (replacementNode != null && isRunning) {
+                        AppLogger.logUser("🔄 اتصال با موفقیت به $targetPanelName - سرور [${replacementNode.remark}] منتقل شد (تاخیر: ${replacementNode.latencyMs}ms)")
+                        AppLogger.logAdmin("Service: Priority switch SUCCESS to [${replacementNode.remark}] in panel [$targetPanelName]")
+
+                        prefs.selectedServerRemark = replacementNode.remark
+                        prefs.selectedServerPing = replacementNode.latencyMs
+                        currentServerRemarkFlow.value = replacementNode.remark
+                        currentServerPingFlow.value = replacementNode.latencyMs
+                        updateNotification(replacementNode.remark)
+
+                        val newConfig = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(replacementNode)
+                        prefs.activeV2RayConfig = newConfig
+                        switchVpnConfig(newConfig)
+                    } else {
+                        AppLogger.logUser("⚠️ سرورهای $targetPanelName در حال حاضر پاسخ ندادند؛ حفظ اتصال روی سرور فعلی [${currentRemark}]")
+                    }
+                } finally {
+                    isPrioritySwitching = false
                 }
             }
         }

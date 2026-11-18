@@ -540,12 +540,8 @@ object PingTester {
                 )
             }
 
-        // Current panel first, then ordered by panel priority (1 = highest, 2, 3...)
-        val orderedPanels = groupedPanels.sortedWith(
-            compareBy<PanelGroup> { panel ->
-                if (activePanelKey != null && panel.identifier == activePanelKey) 0 else 1
-            }.thenBy { it.priority }
-        )
+        // Ordered strictly by panel priority (Priority 1 = highest, Priority 2 = next, etc.)
+        val orderedPanels = groupedPanels.sortedBy { it.priority }
 
         Log.i(TAG, "findNextWorkingNodeCascade: Starting failover search across ${orderedPanels.size} panels...")
 
@@ -607,7 +603,7 @@ object PingTester {
 
                 val delay = semaphore.withPermit {
                     if (foundNode.get() != null) return@withPermit -1L
-                    measureRealDelay(node, timeoutMs = 3000L)
+                    measureRealDelay(node, timeoutMs = 4500L)
                 }
 
                 if (delay > 0) {
@@ -616,7 +612,7 @@ object PingTester {
                         val isGeminiOk = if (cached != null) {
                             cached.first
                         } else {
-                            val measured = measureGeminiDelay(node, 3000L)
+                            val measured = measureGeminiDelay(node, 4000L)
                             val ok = measured > 0
                             com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(node, ok, measured)
                             ok
@@ -669,7 +665,7 @@ object PingTester {
      * if primary times out or is blocked.
      * Returns true latency in milliseconds if working, or -1L if broken/blocked.
      */
-    suspend fun measureRealDelay(node: VpnNode, timeoutMs: Long = 3500L): Long = withContext(Dispatchers.IO) {
+    suspend fun measureRealDelay(node: VpnNode, timeoutMs: Long = 4500L): Long = withContext(Dispatchers.IO) {
         val configJson = try {
             V2RayConfigBuilder.buildTestConfig(node)
         } catch (e: Exception) {
