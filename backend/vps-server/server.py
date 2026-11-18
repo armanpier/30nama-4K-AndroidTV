@@ -1403,18 +1403,25 @@ class RequestHandler(BaseHTTPRequestHandler):
             return self.send_json(200, info)
 
         # Direct APK Download (supports ?abi=arm64-v8a, ?abi=armeabi-v7a, /download/arm64-v8a, etc.)
-        if path in ["/download", "/AsanVPN.apk", "/apk"] or path.startswith("/download/"):
+        if path in ["/download", "/downloads", "/AsanVPN.apk", "/apk"] or path.startswith("/download/") or path.startswith("/downloads/"):
             qs = urllib.parse.parse_qs(parsed.query)
             abi = qs.get("abi", [None])[0]
-            if not abi and path.startswith("/download/"):
-                abi = path.removeprefix("/download/").strip("/")
+            if not abi:
+                if path.startswith("/download/"):
+                    abi = path.removeprefix("/download/").strip("/")
+                elif path.startswith("/downloads/"):
+                    abi = path.removeprefix("/downloads/").strip("/")
 
             update_info = get_app_update_info(abi)
             ver_name = update_info.get("versionName") or APP_VERSION
 
             apk_path = None
             filename = f"AsanVPN-v{ver_name}-universal.apk"
-            if abi in ("arm64-v8a", "arm64"):
+
+            if abi and os.path.exists(os.path.join("/opt/asanvpn", abi)):
+                apk_path = os.path.join("/opt/asanvpn", abi)
+                filename = abi
+            elif abi in ("arm64-v8a", "arm64"):
                 for cand in [
                     f"/opt/asanvpn/AsanVPN-v{ver_name}-arm64-v8a.apk",
                     "/opt/asanvpn/AsanVPN-arm64-v8a.apk",
