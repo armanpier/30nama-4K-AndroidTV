@@ -64,7 +64,7 @@ fun ConnectScreen(
     uploadTraffic: String = "۰ B",
     downloadSpeed: String = "",
     uploadSpeed: String = "",
-    appVersion: String = "1.3.38",
+    appVersion: String = "1.3.39",
     newVersionAvailable: String? = null,
     isDarkMode: Boolean = false,
     availableNodes: List<VpnNode> = emptyList(),

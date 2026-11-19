@@ -248,12 +248,12 @@ class AsanVpnService : VpnService() {
         healthMonitorJob?.cancel()
         healthMonitorJob = serviceScope.launch(Dispatchers.IO) {
             var lastPingTestTime = 0L
-            var consecutivePingFails = 0
+            var disconnectedSince = 0L
             var isFailoverInProgress = false
             var lastDownlinkBytes = 0L
             var lastCheckTime = System.currentTimeMillis()
 
-            Log.i("AsanVpnService", "Auto-Failover Health Monitor STARTED (10s live latency refresh & smart failover)")
+            Log.i("AsanVpnService", "Auto-Failover Health Monitor STARTED (5s disconnect guard & smart failover)")
 
             while (isRunning && isActive) {
                 try {
@@ -273,43 +273,43 @@ class AsanVpnService : VpnService() {
                             lastDownlinkBytes = stats.downlinkBytes
                         }
 
-                        // Traffic flowing check (> 8 KB in interval)
-                        val isTrafficFlowing = (downlinkDelta > 8192L && timeDelta < 4000L)
+                        // Traffic flowing check (> 4 KB in interval)
+                        val isTrafficFlowing = (downlinkDelta > 4096L && timeDelta < 4000L)
                         if (isTrafficFlowing) {
-                            consecutivePingFails = 0
+                            disconnectedSince = 0L
                         }
 
-                        // Every 10 seconds: measure and broadcast real end-to-end tunnel latency
-                        if (now - lastPingTestTime >= 10_000L) {
+                        // Periodic live latency check: every 10 seconds normally, or every 2 seconds if traffic is zero
+                        val shouldTestPing = (now - lastPingTestTime >= 10_000L) || (!isTrafficFlowing && now - lastPingTestTime >= 2000L)
+                        if (shouldTestPing) {
                             lastPingTestTime = now
-                            val livePing = PingTester.testConnectedRealLatency(timeoutMs = 2500L)
+                            val livePing = PingTester.testConnectedRealLatency(timeoutMs = 1800L)
                             if (livePing > 0) {
                                 prefs.selectedServerPing = livePing
                                 currentServerPingFlow.value = livePing
-                                consecutivePingFails = 0
-                                Log.i("AsanVpnService", "Live Ping [10s]: $livePing ms (Remark: $currentRemark)")
+                                disconnectedSince = 0L
+                                Log.i("AsanVpnService", "Live Ping: $livePing ms (Remark: $currentRemark)")
                             } else {
                                 if (!isTrafficFlowing) {
-                                    consecutivePingFails++
-                                    Log.w("AsanVpnService", "Live Ping [10s] failed (attempt $consecutivePingFails)")
+                                    if (disconnectedSince == 0L) {
+                                        disconnectedSince = now
+                                        Log.w("AsanVpnService", "Live Ping failed & zero traffic: starting 5s disconnect timer (Remark: $currentRemark)")
+                                    }
                                 }
                             }
                         }
 
-                        // Check failover criteria:
-                        // In Manual Mode, user chose the server: never switch away unless completely unresponsive for >= 20s (2 consecutive failures) with zero traffic!
-                        // In Auto Mode, switch if unresponsive for >= 10s with zero traffic.
-                        val isAutoMode = prefs.isAutoServerMode
-                        val failThreshold = if (isAutoMode) 1 else 2
+                        val isDisconnectedOver5s = (disconnectedSince > 0L && (now - disconnectedSince >= 5000L))
 
-                        if (consecutivePingFails >= failThreshold && !isTrafficFlowing) {
+                        if (isDisconnectedOver5s && !isTrafficFlowing) {
                             isFailoverInProgress = true
+                            val isAutoMode = prefs.isAutoServerMode
                             if (isAutoMode) {
-                                AppLogger.logUser("⚠️ عدم دریافت پاسخ از سرور [$currentRemark]؛ در حال انتخاب سریع‌ترین سرور بعدی...")
-                                AppLogger.logAdmin("Server [$currentRemark] unresponsive. Initiating auto-failover across panels...")
+                                AppLogger.logUser("⚠️ سرور [$currentRemark] بیش از ۵ ثانیه پاسخ نداد؛ در حال انتخاب سریع‌ترین سرور بعدی...")
+                                AppLogger.logAdmin("Server [$currentRemark] unresponsive >5s. Initiating auto-failover...")
                             } else {
-                                AppLogger.logUser("⚠️ سرور انتخابی [$currentRemark] قطع شد؛ در حال انتخاب سرور فعال جایگزین...")
-                                AppLogger.logAdmin("Manual server [$currentRemark] unresponsive (20s). Failing over...")
+                                AppLogger.logUser("⚠️ سرور انتخابی [$currentRemark] بیش از ۵ ثانیه قطع بود؛ در حال انتقال اضطراری به سرور فعال...")
+                                AppLogger.logAdmin("Manual server [$currentRemark] disconnected >5s. Failing over...")
                             }
 
                             val repo = VpnRepository(this@AsanVpnService)
@@ -318,8 +318,8 @@ class AsanVpnService : VpnService() {
                                 val replacementNode = PingTester.findNextWorkingNodeCascade(
                                     allNodes = cachedNodes,
                                     currentNodeRemark = currentRemark,
-                                    isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
-                                    isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
+                                    isGeminiOptimizationEnabled = if (isAutoMode) prefs.isGeminiOptimizationEnabled else false,
+                                    isVoiceCallOptimizationEnabled = if (isAutoMode) prefs.isVoiceCallOptimizationEnabled else false,
                                     onStatusLog = { msg -> AppLogger.logUser(msg) }
                                 )
 
@@ -341,16 +341,16 @@ class AsanVpnService : VpnService() {
                                     AppLogger.logAdmin("Auto-failover: No responsive candidate found across all panels")
                                 }
                             }
-                            consecutivePingFails = 0
+                            disconnectedSince = 0L
                             lastPingTestTime = System.currentTimeMillis()
                             isFailoverInProgress = false
-                            kotlinx.coroutines.delay(4000L)
+                            kotlinx.coroutines.delay(3000L)
                         } else {
-                            kotlinx.coroutines.delay(2000L)
+                            kotlinx.coroutines.delay(1500L)
                         }
                     } else {
-                        consecutivePingFails = 0
-                        kotlinx.coroutines.delay(2000L)
+                        disconnectedSince = 0L
+                        kotlinx.coroutines.delay(1500L)
                     }
                 } catch (e: Exception) {
                     Log.e("AsanVpnService", "Error in health monitor loop: ${e.message}", e)

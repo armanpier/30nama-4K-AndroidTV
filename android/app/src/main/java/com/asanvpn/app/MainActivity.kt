@@ -298,12 +298,20 @@ class MainActivity : ComponentActivity() {
                                 if (isAuto) {
                                     Toast.makeText(this@MainActivity, "حالت انتخاب خودکار سرور فعال شد", Toast.LENGTH_SHORT).show()
                                 } else {
-                                    Toast.makeText(this@MainActivity, "حالت انتخاب دستی سرور فعال شد", Toast.LENGTH_SHORT).show()
+                                    speedBenchmarkJob?.cancel()
+                                    speedBenchmarkJob = null
+                                    optimizationJob?.cancel()
+                                    optimizationJob = null
+                                    Toast.makeText(this@MainActivity, "حالت انتخاب دستی سرور فعال شد (ثبات اتصال روی سرور انتخابی)", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             onSelectServerNode = { selectedNode ->
                                 isAutoServerModeState = false
                                 prefs.isAutoServerMode = false
+                                speedBenchmarkJob?.cancel()
+                                speedBenchmarkJob = null
+                                optimizationJob?.cancel()
+                                optimizationJob = null
                                 prefs.selectedServerRemark = selectedNode.remark
                                 currentServerRemark = selectedNode.remark
                                 val cachedPing = com.asanvpn.app.data.NodeMetricsCache.getLatency(selectedNode) ?: -1L
@@ -348,12 +356,12 @@ class MainActivity : ComponentActivity() {
                                 val geminiChanged = (prevGemini != geminiOpt)
                                 val voiceCallChanged = (prevVoiceCall != voiceCallOpt)
 
-                                if (voiceCallChanged && voiceCallOpt && connectionState == ConnectionState.CONNECTED) {
+                                if (prefs.isAutoServerMode && voiceCallChanged && voiceCallOpt && connectionState == ConnectionState.CONNECTED) {
                                     Toast.makeText(this@MainActivity, "حالت اختصاصی تماس صوتی و کلاب‌هاوس فعال شد. در حال ارزیابی سرورهای پایدار UDP...", Toast.LENGTH_SHORT).show()
                                     lifecycleScope.launch {
                                         reconnectToVoiceCallOptimizedServer()
                                     }
-                                } else if (geminiChanged && geminiOpt && connectionState == ConnectionState.CONNECTED) {
+                                } else if (prefs.isAutoServerMode && geminiChanged && geminiOpt && connectionState == ConnectionState.CONNECTED) {
                                     Toast.makeText(this@MainActivity, "حالت اختصاصی Gemini فعال شد. در حال ارزیابی سرورهای سازگار...", Toast.LENGTH_SHORT).show()
                                     lifecycleScope.launch {
                                         com.asanvpn.app.data.NodeMetricsCache.clearGeminiCache()
@@ -743,8 +751,12 @@ class MainActivity : ComponentActivity() {
                         prefs.selectedServerRemark = manualNode.remark
                         currentServerRemark = manualNode.remark
 
-                        AppLogger.logUser("🔍 بررسی اتصال به سرور انتخابی [${manualNode.remark}]...")
-                        val measuredDelay = PingTester.measureRealDelay(manualNode, 3500L)
+                        AppLogger.logUser("🔍 بررسی اتصال به سرور انتخابی [${manualNode.remark}] (حالت دستی)...")
+                        // Allow up to 5 seconds for manual node to respond (overriding all settings options)
+                        var measuredDelay = PingTester.measureRealDelay(manualNode, 2800L)
+                        if (measuredDelay <= 0) {
+                            measuredDelay = PingTester.measureRealDelay(manualNode, 2300L)
+                        }
 
                         if (measuredDelay > 0) {
                             manualNode.latencyMs = measuredDelay
@@ -772,10 +784,10 @@ class MainActivity : ComponentActivity() {
                             }
                             return@launch
                         } else {
-                            // Selected manual node is dead/unresponsive! Notify user and fallback to connectFastAndOptimize!
-                            AppLogger.logUser("⚠️ سرور انتخابی [${manualNode.remark}] پاسخ نداد؛ در حال اتصال به اولین سرور فعال...")
-                            Toast.makeText(this@MainActivity, "سرور انتخابی پاسخ نداد؛ در حال اتصال به سرور جایگزین...", Toast.LENGTH_SHORT).show()
-                            // Do not return: fall through to connectFastAndOptimize below to keep user connected!
+                            // Selected manual node is disconnected for over 5 seconds!
+                            AppLogger.logUser("⚠️ سرور انتخابی [${manualNode.remark}] بیش از ۵ ثانیه پاسخ نداد؛ در حال اتصال به اولین سرور فعال...")
+                            Toast.makeText(this@MainActivity, "سرور انتخابی بیش از ۵ ثانیه پاسخ نداد؛ اتصال به سرور جایگزین...", Toast.LENGTH_SHORT).show()
+                            // Fall through to connectFastAndOptimize to keep user connected, but without auto-optimizing away
                         }
                     }
 
@@ -787,8 +799,8 @@ class MainActivity : ComponentActivity() {
                         PingTester.connectFastAndOptimize(
                             context = this@MainActivity,
                             nodes = nodes,
-                            isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
-                            isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
+                            isGeminiOptimizationEnabled = if (prefs.isAutoServerMode) prefs.isGeminiOptimizationEnabled else false,
+                            isVoiceCallOptimizationEnabled = if (prefs.isAutoServerMode) prefs.isVoiceCallOptimizationEnabled else false,
                             onFirstOkNode = { firstNode ->
                                 if (!this@launch.isActive) return@connectFastAndOptimize
                                 withContext(Dispatchers.Main) {
@@ -817,6 +829,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onFastestNodeFound = { fastestNode ->
                                 if (!this@launch.isActive) return@connectFastAndOptimize
+                                if (!prefs.isAutoServerMode) return@connectFastAndOptimize
                                 withContext(Dispatchers.Main) {
                                     if (connectionState != ConnectionState.CONNECTED) return@withContext
                                     val first = initialConnectedNode
@@ -849,8 +862,8 @@ class MainActivity : ComponentActivity() {
                             }
                         )
 
-                        // Background Download Speed Benchmark & Smart Auto-Switch (if enabled)
-                        if (connectionState == ConnectionState.CONNECTED && prefs.isSpeedOptimizationEnabled) {
+                        // Background Download Speed Benchmark & Smart Auto-Switch (ONLY if auto mode is ON and speed optimization is enabled)
+                        if (connectionState == ConnectionState.CONNECTED && prefs.isAutoServerMode && prefs.isSpeedOptimizationEnabled) {
                             speedBenchmarkJob?.cancel()
                             speedBenchmarkJob = launch {
                                 // Wait 6 seconds for connection to stabilize
@@ -940,6 +953,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun reconnectToGeminiOptimizedServer() = withContext(Dispatchers.IO) {
+        if (!prefs.isAutoServerMode) return@withContext
         val nodes = repository.getCachedNodes()
         if (nodes.isEmpty()) return@withContext
         val currentRemark = prefs.selectedServerRemark
@@ -961,6 +975,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun reconnectToVoiceCallOptimizedServer() = withContext(Dispatchers.IO) {
+        if (!prefs.isAutoServerMode) return@withContext
         val nodes = repository.getCachedNodes()
         if (nodes.isEmpty()) return@withContext
         val currentRemark = prefs.selectedServerRemark
