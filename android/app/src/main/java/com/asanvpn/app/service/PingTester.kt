@@ -1076,20 +1076,20 @@ object PingTester {
         } else {
             filtered.take(limit)
         }
-        val semaphore = Semaphore(2)
+        val semaphore = Semaphore(3)
 
         val results = coroutineScope {
             candidates.map { node ->
                 async {
                     val delay = semaphore.withPermit {
-                        val d = measureRealDelay(node, timeoutMs = 3500L)
-                        if (d > 0) d else testTcpLatency(node.server, node.port, 1500)
+                        val d = measureRealDelay(node, timeoutMs = 3000L)
+                        if (d > 0) d else testTcpLatency(node.server, node.port, 2000)
                     }
+                    node.latencyMs = delay
                     if (delay > 0) {
-                        node.latencyMs = delay
                         com.asanvpn.app.data.NodeMetricsCache.saveLatency(node, delay)
-                        onNodePinged(node, delay)
                     }
+                    onNodePinged(node, delay)
                     Pair(node, delay)
                 }
             }.awaitAll()

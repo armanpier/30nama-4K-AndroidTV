@@ -158,7 +158,7 @@ class MainActivity : ComponentActivity() {
         // Initialize persistent link metrics cache (speed & Gemini results)
         com.asanvpn.app.data.NodeMetricsCache.init(this)
 
-        if (availableNodesState.isNotEmpty() && !AsanVpnService.isRunning) {
+        if (availableNodesState.isNotEmpty()) {
             refreshTopNodesPing()
         }
 
@@ -454,7 +454,7 @@ class MainActivity : ComponentActivity() {
         val pin = currentPinState ?: prefs.savedPin
         if (!pin.isNullOrBlank()) {
             validateUserSession(pin)
-            if (availableNodesState.isNotEmpty() && !AsanVpnService.isRunning && !isPingingNodesState) {
+            if (availableNodesState.isNotEmpty() && !isPingingNodesState) {
                 refreshTopNodesPing()
             }
         }
@@ -505,7 +505,8 @@ class MainActivity : ComponentActivity() {
                         availableNodesState = nodes
                         if (connectionState == ConnectionState.CONNECTED && AsanVpnService.isRunning) {
                             checkAndApplyPanelPriorityChange(nodes)
-                        } else if (!isPingingNodesState) {
+                        }
+                        if (!isPingingNodesState) {
                             refreshTopNodesPing(nodes)
                         }
                     }
@@ -536,19 +537,20 @@ class MainActivity : ComponentActivity() {
         pingJob = lifecycleScope.launch {
             isPingingNodesState = true
             try {
+                val pingLimit = candidatePool.size.coerceAtMost(25)
                 PingTester.pingTopCandidateNodes(
                     nodes = candidatePool,
-                    limit = 5,
+                    limit = pingLimit,
                     isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
                     isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
                     onNodePinged = { pingedNode, delay ->
                         lifecycleScope.launch(Dispatchers.Main) {
                             availableNodesState = availableNodesState.map { n ->
-                                if (n.server == pingedNode.server && n.port == pingedNode.port && n.remark == pingedNode.remark) {
+                                if (n.server == pingedNode.server && n.port == pingedNode.port) {
                                     n.copy(latencyMs = delay)
                                 } else n
                             }
-                            if (prefs.isAutoServerMode && (currentServerPing <= 0 || delay < currentServerPing)) {
+                            if (delay > 0 && prefs.isAutoServerMode && (currentServerPing <= 0 || delay < currentServerPing)) {
                                 if (connectionState != ConnectionState.CONNECTED) {
                                     currentServerPing = delay
                                     prefs.selectedServerPing = delay
@@ -748,7 +750,7 @@ class MainActivity : ComponentActivity() {
                             manualNode.latencyMs = measuredDelay
                             com.asanvpn.app.data.NodeMetricsCache.saveLatency(manualNode, measuredDelay)
                             availableNodesState = availableNodesState.map { n ->
-                                if (n.server == manualNode.server && n.port == manualNode.port && n.remark == manualNode.remark) {
+                                if (n.server == manualNode.server && n.port == manualNode.port) {
                                     n.copy(latencyMs = measuredDelay)
                                 } else n
                             }
@@ -839,7 +841,7 @@ class MainActivity : ComponentActivity() {
                             onNodePinged = { pingedNode, delay ->
                                 withContext(Dispatchers.Main) {
                                     availableNodesState = availableNodesState.map { n ->
-                                        if (n.server == pingedNode.server && n.port == pingedNode.port && n.remark == pingedNode.remark) {
+                                        if (n.server == pingedNode.server && n.port == pingedNode.port) {
                                             n.copy(latencyMs = delay)
                                         } else n
                                     }

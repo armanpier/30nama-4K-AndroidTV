@@ -62,12 +62,12 @@ fun ServerSelectionDialog(
         if (top.isNotEmpty()) top else availableNodes
     }
 
-    // Automatically trigger fresh ping if no candidate node has a measured latency
+    // Automatically trigger fresh ping if any candidate node has not been pinged yet
     LaunchedEffect(candidateNodes) {
-        val hasAnyPing = candidateNodes.any {
-            it.latencyMs > 0 || (com.asanvpn.app.data.NodeMetricsCache.getLatency(it) ?: -1L) > 0
+        val hasUntestedNodes = candidateNodes.any {
+            it.latencyMs == 0L && com.asanvpn.app.data.NodeMetricsCache.getLatency(it) == null
         }
-        if (!hasAnyPing && onRefreshPing != null && !isPinging) {
+        if (hasUntestedNodes && onRefreshPing != null && !isPinging) {
             onRefreshPing()
         }
     }
@@ -148,13 +148,13 @@ fun ServerSelectionDialog(
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "انتخاب سرور ($topPanelName)",
-                            fontSize = if (isSmallScreen) 13.5.sp else 15.sp,
+                            text = "انتخاب سرور",
+                            fontSize = if (isSmallScreen) 15.sp else 17.sp,
                             fontWeight = FontWeight.Black,
                             color = colors.textPrimary
                         )
                         Text(
-                            text = "اولویت ۱ • ${filteredNodes.size} سرور در دسترس",
+                            text = "سرورهای منتخب • ${filteredNodes.size} سرور در دسترس",
                             fontSize = if (isSmallScreen) 10.sp else 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = colors.jadeGreen
@@ -354,7 +354,7 @@ fun ServerSelectionDialog(
                         )
                     }
                     Text(
-                        text = "سرورهای $topPanelName (اولویت ۱)",
+                        text = "سرورهای منتخب (اولویت ۱)",
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.textSecondary
@@ -444,10 +444,10 @@ fun ServerSelectionDialog(
                             val remarkSafe = if (rawRemark.isNotBlank()) rawRemark else "سرور ${index + 1}"
                             val isSelected = !isAutoServerMode && (remarkSafe == currentSelectedRemark || rawRemark == currentSelectedRemark)
 
-                            val measuredLatency = if (node.latencyMs > 0) {
+                            val measuredLatency = if (node.latencyMs != 0L) {
                                 node.latencyMs
                             } else {
-                                com.asanvpn.app.data.NodeMetricsCache.getLatency(node) ?: -1L
+                                com.asanvpn.app.data.NodeMetricsCache.getLatency(node) ?: 0L
                             }
 
                             Box(
@@ -498,9 +498,16 @@ fun ServerSelectionDialog(
                                                     fontWeight = FontWeight.Bold,
                                                     color = badgeColor
                                                 )
+                                            } else if (measuredLatency < 0) {
+                                                Text(
+                                                    text = "تایم‌اوت",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFEF5350)
+                                                )
                                             } else {
                                                 Text(
-                                                    text = "-- ms",
+                                                    text = if (isPinging) "..." else "-- ms",
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.Medium,
                                                     color = colors.textMuted
