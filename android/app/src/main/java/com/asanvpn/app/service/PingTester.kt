@@ -200,7 +200,13 @@ object PingTester {
         // Always test Priority 1 first with increased patience/timeout. If special options (Gemini/Voice) are requested
         // and cannot be satisfied in Priority 1, connect to basic node so user has instant internet, and cascade to next tiers in background!
         for ((tier, tierNodes) in priorityTiers) {
-            val tierName = tierNodes.firstOrNull()?.panelName ?: "پنل اولویت $tier"
+            val tierPanels = tierNodes.mapNotNull { it.panelName?.trim() }.filter { it.isNotBlank() }.distinct()
+            val tierName = when {
+                tierPanels.isEmpty() -> "پنل اولویت $tier"
+                tierPanels.size == 1 -> tierPanels.first()
+                tierPanels.size == 2 -> "${tierPanels[0]} و ${tierPanels[1]}"
+                else -> "${tierPanels.take(2).joinToString("، ")} و ..."
+            }
             val isTopPriority = (tier == priorityTiers.firstKey())
             val tcpTimeout = if (isTopPriority) 2500 else 1200
             val realDelayTimeout = if (isTopPriority) 7000L else 3500L
@@ -281,24 +287,40 @@ object PingTester {
                 }
             ).map { it.first }
 
-            val tierCandidatesToTest = if (responsive.isNotEmpty()) responsive.take(10) else {
+            val rawCandidates = if (responsive.isNotEmpty()) responsive else {
                 when {
                     isGeminiOptimizationEnabled && isVoiceCallOptimizationEnabled -> {
                         candidatePoolForTier.sortedWith(
                             compareByDescending<VpnNode> { isGeminiPreferredNode(it) && isVoiceCallPreferredNode(it) }
                                 .thenByDescending { isGeminiPreferredNode(it) }
-                        ).take(10)
+                        )
                     }
                     isGeminiOptimizationEnabled -> {
-                        candidatePoolForTier.sortedByDescending { isGeminiPreferredNode(it) }.take(10)
+                        candidatePoolForTier.sortedByDescending { isGeminiPreferredNode(it) }
                     }
                     isVoiceCallOptimizationEnabled -> {
-                        candidatePoolForTier.sortedByDescending { isVoiceCallPreferredNode(it) }.take(10)
+                        candidatePoolForTier.sortedByDescending { isVoiceCallPreferredNode(it) }
                     }
                     else -> {
-                        candidatePoolForTier.take(10)
+                        candidatePoolForTier
                     }
                 }
+            }
+
+            val distinctPanelsInTier = rawCandidates.map { it.panelId ?: it.panelName ?: "default" }.distinct()
+            val tierCandidatesToTest = if (distinctPanelsInTier.size > 1) {
+                val byPanel = rawCandidates.groupBy { it.panelId ?: it.panelName ?: "default" }
+                val interleaved = mutableListOf<VpnNode>()
+                val maxLen = byPanel.values.maxOfOrNull { it.size } ?: 0
+                for (i in 0 until maxLen) {
+                    for (pId in distinctPanelsInTier) {
+                        val list = byPanel[pId] ?: continue
+                        if (i < list.size) interleaved.add(list[i])
+                    }
+                }
+                interleaved.take(10)
+            } else {
+                rawCandidates.take(10)
             }
 
             val testSemaphore = Semaphore(2)
@@ -1039,7 +1061,21 @@ object PingTester {
             else -> nodes
         }
 
-        val candidates = filtered.take(limit)
+        val distinctPanels = filtered.map { it.panelId ?: it.panelName ?: "default" }.distinct()
+        val candidates = if (distinctPanels.size > 1) {
+            val byPanel = filtered.groupBy { it.panelId ?: it.panelName ?: "default" }
+            val interleaved = mutableListOf<VpnNode>()
+            val maxLen = byPanel.values.maxOfOrNull { it.size } ?: 0
+            for (i in 0 until maxLen) {
+                for (pId in distinctPanels) {
+                    val list = byPanel[pId] ?: continue
+                    if (i < list.size) interleaved.add(list[i])
+                }
+            }
+            interleaved.take(limit)
+        } else {
+            filtered.take(limit)
+        }
         val semaphore = Semaphore(2)
 
         val results = coroutineScope {

@@ -3,10 +3,12 @@ package com.asanvpn.app.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -70,21 +72,35 @@ fun ServerSelectionDialog(
         }
     }
 
-    val topPanelName = remember(candidateNodes) {
-        candidateNodes.firstOrNull()?.panelName ?: "پنل اولویت ۱"
+    val distinctPanelNames = remember(candidateNodes) {
+        candidateNodes.mapNotNull { it.panelName?.trim() }.filter { it.isNotBlank() }.distinct()
     }
 
-    val filteredNodes = remember(candidateNodes, searchQuery) {
-        if (searchQuery.isBlank()) {
-            candidateNodes
-        } else {
+    val topPanelName = remember(distinctPanelNames) {
+        when {
+            distinctPanelNames.isEmpty() -> "پنل اولویت ۱"
+            distinctPanelNames.size == 1 -> distinctPanelNames.first()
+            distinctPanelNames.size == 2 -> "${distinctPanelNames[0]} و ${distinctPanelNames[1]}"
+            else -> "همه پنل‌های اولویت ۱"
+        }
+    }
+
+    var selectedPanelFilter by remember { mutableStateOf<String?>(null) }
+
+    val filteredNodes = remember(candidateNodes, searchQuery, selectedPanelFilter) {
+        var list = candidateNodes
+        if (!selectedPanelFilter.isNullOrBlank()) {
+            list = list.filter { it.panelName == selectedPanelFilter }
+        }
+        if (searchQuery.isNotBlank()) {
             val q = searchQuery.trim().lowercase()
-            candidateNodes.filter { node ->
+            list = list.filter { node ->
                 node.remark.lowercase().contains(q) ||
                 (node.panelName?.lowercase()?.contains(q) == true) ||
                 node.server.lowercase().contains(q)
             }
         }
+        list
     }
 
     Dialog(
@@ -343,6 +359,62 @@ fun ServerSelectionDialog(
                         fontWeight = FontWeight.Bold,
                         color = colors.textSecondary
                     )
+                }
+
+                if (distinctPanelNames.size > 1) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val isAllSelected = selectedPanelFilter == null
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isAllSelected) colors.skyBlue.copy(alpha = 0.18f) else colors.textMuted.copy(alpha = 0.08f))
+                                .border(
+                                    width = if (isAllSelected) 1.dp else 0.dp,
+                                    color = if (isAllSelected) colors.skyBlue else Color.Transparent,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .clickable { selectedPanelFilter = null }
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "همه (${candidateNodes.size})",
+                                fontSize = 11.sp,
+                                fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isAllSelected) colors.skyBlue else colors.textSecondary
+                            )
+                        }
+
+                        for (pName in distinctPanelNames) {
+                            val count = candidateNodes.count { it.panelName == pName }
+                            val isSelected = selectedPanelFilter == pName
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) colors.skyBlue.copy(alpha = 0.18f) else colors.textMuted.copy(alpha = 0.08f))
+                                    .border(
+                                        width = if (isSelected) 1.dp else 0.dp,
+                                        color = if (isSelected) colors.skyBlue else Color.Transparent,
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .clickable { selectedPanelFilter = pName }
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "$pName ($count)",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) colors.skyBlue else colors.textSecondary
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))

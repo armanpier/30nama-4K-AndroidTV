@@ -2314,13 +2314,6 @@ class RequestHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-            # If user has specific panel_ids assigned, filter nodes to those panels if available
-            user_panel_ids = user.get("panel_ids") or []
-            if user_panel_ids and nodes:
-                filtered_nodes = [n for n in nodes if n.get("panel_id") in user_panel_ids]
-                if filtered_nodes:
-                    nodes = filtered_nodes
-
             # Strictly guarantee waterfall priority assignment and sorting based on LIVE __CONFIG_PANELS__
             panels_raw = db.get("__CONFIG_PANELS__")
             try:
@@ -2364,6 +2357,13 @@ class RequestHandler(BaseHTTPRequestHandler):
                 n["panel_id"] = pid
                 n["panel_name"] = pname
                 n["panel_priority"] = prio
+
+            # If user has specific panel_ids assigned, filter nodes to those panels if available
+            user_panel_ids = user.get("panel_ids") or []
+            if user_panel_ids and nodes:
+                filtered_nodes = [n for n in nodes if n.get("panel_id") in user_panel_ids]
+                if filtered_nodes:
+                    nodes = filtered_nodes
 
             nodes = sorted(nodes, key=lambda x: int(x.get("panel_priority", 1)))
             days_left = max(0, (user["expires_at"] - now) // 86400) if user.get("expires_at") else "نامحدود"
