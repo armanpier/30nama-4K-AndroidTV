@@ -249,11 +249,12 @@ class AsanVpnService : VpnService() {
         healthMonitorJob = serviceScope.launch(Dispatchers.IO) {
             var lastPingTestTime = 0L
             var disconnectedSince = 0L
+            var consecutiveFails = 0
             var isFailoverInProgress = false
             var lastDownlinkBytes = 0L
             var lastCheckTime = System.currentTimeMillis()
 
-            Log.i("AsanVpnService", "Auto-Failover Health Monitor STARTED (5s disconnect guard & smart failover)")
+            Log.i("AsanVpnService", "Auto-Failover Health Monitor STARTED")
 
             while (isRunning && isActive) {
                 try {
@@ -261,11 +262,11 @@ class AsanVpnService : VpnService() {
                         val currentRemark = prefs.selectedServerRemark
                         val stats = V2RayCoreManager.queryTrafficStats()
                         val now = System.currentTimeMillis()
-                        val timeDelta = now - lastCheckTime
+                        val timeDelta = (now - lastCheckTime).coerceAtLeast(1L)
                         lastCheckTime = now
 
                         val downlinkDelta = if (stats != null && lastDownlinkBytes > 0) {
-                            stats.downlinkBytes - lastDownlinkBytes
+                            (stats.downlinkBytes - lastDownlinkBytes).coerceAtLeast(0L)
                         } else {
                             0L
                         }
@@ -273,43 +274,50 @@ class AsanVpnService : VpnService() {
                             lastDownlinkBytes = stats.downlinkBytes
                         }
 
-                        // Traffic flowing check (> 4 KB in interval)
-                        val isTrafficFlowing = (downlinkDelta > 4096L && timeDelta < 4000L)
+                        // Traffic flowing check (> 2 KB in interval): if data is actively received, tunnel is alive!
+                        val isTrafficFlowing = (downlinkDelta > 2048L && timeDelta < 5000L)
                         if (isTrafficFlowing) {
                             disconnectedSince = 0L
+                            consecutiveFails = 0
                         }
 
-                        // Periodic live latency check: every 10 seconds normally, or every 2 seconds if traffic is zero
-                        val shouldTestPing = (now - lastPingTestTime >= 10_000L) || (!isTrafficFlowing && now - lastPingTestTime >= 2000L)
+                        // Periodic live latency check: every 10 seconds normally, or every 5 seconds if idle & previous ping failed
+                        val shouldTestPing = (now - lastPingTestTime >= 10_000L) || (!isTrafficFlowing && now - lastPingTestTime >= 5000L && consecutiveFails > 0)
                         if (shouldTestPing) {
                             lastPingTestTime = now
-                            val livePing = PingTester.testConnectedRealLatency(timeoutMs = 1800L)
+                            val livePing = PingTester.testConnectedRealLatency(timeoutMs = 3500L)
                             if (livePing > 0) {
                                 prefs.selectedServerPing = livePing
                                 currentServerPingFlow.value = livePing
                                 disconnectedSince = 0L
+                                consecutiveFails = 0
                                 Log.i("AsanVpnService", "Live Ping: $livePing ms (Remark: $currentRemark)")
                             } else {
                                 if (!isTrafficFlowing) {
+                                    consecutiveFails++
                                     if (disconnectedSince == 0L) {
                                         disconnectedSince = now
-                                        Log.w("AsanVpnService", "Live Ping failed & zero traffic: starting 5s disconnect timer (Remark: $currentRemark)")
                                     }
+                                    Log.w("AsanVpnService", "Live Ping failed ($consecutiveFails consecutive) & zero traffic: (Remark: $currentRemark)")
                                 }
                             }
                         }
 
-                        val isDisconnectedOver5s = (disconnectedSince > 0L && (now - disconnectedSince >= 5000L))
+                        val isAutoMode = prefs.isAutoServerMode
+                        // Strict failover threshold:
+                        // In Auto Mode: 2 consecutive ping failures (>7s total) and zero traffic
+                        // In Manual Mode: 3 consecutive ping failures (>12s total) and zero traffic
+                        val failThreshold = if (isAutoMode) 2 else 3
+                        val isDisconnected = (disconnectedSince > 0L && (now - disconnectedSince >= 6000L) && consecutiveFails >= failThreshold && !isTrafficFlowing)
 
-                        if (isDisconnectedOver5s && !isTrafficFlowing) {
+                        if (isDisconnected) {
                             isFailoverInProgress = true
-                            val isAutoMode = prefs.isAutoServerMode
                             if (isAutoMode) {
                                 AppLogger.logUser("⚠️ سرور [$currentRemark] بیش از ۵ ثانیه پاسخ نداد؛ در حال انتخاب سریع‌ترین سرور بعدی...")
                                 AppLogger.logAdmin("Server [$currentRemark] unresponsive >5s. Initiating auto-failover...")
                             } else {
-                                AppLogger.logUser("⚠️ سرور انتخابی [$currentRemark] بیش از ۵ ثانیه قطع بود؛ در حال انتقال اضطراری به سرور فعال...")
-                                AppLogger.logAdmin("Manual server [$currentRemark] disconnected >5s. Failing over...")
+                                AppLogger.logUser("⚠️ سرور انتخابی [$currentRemark] به دلیل قطع کامل بیش از ۵ ثانیه پاسخ نداد؛ در حال اتصال اضطراری به سرور فعال...")
+                                AppLogger.logAdmin("Manual server [$currentRemark] disconnected ($consecutiveFails fails). Failing over...")
                             }
 
                             val repo = VpnRepository(this@AsanVpnService)
@@ -342,6 +350,7 @@ class AsanVpnService : VpnService() {
                                 }
                             }
                             disconnectedSince = 0L
+                            consecutiveFails = 0
                             lastPingTestTime = System.currentTimeMillis()
                             isFailoverInProgress = false
                             kotlinx.coroutines.delay(3000L)
@@ -350,6 +359,7 @@ class AsanVpnService : VpnService() {
                         }
                     } else {
                         disconnectedSince = 0L
+                        consecutiveFails = 0
                         kotlinx.coroutines.delay(1500L)
                     }
                 } catch (e: Exception) {

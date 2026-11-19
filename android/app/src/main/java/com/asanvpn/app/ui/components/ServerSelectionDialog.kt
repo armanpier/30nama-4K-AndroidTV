@@ -442,7 +442,10 @@ fun ServerSelectionDialog(
                         ) { index, node ->
                             val rawRemark = node.remark ?: ""
                             val remarkSafe = if (rawRemark.isNotBlank()) rawRemark else "سرور ${index + 1}"
-                            val isSelected = !isAutoServerMode && (remarkSafe == currentSelectedRemark || rawRemark == currentSelectedRemark)
+                            val isSelected = !isAutoServerMode && (
+                                remarkSafe.trim().equals(currentSelectedRemark?.trim(), ignoreCase = true) ||
+                                rawRemark.trim().equals(currentSelectedRemark?.trim(), ignoreCase = true)
+                            )
 
                             val measuredLatency = if (node.latencyMs != 0L) {
                                 node.latencyMs
