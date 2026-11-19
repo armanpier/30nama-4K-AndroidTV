@@ -54,6 +54,8 @@ class MainActivity : ComponentActivity() {
     private var pinError by mutableStateOf<String?>(null)
     private var availableNodesState by mutableStateOf<List<com.asanvpn.app.data.models.VpnNode>>(emptyList())
     private var isAutoServerModeState by mutableStateOf(true)
+    private var isPingingNodesState by mutableStateOf(false)
+    private var pingJob: Job? = null
 
     // In-App Auto Update & Share States
     private var availableUpdate by mutableStateOf<AppVersionInfo?>(null)
@@ -155,6 +157,10 @@ class MainActivity : ComponentActivity() {
 
         // Initialize persistent link metrics cache (speed & Gemini results)
         com.asanvpn.app.data.NodeMetricsCache.init(this)
+
+        if (availableNodesState.isNotEmpty() && !AsanVpnService.isRunning) {
+            refreshTopNodesPing()
+        }
 
         // Automatic fast check for update on app startup
         lifecycleScope.launch {
@@ -284,6 +290,8 @@ class MainActivity : ComponentActivity() {
                             isDarkMode = isDarkMode,
                             availableNodes = availableNodesState,
                             isAutoServerMode = isAutoServerModeState,
+                            isPingingNodes = isPingingNodesState,
+                            onRefreshPing = { refreshTopNodesPing() },
                             onToggleAutoServerMode = { isAuto ->
                                 isAutoServerModeState = isAuto
                                 prefs.isAutoServerMode = isAuto
@@ -298,7 +306,8 @@ class MainActivity : ComponentActivity() {
                                 prefs.isAutoServerMode = false
                                 prefs.selectedServerRemark = selectedNode.remark
                                 currentServerRemark = selectedNode.remark
-                                val ping = if (selectedNode.latencyMs > 0) selectedNode.latencyMs else 125L
+                                val cachedPing = com.asanvpn.app.data.NodeMetricsCache.getLatency(selectedNode) ?: -1L
+                                val ping = if (selectedNode.latencyMs > 0) selectedNode.latencyMs else if (cachedPing > 0) cachedPing else 125L
                                 prefs.selectedServerPing = ping
                                 currentServerPing = ping
                                 val configJson = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(selectedNode)
@@ -445,6 +454,9 @@ class MainActivity : ComponentActivity() {
         val pin = currentPinState ?: prefs.savedPin
         if (!pin.isNullOrBlank()) {
             validateUserSession(pin)
+            if (availableNodesState.isNotEmpty() && !AsanVpnService.isRunning && !isPingingNodesState) {
+                refreshTopNodesPing()
+            }
         }
 
         // Check for updates on resume immediately
@@ -493,6 +505,8 @@ class MainActivity : ComponentActivity() {
                         availableNodesState = nodes
                         if (connectionState == ConnectionState.CONNECTED && AsanVpnService.isRunning) {
                             checkAndApplyPanelPriorityChange(nodes)
+                        } else if (!isPingingNodesState) {
+                            refreshTopNodesPing(nodes)
                         }
                     }
                 }
@@ -505,6 +519,47 @@ class MainActivity : ComponentActivity() {
                             kickoutRevokedUser(error.message)
                         }
                     }
+                }
+            }
+        }
+    }
+
+    private fun refreshTopNodesPing(nodesToPing: List<com.asanvpn.app.data.models.VpnNode>? = null) {
+        val allNodes = nodesToPing ?: availableNodesState
+        if (allNodes.isEmpty()) return
+
+        val topPriority = allNodes.mapNotNull { it.panelPriority }.minOrNull() ?: 1
+        val topNodes = allNodes.filter { (it.panelPriority ?: 1) == topPriority }
+        val candidatePool = if (topNodes.isNotEmpty()) topNodes else allNodes
+
+        pingJob?.cancel()
+        pingJob = lifecycleScope.launch {
+            isPingingNodesState = true
+            try {
+                PingTester.pingTopCandidateNodes(
+                    nodes = candidatePool,
+                    limit = 5,
+                    isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
+                    isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
+                    onNodePinged = { pingedNode, delay ->
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            availableNodesState = availableNodesState.map { n ->
+                                if (n.server == pingedNode.server && n.port == pingedNode.port && n.remark == pingedNode.remark) {
+                                    n.copy(latencyMs = delay)
+                                } else n
+                            }
+                            if (prefs.isAutoServerMode && (currentServerPing <= 0 || delay < currentServerPing)) {
+                                if (connectionState != ConnectionState.CONNECTED) {
+                                    currentServerPing = delay
+                                    prefs.selectedServerPing = delay
+                                }
+                            }
+                        }
+                    }
+                )
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isPingingNodesState = false
                 }
             }
         }
@@ -584,6 +639,7 @@ class MainActivity : ComponentActivity() {
 
                     val configJson = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(initialNode)
                     prefs.activeV2RayConfig = configJson
+                    refreshTopNodesPing(nodes)
                 }
                 response.userInfo?.let { info ->
                     val name = info.name ?: "کاربر گرامی"
@@ -690,6 +746,12 @@ class MainActivity : ComponentActivity() {
 
                         if (measuredDelay > 0) {
                             manualNode.latencyMs = measuredDelay
+                            com.asanvpn.app.data.NodeMetricsCache.saveLatency(manualNode, measuredDelay)
+                            availableNodesState = availableNodesState.map { n ->
+                                if (n.server == manualNode.server && n.port == manualNode.port && n.remark == manualNode.remark) {
+                                    n.copy(latencyMs = measuredDelay)
+                                } else n
+                            }
                             prefs.selectedServerPing = measuredDelay
                             currentServerPing = measuredDelay
 
@@ -771,6 +833,15 @@ class MainActivity : ComponentActivity() {
                                     } else if (fastestNode.latencyMs > 0) {
                                         prefs.selectedServerPing = fastestNode.latencyMs
                                         currentServerPing = fastestNode.latencyMs
+                                    }
+                                }
+                            },
+                            onNodePinged = { pingedNode, delay ->
+                                withContext(Dispatchers.Main) {
+                                    availableNodesState = availableNodesState.map { n ->
+                                        if (n.server == pingedNode.server && n.port == pingedNode.port && n.remark == pingedNode.remark) {
+                                            n.copy(latencyMs = delay)
+                                        } else n
                                     }
                                 }
                             }

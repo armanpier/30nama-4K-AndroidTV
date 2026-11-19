@@ -15,7 +15,9 @@ data class CachedNodeMetric(
     var geminiLatencyMs: Long = -1L,
     var geminiTestedAt: Long = 0L,
     var isVoiceCallCompatible: Boolean? = null,
-    var voiceCallTestedAt: Long = 0L
+    var voiceCallTestedAt: Long = 0L,
+    var latencyMs: Long? = null,
+    var latencyTestedAt: Long = 0L
 )
 
 /**
@@ -146,6 +148,27 @@ object NodeMetricsCache {
         val entry = memoryCache.getOrPut(sig) { CachedNodeMetric(linkSignature = sig) }
         entry.isVoiceCallCompatible = isCompatible
         entry.voiceCallTestedAt = System.currentTimeMillis()
+        persistToDisk()
+    }
+
+    fun getLatency(node: VpnNode, maxAgeMs: Long = 900_000L): Long? {
+        ensureLoaded()
+        val sig = getSignature(node)
+        val entry = memoryCache[sig] ?: return null
+        val lat = entry.latencyMs ?: return null
+        if (lat <= 0) return null
+        if (maxAgeMs > 0 && System.currentTimeMillis() - entry.latencyTestedAt > maxAgeMs) {
+            return null // Expired, needs fresh test
+        }
+        return lat
+    }
+
+    fun saveLatency(node: VpnNode, latencyMs: Long) {
+        ensureLoaded()
+        val sig = getSignature(node)
+        val entry = memoryCache.getOrPut(sig) { CachedNodeMetric(linkSignature = sig) }
+        entry.latencyMs = latencyMs
+        entry.latencyTestedAt = System.currentTimeMillis()
         persistToDisk()
     }
 

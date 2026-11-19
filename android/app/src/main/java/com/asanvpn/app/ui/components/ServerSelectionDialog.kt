@@ -37,7 +37,9 @@ fun ServerSelectionDialog(
     isAutoServerMode: Boolean,
     onDismiss: () -> Unit,
     onSelectAuto: () -> Unit,
-    onSelectNode: (VpnNode) -> Unit
+    onSelectNode: (VpnNode) -> Unit,
+    isPinging: Boolean = false,
+    onRefreshPing: (() -> Unit)? = null
 ) {
     val colors = LuxuryTheme.colors
     val configuration = LocalConfiguration.current
@@ -56,6 +58,16 @@ fun ServerSelectionDialog(
     val candidateNodes = remember(availableNodes, topPriority) {
         val top = availableNodes.filter { (it.panelPriority ?: 1) == topPriority }
         if (top.isNotEmpty()) top else availableNodes
+    }
+
+    // Automatically trigger fresh ping if no candidate node has a measured latency
+    LaunchedEffect(candidateNodes) {
+        val hasAnyPing = candidateNodes.any {
+            it.latencyMs > 0 || (com.asanvpn.app.data.NodeMetricsCache.getLatency(it) ?: -1L) > 0
+        }
+        if (!hasAnyPing && onRefreshPing != null && !isPinging) {
+            onRefreshPing()
+        }
     }
 
     val topPanelName = remember(candidateNodes) {
@@ -290,11 +302,41 @@ fun ServerSelectionDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "تعداد: ${filteredNodes.size}",
-                        fontSize = 10.5.sp,
-                        color = colors.textMuted
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (onRefreshPing != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .luxuryCushion(shape = CircleShape, elevation = 2.dp)
+                                    .clip(CircleShape)
+                                    .clickable(enabled = !isPinging) { onRefreshPing() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isPinging) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(13.dp),
+                                        strokeWidth = 2.dp,
+                                        color = colors.skyBlue
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "بروزرسانی پینگ",
+                                        tint = colors.skyBlue,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                            }
+                        }
+                        Text(
+                            text = "تعداد: ${filteredNodes.size}",
+                            fontSize = 10.5.sp,
+                            color = colors.textMuted
+                        )
+                    }
                     Text(
                         text = "سرورهای $topPanelName (اولویت ۱)",
                         fontSize = 11.5.sp,
@@ -330,6 +372,12 @@ fun ServerSelectionDialog(
                             val remarkSafe = if (rawRemark.isNotBlank()) rawRemark else "سرور ${index + 1}"
                             val isSelected = !isAutoServerMode && (remarkSafe == currentSelectedRemark || rawRemark == currentSelectedRemark)
 
+                            val measuredLatency = if (node.latencyMs > 0) {
+                                node.latencyMs
+                            } else {
+                                com.asanvpn.app.data.NodeMetricsCache.getLatency(node) ?: -1L
+                            }
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -361,17 +409,29 @@ fun ServerSelectionDialog(
                                             colors = RadioButtonDefaults.colors(selectedColor = colors.skyBlue)
                                         )
 
-                                        if (node.latencyMs > 0) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .luxuryWell(shape = RoundedCornerShape(12.dp))
-                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                                            ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .luxuryWell(shape = RoundedCornerShape(12.dp))
+                                                .padding(horizontal = 7.dp, vertical = 3.5.dp)
+                                        ) {
+                                            if (measuredLatency > 0) {
+                                                val badgeColor = when {
+                                                    measuredLatency < 160 -> colors.jadeGreen
+                                                    measuredLatency < 300 -> colors.skyBlue
+                                                    else -> Color(0xFFFFA726)
+                                                }
                                                 Text(
-                                                    text = "${node.latencyMs} ms",
+                                                    text = "$measuredLatency ms",
                                                     fontSize = 10.5.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = colors.jadeGreen
+                                                    color = badgeColor
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = "-- ms",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = colors.textMuted
                                                 )
                                             }
                                         }

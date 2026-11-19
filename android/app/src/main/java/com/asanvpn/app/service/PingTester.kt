@@ -131,7 +131,8 @@ object PingTester {
         isGeminiOptimizationEnabled: Boolean = false,
         isVoiceCallOptimizationEnabled: Boolean = false,
         onFirstOkNode: suspend (VpnNode) -> Unit,
-        onFastestNodeFound: suspend (VpnNode) -> Unit
+        onFastestNodeFound: suspend (VpnNode) -> Unit,
+        onNodePinged: (suspend (VpnNode, Long) -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
         if (nodes.isEmpty()) return@withContext
         context?.let {
@@ -147,6 +148,9 @@ object PingTester {
             }
             val delay = measureRealDelay(single, 5000L)
             if (delay > 0) {
+                single.latencyMs = delay
+                com.asanvpn.app.data.NodeMetricsCache.saveLatency(single, delay)
+                onNodePinged?.invoke(single, delay)
                 if (isGeminiOptimizationEnabled) {
                     val cached = com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(single)
                     val gDelay = if (cached != null) {
@@ -307,6 +311,8 @@ object PingTester {
                         }
                         node.latencyMs = realDelay
                         if (realDelay > 0) {
+                            com.asanvpn.app.data.NodeMetricsCache.saveLatency(node, realDelay)
+                            onNodePinged?.invoke(node, realDelay)
                             var isNodeOptionCompatible = true
                             if (isGeminiOptimizationEnabled) {
                                 val cached = com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(node)
@@ -998,6 +1004,62 @@ object PingTester {
         } ?: -1L
 
         coreDelay
+    }
+
+    /**
+     * Tests real latency for up to [limit] candidate nodes in the background.
+     * Invokes [onNodePinged] as each node completes testing, and updates [NodeMetricsCache].
+     * Never hangs or blocks; uses a strict 3500ms timeout per node with max 2 concurrent tests.
+     */
+    suspend fun pingTopCandidateNodes(
+        nodes: List<VpnNode>,
+        limit: Int = 5,
+        isGeminiOptimizationEnabled: Boolean = false,
+        isVoiceCallOptimizationEnabled: Boolean = false,
+        onNodePinged: (VpnNode, Long) -> Unit = { _, _ -> }
+    ): List<Pair<VpnNode, Long>> = withContext(Dispatchers.IO) {
+        if (nodes.isEmpty()) return@withContext emptyList()
+
+        val filtered = when {
+            isGeminiOptimizationEnabled && isVoiceCallOptimizationEnabled -> {
+                val nonRestricted = nodes.filter { !isGeminiRestrictedNode(it) && !isVoiceCallRestrictedNode(it) }
+                nonRestricted.sortedWith(
+                    compareByDescending<VpnNode> { isGeminiPreferredNode(it) && isVoiceCallPreferredNode(it) }
+                        .thenByDescending { isGeminiPreferredNode(it) }
+                )
+            }
+            isGeminiOptimizationEnabled -> {
+                val nonRestricted = nodes.filter { !isGeminiRestrictedNode(it) }
+                nonRestricted.sortedByDescending { isGeminiPreferredNode(it) }
+            }
+            isVoiceCallOptimizationEnabled -> {
+                val nonRestricted = nodes.filter { !isVoiceCallRestrictedNode(it) }
+                nonRestricted.sortedByDescending { isVoiceCallPreferredNode(it) }
+            }
+            else -> nodes
+        }
+
+        val candidates = filtered.take(limit)
+        val semaphore = Semaphore(2)
+
+        val results = coroutineScope {
+            candidates.map { node ->
+                async {
+                    val delay = semaphore.withPermit {
+                        val d = measureRealDelay(node, timeoutMs = 3500L)
+                        if (d > 0) d else testTcpLatency(node.server, node.port, 1500)
+                    }
+                    if (delay > 0) {
+                        node.latencyMs = delay
+                        com.asanvpn.app.data.NodeMetricsCache.saveLatency(node, delay)
+                        onNodePinged(node, delay)
+                    }
+                    Pair(node, delay)
+                }
+            }.awaitAll()
+        }
+
+        results
     }
 
     private fun isUsableEgressNode(node: VpnNode): Boolean {

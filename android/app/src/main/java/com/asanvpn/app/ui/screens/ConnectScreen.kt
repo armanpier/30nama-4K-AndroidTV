@@ -64,11 +64,13 @@ fun ConnectScreen(
     uploadTraffic: String = "۰ B",
     downloadSpeed: String = "",
     uploadSpeed: String = "",
-    appVersion: String = "1.3.35",
+    appVersion: String = "1.3.36",
     newVersionAvailable: String? = null,
     isDarkMode: Boolean = false,
     availableNodes: List<VpnNode> = emptyList(),
     isAutoServerMode: Boolean = true,
+    isPingingNodes: Boolean = false,
+    onRefreshPing: (() -> Unit)? = null,
     onToggleAutoServerMode: (Boolean) -> Unit = {},
     onSelectServerNode: (VpnNode) -> Unit = {},
     onToggleTheme: () -> Unit = {},
@@ -1388,7 +1390,9 @@ fun ConnectScreen(
             onSelectNode = { selectedNode ->
                 onSelectServerNode(selectedNode)
                 showServerSelectDialog = false
-            }
+            },
+            isPinging = isPingingNodes,
+            onRefreshPing = onRefreshPing
         )
     }
 
