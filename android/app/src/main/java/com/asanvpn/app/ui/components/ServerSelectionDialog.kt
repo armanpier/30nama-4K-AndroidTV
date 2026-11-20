@@ -482,10 +482,10 @@ fun ServerSelectionDialog(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    // Left: Latency Badge + Radio indicator
+                                    // Left: Latency Badge + Speed Badge + Radio indicator
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
                                         RadioButton(
                                             selected = isSelected,
@@ -524,6 +524,35 @@ fun ServerSelectionDialog(
                                                     fontWeight = FontWeight.Medium,
                                                     color = colors.textMuted
                                                 )
+                                            }
+                                        }
+
+                                        // Measured download speed badge if tested
+                                        val measuredSpeed = com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
+                                        if (measuredSpeed != null && measuredSpeed > 0.0) {
+                                            val roundedSpeed = (measuredSpeed * 10).toInt() / 10.0
+                                            Box(
+                                                modifier = Modifier
+                                                    .luxuryWell(shape = RoundedCornerShape(12.dp))
+                                                    .padding(horizontal = 6.dp, vertical = 3.5.dp)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Bolt,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFFFFB300),
+                                                        modifier = Modifier.size(11.dp)
+                                                    )
+                                                    Text(
+                                                        text = "$roundedSpeed MB/s",
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFFFFB300)
+                                                    )
+                                                }
                                             }
                                         }
                                     }

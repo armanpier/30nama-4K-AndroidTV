@@ -23,8 +23,8 @@ object PingTester {
     private const val TAG = "PingTester"
     private const val TEST_URL_PRIMARY = "https://cp.cloudflare.com/generate_204"
     private const val TEST_URL_FALLBACK = "https://www.gstatic.com/generate_204"
-    private const val SPEED_TEST_URL_PRIMARY = "https://speed.cloudflare.com/__down?bytes=4000000"
-    private const val SPEED_TEST_URL_FALLBACK = "https://speedtest.tele2.net/4MB.zip"
+    private const val SPEED_TEST_URL_PRIMARY = "https://speed.cloudflare.com/__down?bytes=5000000"
+    private const val SPEED_TEST_URL_FALLBACK = "https://speedtest.tele2.net/5MB.zip"
     private const val GEMINI_TEST_URL = "https://gemini.google.com"
     private const val GEMINI_API_TEST_URL = "https://generativelanguage.googleapis.com"
 
@@ -719,7 +719,7 @@ object PingTester {
 
     /**
      * Tests download throughput (MB/s) of candidate nodes in the background sequentially without disconnecting.
-     * Uses a lightweight 4 MB payload per server (tested strictly one-by-one).
+     * Uses a lightweight 5 MB payload per server (tested strictly one-by-one).
      * Takes up to 5 candidate nodes (including the currently active node).
      * If Gemini mode is enabled, only candidate nodes passing Gemini verification are considered.
      * Returns a candidate node if it is significantly faster (at least 25% and >= 0.5 MB/s) than the active node,
@@ -730,12 +730,14 @@ object PingTester {
         activeNode: VpnNode,
         isGeminiOptimizationEnabled: Boolean = false,
         isVoiceCallOptimizationEnabled: Boolean = false,
-        timeoutPerNodeMs: Long = 12000L
+        forceRefresh: Boolean = false,
+        timeoutPerNodeMs: Long = 12000L,
+        onNodeSpeedTested: ((VpnNode, Double) -> Unit)? = null
     ): VpnNode? = withContext(Dispatchers.IO) {
         if (candidates.size <= 1) return@withContext null
 
-        Log.i(TAG, "Starting sequential download throughput benchmark (4MB) on ${candidates.size} nodes...")
-        AppLogger.logUser("📊 شروع تست سرعت دانلود ۴ مگابایت سرورها به صورت نوبتی در پس‌زمینه...")
+        Log.i(TAG, "Starting sequential download throughput benchmark (5MB) on ${candidates.size} nodes...")
+        AppLogger.logUser("📊 شروع تست سرعت دانلود ۵ مگابایت سرورها به صورت نوبتی در پس‌زمینه...")
 
         // candidate remark -> speed in MB/s
         val speedResults = mutableMapOf<String, Double>()
@@ -753,17 +755,20 @@ object PingTester {
         for ((index, node) in orderedCandidates.withIndex()) {
             if (!isActive) return@withContext null
 
-            // 1. Check cached download speed first (reused if link is unchanged from panel)
-            val cachedSpeed = com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
-            if (cachedSpeed != null && cachedSpeed > 0.0) {
-                val roundedCached = (cachedSpeed * 10).toInt() / 10.0
-                speedResults[node.remark] = cachedSpeed
-                Log.i(TAG, "Using cached throughput for [${node.remark}]: ${roundedCached} MB/s (unchanged from panel)")
-                AppLogger.logUser("⚡ سرعت ذخیره‌شده [${node.remark}]: ${roundedCached} MB/s (از کش - بدون نیاز به دانلود مجدد)")
-                continue
+            // 1. Check cached download speed first (reused if link is unchanged from panel and not force refreshed)
+            if (!forceRefresh) {
+                val cachedSpeed = com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
+                if (cachedSpeed != null && cachedSpeed > 0.0) {
+                    val roundedCached = (cachedSpeed * 10).toInt() / 10.0
+                    speedResults[node.remark] = cachedSpeed
+                    Log.i(TAG, "Using cached throughput for [${node.remark}]: ${roundedCached} MB/s (unchanged from panel)")
+                    AppLogger.logUser("⚡ سرعت ذخیره‌شده [${node.remark}]: ${roundedCached} MB/s (از کش)")
+                    onNodeSpeedTested?.invoke(node, cachedSpeed)
+                    continue
+                }
             }
 
-            AppLogger.logUser("⏳ [${index + 1}/${orderedCandidates.size}] در حال سنجش سرعت ۴ مگابایت [${node.remark}]...")
+            AppLogger.logUser("⏳ [${index + 1}/${orderedCandidates.size}] در حال سنجش سرعت ۵ مگابایت [${node.remark}]...")
 
             if (isVoiceCallOptimizationEnabled && isVoiceCallRestrictedNode(node)) {
                 Log.w(TAG, "Speed test candidate [${node.remark}] skipped: voice call / UDP restricted")
@@ -774,7 +779,7 @@ object PingTester {
 
             if (isGeminiOptimizationEnabled) {
                 val cachedGemini = com.asanvpn.app.data.NodeMetricsCache.getGeminiCompatibility(node)
-                val geminiDelay = if (cachedGemini != null) {
+                val geminiDelay = if (!forceRefresh && cachedGemini != null) {
                     if (cachedGemini.first) cachedGemini.second else -1L
                 } else {
                     val delay = measureGeminiDelay(node, 3000L)
@@ -811,11 +816,12 @@ object PingTester {
             } ?: -1L
 
             if (durationMs > 0) {
-                val speedMBs = (4.0 / (durationMs / 1000.0))
+                val speedMBs = (5.0 / (durationMs / 1000.0))
                 val roundedSpeed = (speedMBs * 10).toInt() / 10.0
                 speedResults[node.remark] = speedMBs
                 // Save to persistent cache so future runs reuse this result as long as link is unchanged
                 com.asanvpn.app.data.NodeMetricsCache.saveSpeed(node, speedMBs)
+                onNodeSpeedTested?.invoke(node, speedMBs)
                 Log.i(TAG, "Throughput test [${node.remark}]: ${roundedSpeed} MB/s (${durationMs}ms) - Saved to cache")
                 AppLogger.logUser("⚡ نتیجه دانلود [${node.remark}]: ${roundedSpeed} MB/s (ذخیره در کش)")
             } else {
@@ -1080,14 +1086,13 @@ object PingTester {
         } else {
             filtered.take(limit)
         }
-        val semaphore = Semaphore(6)
+        val semaphore = Semaphore(4)
 
         val results = coroutineScope {
             candidates.map { node ->
                 async {
                     val delay = semaphore.withPermit {
-                        val tcp = testTcpLatency(node.server, node.port, 2500)
-                        if (tcp > 0) tcp else measureRealDelay(node, timeoutMs = 2500L)
+                        measureRealDelay(node, timeoutMs = 4000L)
                     }
                     node.latencyMs = delay
                     if (delay > 0) {

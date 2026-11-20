@@ -478,6 +478,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Trigger foreground checks for active options (Real Delay, 5MB Speed if enabled, Gemini if enabled)
+        triggerForegroundOptionChecks()
+
         // Check for updates on resume immediately
         if (!isUpdateDownloading && !showUpdateDialog) {
             triggerCheckForUpdate(manual = false)
@@ -584,6 +587,73 @@ class MainActivity : ComponentActivity() {
             } finally {
                 withContext(Dispatchers.Main) {
                     isPingingNodesState = false
+                }
+            }
+        }
+    }
+
+    private var foregroundOptionChecksJob: Job? = null
+
+    private fun triggerForegroundOptionChecks() {
+        val nodes = availableNodesState
+        if (nodes.isEmpty()) return
+
+        foregroundOptionChecksJob?.cancel()
+        foregroundOptionChecksJob = lifecycleScope.launch(Dispatchers.IO) {
+            val topPriority = nodes.mapNotNull { it.panelPriority }.minOrNull() ?: 1
+            val topNodes = nodes.filter { (it.panelPriority ?: 1) == topPriority }
+            val candidatePool = if (topNodes.isNotEmpty()) topNodes else nodes
+            val candidatesToTest = candidatePool.take(5)
+
+            // 1. If Gemini Optimization is ON: re-verify candidate nodes
+            if (prefs.isGeminiOptimizationEnabled) {
+                for (node in candidatesToTest) {
+                    if (!isActive) return@launch
+                    val gDelay = PingTester.measureGeminiDelay(node, 3500L)
+                    val ok = gDelay > 0
+                    com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(node, ok, gDelay)
+                    if (ok) {
+                        AppLogger.logUser("✨ سرور [${node.remark}] سازگار با Gemini تایید شد (${gDelay}ms)")
+                    } else {
+                        AppLogger.logUser("⚠️ سرور [${node.remark}] فاقد دسترسی به Gemini (خطای تحریم گوگل)")
+                    }
+                }
+            }
+
+            // 2. If Smart Speed Optimization is ON and VPN is CONNECTED and Auto mode is ON:
+            // Run fresh 5 MB download benchmark on candidates!
+            if (prefs.isSpeedOptimizationEnabled && connectionState == ConnectionState.CONNECTED && prefs.isAutoServerMode) {
+                val activeRemark = currentServerRemark
+                val activeNode = candidatePool.firstOrNull { it.remark == activeRemark } ?: candidatePool.firstOrNull()
+                if (activeNode != null) {
+                    val fasterNode = PingTester.benchmarkCandidateThroughput(
+                        candidates = candidatesToTest,
+                        activeNode = activeNode,
+                        isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
+                        isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
+                        forceRefresh = true,
+                        onNodeSpeedTested = { testedNode, speed ->
+                            lifecycleScope.launch(Dispatchers.Main) {
+                                availableNodesState = availableNodesState.map { n ->
+                                    if (n.remark == testedNode.remark) n.copy() else n
+                                }
+                            }
+                        }
+                    )
+                    if (fasterNode != null && isActive && connectionState == ConnectionState.CONNECTED) {
+                        withContext(Dispatchers.Main) {
+                            prefs.selectedServerRemark = fasterNode.remark
+                            currentServerRemark = fasterNode.remark
+                            if (fasterNode.latencyMs > 0) {
+                                prefs.selectedServerPing = fasterNode.latencyMs
+                                currentServerPing = fasterNode.latencyMs
+                            }
+                            val newConfig = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(fasterNode)
+                            prefs.activeV2RayConfig = newConfig
+                            switchVpnConfigInternal(newConfig)
+                            Toast.makeText(this@MainActivity, "تعویض خودکار به سرور پرسرعت‌تر: [${fasterNode.remark}]", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             }
         }
@@ -881,7 +951,15 @@ class MainActivity : ComponentActivity() {
                                         candidates = candidatesInTier,
                                         activeNode = activeNode,
                                         isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
-                                        isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled
+                                        isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
+                                        forceRefresh = true,
+                                        onNodeSpeedTested = { testedNode, speed ->
+                                            lifecycleScope.launch(Dispatchers.Main) {
+                                                availableNodesState = availableNodesState.map { n ->
+                                                    if (n.remark == testedNode.remark) n.copy() else n
+                                                }
+                                            }
+                                        }
                                     )
                                     if (fasterNode != null && isActive && connectionState == ConnectionState.CONNECTED) {
                                         withContext(Dispatchers.Main) {

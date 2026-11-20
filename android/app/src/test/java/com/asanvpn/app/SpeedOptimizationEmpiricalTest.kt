@@ -8,9 +8,9 @@ class SpeedOptimizationEmpiricalTest {
 
     @Test
     fun testThroughputCalculationFormula() {
-        val chunkSizeBytes = 4_000_000L // 4 MB
+        val chunkSizeBytes = 5_000_000L // 5 MB
         val durationMsFast = 1000L // 1.0 seconds
-        val durationMsSlow = 4000L // 4.0 seconds
+        val durationMsSlow = 5000L // 5.0 seconds
 
         val speedFast = (chunkSizeBytes / (1024.0 * 1024.0)) / (durationMsFast / 1000.0)
         val speedSlow = (chunkSizeBytes / (1024.0 * 1024.0)) / (durationMsSlow / 1000.0)
@@ -18,7 +18,7 @@ class SpeedOptimizationEmpiricalTest {
         val roundedFast = (speedFast * 10).toInt() / 10.0
         val roundedSlow = (speedSlow * 10).toInt() / 10.0
 
-        assertEquals(3.8, roundedFast, 0.1)
+        assertEquals(4.7, roundedFast, 0.1)
         assertEquals(0.9, roundedSlow, 0.1)
         assertTrue(speedFast > speedSlow)
     }
