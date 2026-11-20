@@ -74,6 +74,7 @@ class MainActivity : ComponentActivity() {
     private var uploadTrafficState by mutableStateOf("۰ B")
     private var downloadSpeedState by mutableStateOf("")
     private var uploadSpeedState by mutableStateOf("")
+    private var currentServerSpeedState by mutableStateOf<Double?>(null)
 
     private var connectJob: Job? = null
     private var optimizationJob: Job? = null
@@ -170,6 +171,16 @@ class MainActivity : ComponentActivity() {
         com.asanvpn.app.data.NodeMetricsCache.init(this)
 
         if (availableNodesState.isNotEmpty()) {
+            availableNodesState = availableNodesState.map { node ->
+                val speed = com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
+                val lat = com.asanvpn.app.data.NodeMetricsCache.getLatency(node)
+                var updated = node
+                if (speed != null && speed > 0.0) updated = updated.copy(downloadSpeedMBs = speed)
+                if (lat != null && lat > 0L && updated.latencyMs <= 0L) updated = updated.copy(latencyMs = lat)
+                updated
+            }
+            val activeNode = availableNodesState.firstOrNull { it.remark == currentServerRemark }
+            currentServerSpeedState = activeNode?.downloadSpeedMBs ?: activeNode?.let { com.asanvpn.app.data.NodeMetricsCache.getSpeed(it) }
             refreshTopNodesPing()
         }
 
@@ -291,6 +302,7 @@ class MainActivity : ComponentActivity() {
                             trafficTotalBytes = currentTrafficTotal,
                             serverRemark = currentServerRemark,
                             serverPing = currentServerPing,
+                            currentServerSpeed = currentServerSpeedState,
                             connectionState = connectionState,
                             downloadTraffic = downloadTrafficState,
                             uploadTraffic = uploadTrafficState,
@@ -524,7 +536,16 @@ class MainActivity : ComponentActivity() {
                     }
                     val nodes = response.nodes
                     if (!nodes.isNullOrEmpty()) {
-                        availableNodesState = nodes
+                        availableNodesState = nodes.map { node ->
+                            val speed = com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
+                            val lat = com.asanvpn.app.data.NodeMetricsCache.getLatency(node)
+                            var updated = node
+                            if (speed != null && speed > 0.0) updated = updated.copy(downloadSpeedMBs = speed)
+                            if (lat != null && lat > 0L && updated.latencyMs <= 0L) updated = updated.copy(latencyMs = lat)
+                            updated
+                        }
+                        val activeNode = availableNodesState.firstOrNull { it.remark == currentServerRemark }
+                        currentServerSpeedState = activeNode?.downloadSpeedMBs ?: activeNode?.let { com.asanvpn.app.data.NodeMetricsCache.getSpeed(it) }
                         if (connectionState == ConnectionState.CONNECTED && AsanVpnService.isRunning) {
                             checkAndApplyPanelPriorityChange(nodes)
                         }
@@ -620,11 +641,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // 2. If Smart Speed Optimization is ON and VPN is CONNECTED and Auto mode is ON:
+            // 2. If Smart Speed Optimization is ON and VPN is CONNECTED:
             // Run fresh 5 MB download benchmark on candidates!
-            if (prefs.isSpeedOptimizationEnabled && connectionState == ConnectionState.CONNECTED && prefs.isAutoServerMode) {
+            if (prefs.isSpeedOptimizationEnabled && connectionState == ConnectionState.CONNECTED) {
                 val activeRemark = currentServerRemark
-                val activeNode = candidatePool.firstOrNull { it.remark == activeRemark } ?: candidatePool.firstOrNull()
+                val activeNode = nodes.firstOrNull { it.remark == activeRemark } ?: candidatePool.firstOrNull()
                 if (activeNode != null) {
                     val fasterNode = PingTester.benchmarkCandidateThroughput(
                         candidates = candidatesToTest,
@@ -634,13 +655,16 @@ class MainActivity : ComponentActivity() {
                         forceRefresh = true,
                         onNodeSpeedTested = { testedNode, speed ->
                             lifecycleScope.launch(Dispatchers.Main) {
+                                if (testedNode.remark == currentServerRemark) {
+                                    currentServerSpeedState = speed
+                                }
                                 availableNodesState = availableNodesState.map { n ->
-                                    if (n.remark == testedNode.remark) n.copy() else n
+                                    if (n.remark == testedNode.remark) n.copy(downloadSpeedMBs = speed) else n
                                 }
                             }
                         }
                     )
-                    if (fasterNode != null && isActive && connectionState == ConnectionState.CONNECTED) {
+                    if (prefs.isAutoServerMode && fasterNode != null && isActive && connectionState == ConnectionState.CONNECTED) {
                         withContext(Dispatchers.Main) {
                             prefs.selectedServerRemark = fasterNode.remark
                             currentServerRemark = fasterNode.remark
@@ -648,6 +672,7 @@ class MainActivity : ComponentActivity() {
                                 prefs.selectedServerPing = fasterNode.latencyMs
                                 currentServerPing = fasterNode.latencyMs
                             }
+                            currentServerSpeedState = fasterNode.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(fasterNode)
                             val newConfig = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(fasterNode)
                             prefs.activeV2RayConfig = newConfig
                             switchVpnConfigInternal(newConfig)
@@ -724,8 +749,16 @@ class MainActivity : ComponentActivity() {
             result.onSuccess { response ->
                 val nodes = response.nodes
                 if (!nodes.isNullOrEmpty()) {
-                    availableNodesState = nodes
-                    val initialNode = nodes.firstOrNull { it.remark.contains("DE") || it.remark.contains("FR") } ?: nodes[0]
+                    availableNodesState = nodes.map { node ->
+                        val speed = com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
+                        val lat = com.asanvpn.app.data.NodeMetricsCache.getLatency(node)
+                        var updated = node
+                        if (speed != null && speed > 0.0) updated = updated.copy(downloadSpeedMBs = speed)
+                        if (lat != null && lat > 0L && updated.latencyMs <= 0L) updated = updated.copy(latencyMs = lat)
+                        updated
+                    }
+                    val initialNode = availableNodesState.firstOrNull { it.remark.contains("DE") || it.remark.contains("FR") } ?: availableNodesState[0]
+                    currentServerSpeedState = initialNode.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(initialNode)
                     prefs.selectedServerRemark = initialNode.remark
                     currentServerRemark = initialNode.remark
                     prefs.selectedServerPing = 125L
@@ -932,8 +965,8 @@ class MainActivity : ComponentActivity() {
                             }
                         )
 
-                        // Background Download Speed Benchmark & Smart Auto-Switch (ONLY if auto mode is ON and speed optimization is enabled)
-                        if (connectionState == ConnectionState.CONNECTED && prefs.isAutoServerMode && prefs.isSpeedOptimizationEnabled) {
+                        // Background Download Speed Benchmark & Smart Auto-Switch (ONLY if speed optimization is enabled)
+                        if (connectionState == ConnectionState.CONNECTED && prefs.isSpeedOptimizationEnabled) {
                             speedBenchmarkJob?.cancel()
                             speedBenchmarkJob = launch {
                                 // Wait 6 seconds for connection to stabilize
@@ -942,38 +975,42 @@ class MainActivity : ComponentActivity() {
                                 val activeNode = initialConnectedNode ?: return@launch
                                 val activeTier = activeNode.panelPriority ?: 1
                                 val candidatesInTier = nodes
-                                    .filter { (it.panelPriority ?: 1) == activeTier && it.latencyMs > 0 }
-                                    .sortedBy { it.latencyMs }
+                                    .filter { (it.panelPriority ?: 1) == activeTier }
+                                    .sortedBy { if (it.latencyMs > 0) it.latencyMs else 9999L }
                                     .take(5)
 
-                                if (candidatesInTier.size > 1) {
-                                    val fasterNode = PingTester.benchmarkCandidateThroughput(
-                                        candidates = candidatesInTier,
-                                        activeNode = activeNode,
-                                        isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
-                                        isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
-                                        forceRefresh = true,
-                                        onNodeSpeedTested = { testedNode, speed ->
-                                            lifecycleScope.launch(Dispatchers.Main) {
-                                                availableNodesState = availableNodesState.map { n ->
-                                                    if (n.remark == testedNode.remark) n.copy() else n
-                                                }
+                                val candidateList = if (candidatesInTier.isNotEmpty()) candidatesInTier else listOf(activeNode)
+
+                                val fasterNode = PingTester.benchmarkCandidateThroughput(
+                                    candidates = candidateList,
+                                    activeNode = activeNode,
+                                    isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
+                                    isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
+                                    forceRefresh = true,
+                                    onNodeSpeedTested = { testedNode, speed ->
+                                        lifecycleScope.launch(Dispatchers.Main) {
+                                            if (testedNode.remark == currentServerRemark) {
+                                                currentServerSpeedState = speed
+                                            }
+                                            availableNodesState = availableNodesState.map { n ->
+                                                if (n.remark == testedNode.remark) n.copy(downloadSpeedMBs = speed) else n
                                             }
                                         }
-                                    )
-                                    if (fasterNode != null && isActive && connectionState == ConnectionState.CONNECTED) {
-                                        withContext(Dispatchers.Main) {
-                                            prefs.selectedServerRemark = fasterNode.remark
-                                            currentServerRemark = fasterNode.remark
-                                            if (fasterNode.latencyMs > 0) {
-                                                prefs.selectedServerPing = fasterNode.latencyMs
-                                                currentServerPing = fasterNode.latencyMs
-                                            }
-                                            val newConfig = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(fasterNode)
-                                            prefs.activeV2RayConfig = newConfig
-                                            switchVpnConfigInternal(newConfig)
-                                            Toast.makeText(this@MainActivity, "سوییچ خودکار به سرور پرسرعت‌تر: [${fasterNode.remark}]", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                                if (prefs.isAutoServerMode && fasterNode != null && isActive && connectionState == ConnectionState.CONNECTED) {
+                                    withContext(Dispatchers.Main) {
+                                        prefs.selectedServerRemark = fasterNode.remark
+                                        currentServerRemark = fasterNode.remark
+                                        if (fasterNode.latencyMs > 0) {
+                                            prefs.selectedServerPing = fasterNode.latencyMs
+                                            currentServerPing = fasterNode.latencyMs
                                         }
+                                        currentServerSpeedState = fasterNode.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(fasterNode)
+                                        val newConfig = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(fasterNode)
+                                        prefs.activeV2RayConfig = newConfig
+                                        switchVpnConfigInternal(newConfig)
+                                        Toast.makeText(this@MainActivity, "سوییچ خودکار به سرور پرسرعت‌تر: [${fasterNode.remark}]", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             }

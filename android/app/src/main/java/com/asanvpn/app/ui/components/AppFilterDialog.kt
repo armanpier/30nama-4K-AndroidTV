@@ -447,18 +447,16 @@ fun AppFilterDialog(
                                                     isGeminiTesting = true
                                                     geminiTestStatus = "در حال تست ارتباط با گوگل جمینای..."
                                                     coroutineScope.launch {
-                                                        val res = PingTester.testLiveGeminiConnectivity()
+                                                        val prefs = PreferencesManager(context)
+                                                        val activeRemark = prefs.selectedServerRemark
+                                                        val activeNode = VpnRepository(context).getCachedNodes().firstOrNull { it.remark == activeRemark }
+                                                        val res = PingTester.testLiveGeminiConnectivity(activeNode = activeNode)
                                                         isGeminiTesting = false
                                                         if (res.isSuccess) {
                                                             geminiTestStatus = "✅ ${res.message}"
-                                                            try {
-                                                                val prefs = PreferencesManager(context)
-                                                                val activeRemark = prefs.selectedServerRemark
-                                                                val activeNode = VpnRepository(context).getCachedNodes().firstOrNull { it.remark == activeRemark }
-                                                                if (activeNode != null) {
-                                                                    com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(activeNode, true, res.latencyMs)
-                                                                }
-                                                            } catch (_: Exception) {}
+                                                            if (activeNode != null) {
+                                                                com.asanvpn.app.data.NodeMetricsCache.saveGeminiCompatibility(activeNode, true, res.latencyMs)
+                                                            }
                                                         } else {
                                                             geminiTestStatus = "❌ ${res.message}"
                                                         }

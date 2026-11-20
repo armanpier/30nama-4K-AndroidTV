@@ -59,7 +59,8 @@ data class VpnNode @JvmOverloads constructor(
     @SerializedName("latency") var latencyMs: Long = -1L,
     @SerializedName("panel_id") val panelId: String? = null,
     @SerializedName("panel_name") val panelName: String? = null,
-    @SerializedName("panel_priority") val panelPriority: Int? = 1
+    @SerializedName("panel_priority") val panelPriority: Int? = 1,
+    @SerializedName("download_speed") var downloadSpeedMBs: Double? = null
 ) {
     constructor(
         protocol: String,
@@ -88,7 +89,7 @@ data class VpnNode @JvmOverloads constructor(
     ) : this(
         protocol, remark, server, port, uuid, password, type, security, sni, path, flow, pbk, sid, spx,
         fingerprint, hostHeader, serviceName, alpn, cipher, null, null, null, null, latencyMs,
-        panelId, panelName, panelPriority
+        panelId, panelName, panelPriority, null
     )
 }
 

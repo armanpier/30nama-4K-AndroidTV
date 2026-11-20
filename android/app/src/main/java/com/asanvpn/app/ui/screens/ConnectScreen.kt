@@ -59,12 +59,13 @@ fun ConnectScreen(
     trafficTotalBytes: Long = 30L * 1024 * 1024 * 1024,
     serverRemark: String = "🇩🇪 DE2 (سرور پیشنهادی)",
     serverPing: Long = 48L,
+    currentServerSpeed: Double? = null,
     connectionState: ConnectionState,
     downloadTraffic: String = "۰ B",
     uploadTraffic: String = "۰ B",
     downloadSpeed: String = "",
     uploadSpeed: String = "",
-    appVersion: String = "1.3.42",
+    appVersion: String = "1.3.43",
     newVersionAvailable: String? = null,
     isDarkMode: Boolean = false,
     availableNodes: List<VpnNode> = emptyList(),
@@ -730,6 +731,40 @@ fun ConnectScreen(
                                             fontWeight = FontWeight.ExtraBold,
                                             color = if (isConnected) colors.jadeGreen else colors.textSecondary
                                         )
+                                    }
+                                }
+
+                                // Measured Speed Badge if available
+                                val speedToShow = currentServerSpeed ?: availableNodes.firstOrNull {
+                                    it.remark == serverRemark || (serverRemark.isNotBlank() && it.remark.contains(serverRemark))
+                                }?.let {
+                                    it.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(it)
+                                }
+
+                                if (speedToShow != null && speedToShow > 0.0) {
+                                    val roundedSpeed = (speedToShow * 10).toInt() / 10.0
+                                    Box(
+                                        modifier = Modifier
+                                            .luxuryWell(shape = RoundedCornerShape(12.dp))
+                                            .padding(horizontal = if (isSmallScreen) 5.dp else 7.dp, vertical = if (isSmallScreen) 3.dp else 4.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(2.5.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Bolt,
+                                                contentDescription = null,
+                                                tint = Color(0xFFFFB300),
+                                                modifier = Modifier.size(11.5.dp)
+                                            )
+                                            Text(
+                                                text = "$roundedSpeed MB/s",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFFFB300)
+                                            )
+                                        }
                                     }
                                 }
 

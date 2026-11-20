@@ -439,7 +439,7 @@ fun ServerSelectionDialog(
                     ) {
                         itemsIndexed(
                             items = filteredNodes,
-                            key = { index, node -> "${index}_${node.server}_${node.port}_${node.remark.hashCode()}" }
+                            key = { index, node -> "${index}_${node.server}_${node.port}_${node.remark}_${node.latencyMs}_${node.downloadSpeedMBs ?: 0.0}" }
                         ) { index, node ->
                             val rawRemark = node.remark ?: ""
                             val remarkSafe = if (rawRemark.isNotBlank()) rawRemark else "سرور ${index + 1}"
@@ -528,7 +528,7 @@ fun ServerSelectionDialog(
                                         }
 
                                         // Measured download speed badge if tested
-                                        val measuredSpeed = com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
+                                        val measuredSpeed = node.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
                                         if (measuredSpeed != null && measuredSpeed > 0.0) {
                                             val roundedSpeed = (measuredSpeed * 10).toInt() / 10.0
                                             Box(

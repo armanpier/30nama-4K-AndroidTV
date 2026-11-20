@@ -734,7 +734,7 @@ object PingTester {
         timeoutPerNodeMs: Long = 12000L,
         onNodeSpeedTested: ((VpnNode, Double) -> Unit)? = null
     ): VpnNode? = withContext(Dispatchers.IO) {
-        if (candidates.size <= 1) return@withContext null
+        if (candidates.isEmpty()) return@withContext null
 
         Log.i(TAG, "Starting sequential download throughput benchmark (5MB) on ${candidates.size} nodes...")
         AppLogger.logUser("📊 شروع تست سرعت دانلود ۵ مگابایت سرورها به صورت نوبتی در پس‌زمینه...")
@@ -760,6 +760,7 @@ object PingTester {
                 val cachedSpeed = com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
                 if (cachedSpeed != null && cachedSpeed > 0.0) {
                     val roundedCached = (cachedSpeed * 10).toInt() / 10.0
+                    node.downloadSpeedMBs = cachedSpeed
                     speedResults[node.remark] = cachedSpeed
                     Log.i(TAG, "Using cached throughput for [${node.remark}]: ${roundedCached} MB/s (unchanged from panel)")
                     AppLogger.logUser("⚡ سرعت ذخیره‌شده [${node.remark}]: ${roundedCached} MB/s (از کش)")
@@ -818,6 +819,7 @@ object PingTester {
             if (durationMs > 0) {
                 val speedMBs = (5.0 / (durationMs / 1000.0))
                 val roundedSpeed = (speedMBs * 10).toInt() / 10.0
+                node.downloadSpeedMBs = speedMBs
                 speedResults[node.remark] = speedMBs
                 // Save to persistent cache so future runs reuse this result as long as link is unchanged
                 com.asanvpn.app.data.NodeMetricsCache.saveSpeed(node, speedMBs)
@@ -885,63 +887,117 @@ object PingTester {
 
     /**
      * Live test from active connected device directly to Google Gemini.
-     * Inspects redirects and HTTP response code to confirm zero geo-restrictions or 403 blocks.
+     * Routes through local V2Ray HTTP inbound (127.0.0.1:10809) or SOCKS5 inbound (127.0.0.1:10808)
+     * because the AsanVPN app is excluded from the VPN TUN interface (addDisallowedApplication)
+     * to avoid tunnel routing loops. Also falls back to direct Libv2ray measureOutboundDelay if needed.
      */
-    suspend fun testLiveGeminiConnectivity(timeoutMs: Long = 5000L): GeminiCheckResult = withContext(Dispatchers.IO) {
+    suspend fun testLiveGeminiConnectivity(
+        timeoutMs: Long = 6000L,
+        activeNode: VpnNode? = null
+    ): GeminiCheckResult = withContext(Dispatchers.IO) {
         val start = System.currentTimeMillis()
-        try {
-            val client = OkHttpClient.Builder()
-                .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-                .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-                .followRedirects(true)
-                .build()
 
-            val req = Request.Builder()
-                .url(GEMINI_TEST_URL)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-                .build()
+        val proxiesToTry = mutableListOf<java.net.Proxy>()
+        if (V2RayCoreManager.isRunning) {
+            proxiesToTry.add(java.net.Proxy(java.net.Proxy.Type.HTTP, java.net.InetSocketAddress("127.0.0.1", 10809)))
+            proxiesToTry.add(java.net.Proxy(java.net.Proxy.Type.SOCKS, java.net.InetSocketAddress("127.0.0.1", 10808)))
+        }
+        proxiesToTry.add(java.net.Proxy.NO_PROXY)
 
-            client.newCall(req).execute().use { resp ->
-                val latency = System.currentTimeMillis() - start
-                val code = resp.code
-                val effectiveUrl = resp.request.url.toString()
-                val body = resp.body?.string() ?: ""
+        var lastError: Exception? = null
 
-                val isBlocked = effectiveUrl.contains("unavailable", ignoreCase = true) ||
-                        code == 403 ||
-                        body.contains("not available in your country", ignoreCase = true) ||
-                        body.contains("not supported in your country", ignoreCase = true)
+        for (proxy in proxiesToTry) {
+            try {
+                val clientBuilder = OkHttpClient.Builder()
+                    .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                    .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                    .followRedirects(true)
 
-                if (isBlocked) {
+                if (proxy != java.net.Proxy.NO_PROXY) {
+                    clientBuilder.proxy(proxy)
+                }
+
+                val client = clientBuilder.build()
+
+                val req = Request.Builder()
+                    .url(GEMINI_TEST_URL)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+                    .build()
+
+                client.newCall(req).execute().use { resp ->
+                    val latency = System.currentTimeMillis() - start
+                    val code = resp.code
+                    val effectiveUrl = resp.request.url.toString()
+                    val body = resp.body?.string() ?: ""
+
+                    val isBlocked = effectiveUrl.contains("unavailable", ignoreCase = true) ||
+                            code == 403 ||
+                            body.contains("not available in your country", ignoreCase = true) ||
+                            body.contains("not supported in your country", ignoreCase = true)
+
+                    if (isBlocked) {
+                        return@withContext GeminiCheckResult(
+                            isSuccess = false,
+                            latencyMs = latency,
+                            message = "این سرور با خطای کشور یا محدودیت گوگل جمینای مواجه است (کد $code)"
+                        )
+                    }
+
+                    if (code in 200..399) {
+                        return@withContext GeminiCheckResult(
+                            isSuccess = true,
+                            latencyMs = latency,
+                            message = "اتصال پایدار و ۱۰۰٪ سازگار با Gemini (${latency}ms)"
+                        )
+                    }
+
+                    // Secondary verification with Generative Language API
+                    try {
+                        val apiReq = Request.Builder()
+                            .url(GEMINI_API_TEST_URL)
+                            .header("User-Agent", "Mozilla/5.0")
+                            .build()
+                        client.newCall(apiReq).execute().use { apiResp ->
+                            val apiCode = apiResp.code
+                            if (apiCode != 403) {
+                                return@withContext GeminiCheckResult(
+                                    isSuccess = true,
+                                    latencyMs = latency,
+                                    message = "اتصال پایدار و ۱۰۰٪ سازگار با Gemini (${latency}ms)"
+                                )
+                            }
+                        }
+                    } catch (_: Exception) {}
+
                     return@withContext GeminiCheckResult(
                         isSuccess = false,
                         latencyMs = latency,
-                        message = "این سرور با خطای کشور یا محدودیت گوگل جمینای مواجه است (کد $code)"
+                        message = "پاسخ ناموفق از سرور جمینای: کد $code"
                     )
                 }
+            } catch (e: Exception) {
+                lastError = e
+            }
+        }
 
-                if (code in 200..399) {
-                    return@withContext GeminiCheckResult(
-                        isSuccess = true,
-                        latencyMs = latency,
-                        message = "اتصال پایدار و ۱۰۰٪ سازگار با Gemini (${latency}ms)"
-                    )
-                }
-
+        // Outbound engine fallback if direct socket attempts failed but node is known
+        if (activeNode != null) {
+            val v2rayDelay = measureGeminiDelay(activeNode, timeoutMs)
+            if (v2rayDelay > 0) {
                 return@withContext GeminiCheckResult(
-                    isSuccess = false,
-                    latencyMs = latency,
-                    message = "پاسخ ناموفق از سرور جمینای: کد $code"
+                    isSuccess = true,
+                    latencyMs = v2rayDelay,
+                    message = "اتصال پایدار و ۱۰۰٪ سازگار با Gemini (${v2rayDelay}ms)"
                 )
             }
-        } catch (e: Exception) {
-            val latency = System.currentTimeMillis() - start
-            return@withContext GeminiCheckResult(
-                isSuccess = false,
-                latencyMs = latency,
-                message = "خطا در برقراری ارتباط با گوگل جمینای (${e.message ?: "تایم‌اوت"})"
-            )
         }
+
+        val latency = System.currentTimeMillis() - start
+        return@withContext GeminiCheckResult(
+            isSuccess = false,
+            latencyMs = latency,
+            message = "خطا در برقراری ارتباط با گوگل جمینای (${lastError?.message ?: "تایم‌اوت"})"
+        )
     }
 
     /**
