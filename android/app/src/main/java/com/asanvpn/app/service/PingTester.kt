@@ -54,7 +54,7 @@ object PingTester {
         if (rem.contains("fastly") || srv.contains("fastly") || srv.startsWith("151.101.") || srv.startsWith("146.75.")) {
             return true
         }
-        if (rem.contains("tunnel-8443") || srv.contains("gdtyum.g44mozgh.ir")) {
+        if (srv.contains("gdtyum.g44mozgh.ir")) {
             return true
         }
         return false
@@ -1044,19 +1044,23 @@ object PingTester {
 
         val filtered = when {
             isGeminiOptimizationEnabled && isVoiceCallOptimizationEnabled -> {
-                val nonRestricted = nodes.filter { !isGeminiRestrictedNode(it) && !isVoiceCallRestrictedNode(it) }
-                nonRestricted.sortedWith(
-                    compareByDescending<VpnNode> { isGeminiPreferredNode(it) && isVoiceCallPreferredNode(it) }
+                nodes.sortedWith(
+                    compareByDescending<VpnNode> { !isGeminiRestrictedNode(it) && !isVoiceCallRestrictedNode(it) }
+                        .thenByDescending { isGeminiPreferredNode(it) && isVoiceCallPreferredNode(it) }
                         .thenByDescending { isGeminiPreferredNode(it) }
                 )
             }
             isGeminiOptimizationEnabled -> {
-                val nonRestricted = nodes.filter { !isGeminiRestrictedNode(it) }
-                nonRestricted.sortedByDescending { isGeminiPreferredNode(it) }
+                nodes.sortedWith(
+                    compareByDescending<VpnNode> { !isGeminiRestrictedNode(it) }
+                        .thenByDescending { isGeminiPreferredNode(it) }
+                )
             }
             isVoiceCallOptimizationEnabled -> {
-                val nonRestricted = nodes.filter { !isVoiceCallRestrictedNode(it) }
-                nonRestricted.sortedByDescending { isVoiceCallPreferredNode(it) }
+                nodes.sortedWith(
+                    compareByDescending<VpnNode> { !isVoiceCallRestrictedNode(it) }
+                        .thenByDescending { isVoiceCallPreferredNode(it) }
+                )
             }
             else -> nodes
         }
@@ -1076,14 +1080,14 @@ object PingTester {
         } else {
             filtered.take(limit)
         }
-        val semaphore = Semaphore(3)
+        val semaphore = Semaphore(6)
 
         val results = coroutineScope {
             candidates.map { node ->
                 async {
                     val delay = semaphore.withPermit {
-                        val d = measureRealDelay(node, timeoutMs = 3000L)
-                        if (d > 0) d else testTcpLatency(node.server, node.port, 2000)
+                        val tcp = testTcpLatency(node.server, node.port, 2500)
+                        if (tcp > 0) tcp else measureRealDelay(node, timeoutMs = 2500L)
                     }
                     node.latencyMs = delay
                     if (delay > 0) {
@@ -1131,6 +1135,7 @@ object PingTester {
         val start = System.currentTimeMillis()
         return try {
             Socket().use { socket ->
+                AsanVpnService.protectSocket(socket)
                 socket.connect(InetSocketAddress(host, port), timeoutMs)
                 System.currentTimeMillis() - start
             }

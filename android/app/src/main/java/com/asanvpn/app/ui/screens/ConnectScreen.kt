@@ -64,7 +64,7 @@ fun ConnectScreen(
     uploadTraffic: String = "۰ B",
     downloadSpeed: String = "",
     uploadSpeed: String = "",
-    appVersion: String = "1.3.40",
+    appVersion: String = "1.3.41",
     newVersionAvailable: String? = null,
     isDarkMode: Boolean = false,
     availableNodes: List<VpnNode> = emptyList(),
@@ -1381,6 +1381,7 @@ fun ConnectScreen(
         ServerSelectionDialog(
             availableNodes = availableNodes,
             currentSelectedRemark = serverRemark,
+            currentServerPing = serverPing,
             isAutoServerMode = isAutoServerMode,
             onDismiss = { showServerSelectDialog = false },
             onSelectAuto = {

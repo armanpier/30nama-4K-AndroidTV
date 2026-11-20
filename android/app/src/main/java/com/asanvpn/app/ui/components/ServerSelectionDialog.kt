@@ -36,6 +36,7 @@ import com.asanvpn.app.ui.theme.luxuryWell
 fun ServerSelectionDialog(
     availableNodes: List<VpnNode>,
     currentSelectedRemark: String?,
+    currentServerPing: Long = 0L,
     isAutoServerMode: Boolean,
     onDismiss: () -> Unit,
     onSelectAuto: () -> Unit,
@@ -447,7 +448,15 @@ fun ServerSelectionDialog(
                                 rawRemark.trim().equals(currentSelectedRemark?.trim(), ignoreCase = true)
                             )
 
-                            val measuredLatency = if (node.latencyMs != 0L) {
+                            val isCurrentlyConnected = currentSelectedRemark != null && (
+                                remarkSafe.trim().equals(currentSelectedRemark.trim(), ignoreCase = true) ||
+                                rawRemark.trim().equals(currentSelectedRemark.trim(), ignoreCase = true) ||
+                                (currentSelectedRemark.isNotBlank() && (remarkSafe.contains(currentSelectedRemark, ignoreCase = true) || currentSelectedRemark.contains(remarkSafe, ignoreCase = true)))
+                            )
+
+                            val measuredLatency = if (isCurrentlyConnected && currentServerPing > 0) {
+                                currentServerPing
+                            } else if (node.latencyMs != 0L) {
                                 node.latencyMs
                             } else {
                                 com.asanvpn.app.data.NodeMetricsCache.getLatency(node) ?: 0L

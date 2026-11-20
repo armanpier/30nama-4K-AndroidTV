@@ -19,6 +19,7 @@ import com.asanvpn.app.data.VpnRepository
 import com.asanvpn.app.service.v2ray.V2RayCoreManager
 import com.asanvpn.app.util.AppLogger
 import com.asanvpn.app.util.IranAppBypassHelper
+import java.net.Socket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -55,10 +56,23 @@ class AsanVpnService : VpnService() {
             private set(value) {
                 _vpnRunningState.value = value
             }
+
+        @Volatile
+        var serviceInstance: AsanVpnService? = null
+            private set
+
+        fun protectSocket(socket: Socket): Boolean {
+            return try {
+                serviceInstance?.protect(socket) ?: false
+            } catch (_: Exception) {
+                false
+            }
+        }
     }
 
     override fun onCreate() {
         super.onCreate()
+        serviceInstance = this
         prefs = PreferencesManager(this)
         createNotificationChannel()
         V2RayCoreManager.initCore(this)
@@ -464,6 +478,7 @@ class AsanVpnService : VpnService() {
     }
 
     override fun onDestroy() {
+        serviceInstance = null
         super.onDestroy()
         stopVpnTunnel()
     }

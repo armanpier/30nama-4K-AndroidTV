@@ -151,6 +151,17 @@ class MainActivity : ComponentActivity() {
             AsanVpnService.currentServerPingFlow.collect { ping ->
                 if (ping > 0) {
                     currentServerPing = ping
+                    val activeRemark = currentServerRemark
+                    if (activeRemark.isNotBlank()) {
+                        availableNodesState = availableNodesState.map { n ->
+                            val match = n.remark.trim().equals(activeRemark.trim(), ignoreCase = true) ||
+                                (activeRemark.isNotBlank() && (n.remark.contains(activeRemark) || activeRemark.contains(n.remark)))
+                            if (match) {
+                                com.asanvpn.app.data.NodeMetricsCache.saveLatency(n, ping)
+                                n.copy(latencyMs = ping)
+                            } else n
+                        }
+                    }
                 }
             }
         }
@@ -545,7 +556,7 @@ class MainActivity : ComponentActivity() {
         pingJob = lifecycleScope.launch {
             isPingingNodesState = true
             try {
-                val pingLimit = candidatePool.size.coerceAtMost(25)
+                val pingLimit = candidatePool.size.coerceAtMost(30)
                 PingTester.pingTopCandidateNodes(
                     nodes = candidatePool,
                     limit = pingLimit,
@@ -554,7 +565,10 @@ class MainActivity : ComponentActivity() {
                     onNodePinged = { pingedNode, delay ->
                         lifecycleScope.launch(Dispatchers.Main) {
                             availableNodesState = availableNodesState.map { n ->
-                                if (n.server == pingedNode.server && n.port == pingedNode.port) {
+                                if (n.remark == pingedNode.remark || (n.server == pingedNode.server && n.port == pingedNode.port)) {
+                                    if (delay > 0) {
+                                        com.asanvpn.app.data.NodeMetricsCache.saveLatency(n, delay)
+                                    }
                                     n.copy(latencyMs = delay)
                                 } else n
                             }

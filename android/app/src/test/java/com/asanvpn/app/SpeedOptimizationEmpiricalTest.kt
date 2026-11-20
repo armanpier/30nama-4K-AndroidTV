@@ -48,18 +48,20 @@ class SpeedOptimizationEmpiricalTest {
     fun testVoiceCallOptimizationNodeFiltering() {
         val nodes = listOf(
             VpnNode("vless", "Fastly-XHTTP🇺🇸", "151.101.65.67", 443, latencyMs = 80L),
-            VpnNode("vless", "Tunnel-8443🇩🇪", "188.121.110.232", 8443, latencyMs = 90L),
+            VpnNode("vless", "Blocked-Voice", "gdtyum.g44mozgh.ir", 8443, latencyMs = 90L),
+            VpnNode("vless", "Tunnel-8443🇩🇪", "188.121.110.232", 8443, latencyMs = 95L),
             VpnNode("vless", "AppleMarket-USA1🇺🇸", "94.183.166.44", 6608, latencyMs = 120L),
             VpnNode("vless", "PasarGuard-Germany🇩🇪", "45.14.225.10", 443, latencyMs = 75L)
         )
 
         val voiceCallCompatible = nodes.filter { !com.asanvpn.app.service.PingTester.isVoiceCallRestrictedNode(it) }
 
-        assertEquals(2, voiceCallCompatible.size)
+        assertEquals(3, voiceCallCompatible.size)
         assertTrue(voiceCallCompatible.any { it.remark.contains("AppleMarket-USA1") })
         assertTrue(voiceCallCompatible.any { it.remark.contains("PasarGuard-Germany") })
+        assertTrue(voiceCallCompatible.any { it.remark.contains("Tunnel-8443") })
         assertFalse(voiceCallCompatible.any { it.remark.contains("Fastly") })
-        assertFalse(voiceCallCompatible.any { it.remark.contains("Tunnel-8443") })
+        assertFalse(voiceCallCompatible.any { it.server.contains("gdtyum.g44mozgh.ir") })
     }
 
     @Test
