@@ -285,4 +285,70 @@ class SpeedOptimizationEmpiricalTest {
         val resetUnresponsiveStart = if (isTrafficFlowing) 0L else unresponsiveStart
         assertEquals("Traffic flowing resets unresponsive timer to 0", 0L, resetUnresponsiveStart)
     }
+
+    @Test
+    fun testNodeMetricsServerPortFallback() {
+        val originalNode = VpnNode(
+            protocol = "vless",
+            remark = "Netherlands🇳🇱",
+            server = "185.120.10.5",
+            port = 443,
+            uuid = "uuid-netherlands",
+            rawLink = "vless://uuid-netherlands@185.120.10.5:443?security=reality#Netherlands"
+        )
+
+        // Save metrics under original node with raw link
+        com.asanvpn.app.data.NodeMetricsCache.saveSpeed(originalNode, 9.4)
+        com.asanvpn.app.data.NodeMetricsCache.saveLatency(originalNode, 65L)
+
+        // Look up using parsed node without rawLink (different signature, same server:port)
+        val parsedNodeWithoutRaw = VpnNode(
+            protocol = "vless",
+            remark = "Netherlands🇳🇱",
+            server = "185.120.10.5",
+            port = 443,
+            uuid = "uuid-netherlands"
+        )
+
+        val retrievedSpeed = com.asanvpn.app.data.NodeMetricsCache.getSpeed(parsedNodeWithoutRaw)
+        val retrievedLatency = com.asanvpn.app.data.NodeMetricsCache.getLatency(parsedNodeWithoutRaw)
+
+        assertNotNull("Speed should be retrieved via server:port fallback", retrievedSpeed)
+        assertEquals(9.4, retrievedSpeed!!, 0.01)
+
+        assertNotNull("Latency should be retrieved via server:port fallback", retrievedLatency)
+        assertEquals(65L, retrievedLatency!!)
+    }
+
+    @Test
+    fun testServerRemarkSymmetricMatching() {
+        val serverRemarkWithBadge = "🇩🇪 DE2 (سرور پیشنهادی)"
+        val candidateNode = VpnNode(
+            protocol = "vless",
+            remark = "🇩🇪 DE2",
+            server = "1.2.3.4",
+            port = 443
+        )
+
+        // Suffix matching in both directions
+        val matchesForward = candidateNode.remark.trim().equals(serverRemarkWithBadge.trim(), ignoreCase = true) ||
+                (serverRemarkWithBadge.isNotBlank() && (candidateNode.remark.contains(serverRemarkWithBadge) || serverRemarkWithBadge.contains(candidateNode.remark)))
+
+        assertTrue("Candidate node remark must match server remark with recommended badge suffix", matchesForward)
+    }
+
+    @Test
+    fun testLightweightSpeedPayloadThroughputCalculation() {
+        val duration1MbFastMs = 500L // 0.5s for 1MB -> 2.0 MB/s
+        val duration1MbSlowMs = 2500L // 2.5s for 1MB -> 0.4 MB/s
+        val duration500KbMs = 1000L // 1.0s for 0.5MB -> 0.5 MB/s
+
+        val speedFast = 1.0 / (duration1MbFastMs / 1000.0)
+        val speedSlow = 1.0 / (duration1MbSlowMs / 1000.0)
+        val speed500Kb = 0.5 / (duration500KbMs / 1000.0)
+
+        assertEquals(2.0, speedFast, 0.01)
+        assertEquals(0.4, speedSlow, 0.01)
+        assertEquals(0.5, speed500Kb, 0.01)
+    }
 }

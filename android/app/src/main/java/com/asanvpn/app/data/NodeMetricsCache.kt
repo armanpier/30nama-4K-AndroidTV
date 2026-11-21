@@ -9,6 +9,9 @@ import java.util.concurrent.ConcurrentHashMap
 
 data class CachedNodeMetric(
     val linkSignature: String,
+    var server: String? = null,
+    var port: Int? = null,
+    var remark: String? = null,
     var speedMBs: Double? = null,
     var speedTestedAt: Long = 0L,
     var isGeminiCompatible: Boolean? = null,
@@ -94,14 +97,29 @@ object NodeMetricsCache {
     fun getSpeed(node: VpnNode): Double? {
         ensureLoaded()
         val sig = getSignature(node)
-        val entry = memoryCache[sig] ?: return null
-        return entry.speedMBs
+        val entry = memoryCache[sig]
+        if (entry?.speedMBs != null && entry.speedMBs!! > 0.0) {
+            return entry.speedMBs
+        }
+        // Resilient fallback by exact server:port match (when rawLink/signature formatting differs slightly)
+        if (node.server.isNotBlank() && node.port > 0) {
+            val fallback = memoryCache.values.firstOrNull {
+                it.server == node.server && it.port == node.port
+            }
+            if (fallback?.speedMBs != null && fallback.speedMBs!! > 0.0) {
+                return fallback.speedMBs
+            }
+        }
+        return null
     }
 
     fun saveSpeed(node: VpnNode, speedMBs: Double) {
         ensureLoaded()
         val sig = getSignature(node)
         val entry = memoryCache.getOrPut(sig) { CachedNodeMetric(linkSignature = sig) }
+        entry.server = node.server
+        entry.port = node.port
+        entry.remark = node.remark
         entry.speedMBs = speedMBs
         entry.speedTestedAt = System.currentTimeMillis()
         persistToDisk()
@@ -154,19 +172,34 @@ object NodeMetricsCache {
     fun getLatency(node: VpnNode, maxAgeMs: Long = 900_000L): Long? {
         ensureLoaded()
         val sig = getSignature(node)
-        val entry = memoryCache[sig] ?: return null
-        val lat = entry.latencyMs ?: return null
-        if (lat <= 0) return null
-        if (maxAgeMs > 0 && System.currentTimeMillis() - entry.latencyTestedAt > maxAgeMs) {
-            return null // Expired, needs fresh test
+        val entry = memoryCache[sig]
+        val lat = entry?.latencyMs
+        if (lat != null && lat > 0) {
+            if (maxAgeMs <= 0 || System.currentTimeMillis() - entry.latencyTestedAt <= maxAgeMs) {
+                return lat
+            }
         }
-        return lat
+        if (node.server.isNotBlank() && node.port > 0) {
+            val fallback = memoryCache.values.firstOrNull {
+                it.server == node.server && it.port == node.port
+            }
+            val fallbackLat = fallback?.latencyMs
+            if (fallbackLat != null && fallbackLat > 0) {
+                if (maxAgeMs <= 0 || System.currentTimeMillis() - fallback.latencyTestedAt <= maxAgeMs) {
+                    return fallbackLat
+                }
+            }
+        }
+        return null
     }
 
     fun saveLatency(node: VpnNode, latencyMs: Long) {
         ensureLoaded()
         val sig = getSignature(node)
         val entry = memoryCache.getOrPut(sig) { CachedNodeMetric(linkSignature = sig) }
+        entry.server = node.server
+        entry.port = node.port
+        entry.remark = node.remark
         entry.latencyMs = latencyMs
         entry.latencyTestedAt = System.currentTimeMillis()
         persistToDisk()

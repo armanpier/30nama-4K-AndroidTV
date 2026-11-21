@@ -65,7 +65,7 @@ fun ConnectScreen(
     uploadTraffic: String = "۰ B",
     downloadSpeed: String = "",
     uploadSpeed: String = "",
-    appVersion: String = "1.3.43",
+    appVersion: String = "1.3.44",
     newVersionAvailable: String? = null,
     isDarkMode: Boolean = false,
     availableNodes: List<VpnNode> = emptyList(),
@@ -705,73 +705,23 @@ fun ConnectScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Ping Badge & Dropdown Chevron on Left
+                            // Measured Speed Badge if available
+                            val speedToShow = currentServerSpeed ?: availableNodes.firstOrNull {
+                                it.remark.trim().equals(serverRemark.trim(), ignoreCase = true) ||
+                                (serverRemark.isNotBlank() && (it.remark.contains(serverRemark) || serverRemark.contains(it.remark)))
+                            }?.let {
+                                it.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(it)
+                            }
+
+                            // Left side: Chevron + Metrics Column (Ping & Speed stacked for perfect vertical balance)
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .luxuryWell(shape = RoundedCornerShape(12.dp))
-                                        .padding(horizontal = if (isSmallScreen) 6.dp else 8.dp, vertical = if (isSmallScreen) 3.dp else 5.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(7.dp)
-                                                .clip(CircleShape)
-                                                .background(if (isConnected) colors.jadeGreen else colors.textMuted)
-                                        )
-                                        Text(
-                                            text = "$serverPing ms",
-                                            fontSize = 11.5.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = if (isConnected) colors.jadeGreen else colors.textSecondary
-                                        )
-                                    }
-                                }
-
-                                // Measured Speed Badge if available
-                                val speedToShow = currentServerSpeed ?: availableNodes.firstOrNull {
-                                    it.remark == serverRemark || (serverRemark.isNotBlank() && it.remark.contains(serverRemark))
-                                }?.let {
-                                    it.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(it)
-                                }
-
-                                if (speedToShow != null && speedToShow > 0.0) {
-                                    val roundedSpeed = (speedToShow * 10).toInt() / 10.0
-                                    Box(
-                                        modifier = Modifier
-                                            .luxuryWell(shape = RoundedCornerShape(12.dp))
-                                            .padding(horizontal = if (isSmallScreen) 5.dp else 7.dp, vertical = if (isSmallScreen) 3.dp else 4.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(2.5.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Bolt,
-                                                contentDescription = null,
-                                                tint = Color(0xFFFFB300),
-                                                modifier = Modifier.size(11.5.dp)
-                                            )
-                                            Text(
-                                                text = "$roundedSpeed MB/s",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFFFFB300)
-                                            )
-                                        }
-                                    }
-                                }
-
                                 // Dropdown chevron indicator
                                 Box(
                                     modifier = Modifier
-                                        .size(if (isSmallScreen) 22.dp else 26.dp)
+                                        .size(if (isSmallScreen) 24.dp else 28.dp)
                                         .luxuryWell(shape = CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -782,16 +732,74 @@ fun ConnectScreen(
                                         modifier = Modifier.size(if (isSmallScreen) 14.dp else 17.dp)
                                     )
                                 }
+
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                                    horizontalAlignment = Alignment.Start
+                                ) {
+                                    // Ping Badge
+                                    Box(
+                                        modifier = Modifier
+                                            .luxuryWell(shape = RoundedCornerShape(10.dp))
+                                            .padding(horizontal = if (isSmallScreen) 6.dp else 8.dp, vertical = if (isSmallScreen) 2.5.dp else 3.5.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(if (isConnected) colors.jadeGreen else colors.textMuted)
+                                            )
+                                            Text(
+                                                text = "$serverPing ms",
+                                                fontSize = if (isSmallScreen) 10.5.sp else 11.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = if (isConnected) colors.jadeGreen else colors.textSecondary
+                                            )
+                                        }
+                                    }
+
+                                    // Measured Speed Badge if available
+                                    if (speedToShow != null && speedToShow > 0.0) {
+                                        val roundedSpeed = (speedToShow * 10).toInt() / 10.0
+                                        Box(
+                                            modifier = Modifier
+                                                .luxuryWell(shape = RoundedCornerShape(10.dp))
+                                                .padding(horizontal = if (isSmallScreen) 5.dp else 7.dp, vertical = if (isSmallScreen) 2.dp else 3.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Bolt,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFFFB300),
+                                                    modifier = Modifier.size(11.dp)
+                                                )
+                                                Text(
+                                                    text = "$roundedSpeed MB/s",
+                                                    fontSize = if (isSmallScreen) 9.5.sp else 10.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFFFB300)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
 
                             // Server Remark on Right
                             Column(
                                 horizontalAlignment = Alignment.End,
-                                modifier = Modifier.weight(1f).padding(start = 10.dp)
+                                modifier = Modifier.weight(1f).padding(start = 12.dp)
                             ) {
                                 Text(
                                     text = serverRemark,
-                                    fontSize = if (isSmallScreen) 11.sp else 12.5.sp,
+                                    fontSize = if (isSmallScreen) 11.5.sp else 13.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = colors.textPrimary,
                                     maxLines = 1,

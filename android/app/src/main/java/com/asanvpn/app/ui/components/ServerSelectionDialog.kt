@@ -63,12 +63,16 @@ fun ServerSelectionDialog(
         if (top.isNotEmpty()) top else availableNodes
     }
 
-    // Automatically trigger fresh ping if any candidate node has not been pinged yet
+    // Automatically trigger fresh ping & throughput if any candidate node has not been pinged or speed tested yet
     LaunchedEffect(candidateNodes) {
-        val hasUntestedNodes = candidateNodes.any {
+        val hasUntestedLatency = candidateNodes.any {
             it.latencyMs == 0L && com.asanvpn.app.data.NodeMetricsCache.getLatency(it) == null
         }
-        if (hasUntestedNodes && onRefreshPing != null && !isPinging) {
+        val hasUntestedSpeed = candidateNodes.any {
+            (it.downloadSpeedMBs == null || it.downloadSpeedMBs!! <= 0.0) &&
+            com.asanvpn.app.data.NodeMetricsCache.getSpeed(it) == null
+        }
+        if ((hasUntestedLatency || hasUntestedSpeed) && onRefreshPing != null && !isPinging) {
             onRefreshPing()
         }
     }
@@ -465,16 +469,17 @@ fun ServerSelectionDialog(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .luxuryCushion(shape = RoundedCornerShape(18.dp), elevation = 3.dp)
+                                    .defaultMinSize(minHeight = if (isSmallScreen) 54.dp else 58.dp)
+                                    .luxuryCushion(shape = RoundedCornerShape(16.dp), elevation = 3.dp)
                                     .border(
                                         width = if (isSelected) 1.5.dp else 0.dp,
                                         color = if (isSelected) colors.skyBlue else Color.Transparent,
-                                        shape = RoundedCornerShape(18.dp)
+                                        shape = RoundedCornerShape(16.dp)
                                     )
                                     .clickable { onSelectNode(node) }
                                     .padding(
                                         horizontal = if (isSmallScreen) 10.dp else 12.dp,
-                                        vertical = if (isSmallScreen) 7.dp else 10.dp
+                                        vertical = if (isSmallScreen) 7.dp else 9.dp
                                     )
                             ) {
                                 Row(
@@ -482,89 +487,112 @@ fun ServerSelectionDialog(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    // Left: Latency Badge + Speed Badge + Radio indicator
+                                    // Left: Custom Radio indicator + Metrics Column (Latency on top, Speed below if tested)
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(if (isSmallScreen) 6.dp else 8.dp)
                                     ) {
-                                        RadioButton(
-                                            selected = isSelected,
-                                            onClick = { onSelectNode(node) },
-                                            colors = RadioButtonDefaults.colors(selectedColor = colors.skyBlue)
-                                        )
-
+                                        // Custom Radio Button (no 48dp touch target padding bloat)
                                         Box(
                                             modifier = Modifier
-                                                .luxuryWell(shape = RoundedCornerShape(12.dp))
-                                                .padding(horizontal = 7.dp, vertical = 3.5.dp)
+                                                .size(18.dp)
+                                                .clip(CircleShape)
+                                                .border(
+                                                    width = if (isSelected) 5.dp else 1.5.dp,
+                                                    color = if (isSelected) colors.skyBlue else colors.textMuted.copy(alpha = 0.5f),
+                                                    shape = CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            if (measuredLatency > 0) {
-                                                val badgeColor = when {
-                                                    measuredLatency < 160 -> colors.jadeGreen
-                                                    measuredLatency < 300 -> colors.skyBlue
-                                                    else -> Color(0xFFFFA726)
-                                                }
-                                                Text(
-                                                    text = "$measuredLatency ms",
-                                                    fontSize = 10.5.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = badgeColor
-                                                )
-                                            } else if (measuredLatency < 0) {
-                                                Text(
-                                                    text = "تایم‌اوت",
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFEF5350)
-                                                )
-                                            } else {
-                                                Text(
-                                                    text = if (isPinging) "..." else "-- ms",
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = colors.textMuted
+                                            if (isSelected) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color.White)
                                                 )
                                             }
                                         }
 
-                                        // Measured download speed badge if tested
                                         val measuredSpeed = node.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
-                                        if (measuredSpeed != null && measuredSpeed > 0.0) {
-                                            val roundedSpeed = (measuredSpeed * 10).toInt() / 10.0
+
+                                        Column(
+                                            verticalArrangement = Arrangement.spacedBy(2.5.dp),
+                                            horizontalAlignment = Alignment.Start
+                                        ) {
+                                            // Latency badge
                                             Box(
                                                 modifier = Modifier
-                                                    .luxuryWell(shape = RoundedCornerShape(12.dp))
-                                                    .padding(horizontal = 6.dp, vertical = 3.5.dp)
+                                                    .luxuryWell(shape = RoundedCornerShape(8.dp))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                                             ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Bolt,
-                                                        contentDescription = null,
-                                                        tint = Color(0xFFFFB300),
-                                                        modifier = Modifier.size(11.dp)
-                                                    )
+                                                if (measuredLatency > 0) {
+                                                    val badgeColor = when {
+                                                        measuredLatency < 160 -> colors.jadeGreen
+                                                        measuredLatency < 300 -> colors.skyBlue
+                                                        else -> Color(0xFFFFA726)
+                                                    }
                                                     Text(
-                                                        text = "$roundedSpeed MB/s",
-                                                        fontSize = 10.sp,
+                                                        text = "$measuredLatency ms",
+                                                        fontSize = if (isSmallScreen) 9.sp else 10.sp,
                                                         fontWeight = FontWeight.Bold,
-                                                        color = Color(0xFFFFB300)
+                                                        color = badgeColor
                                                     )
+                                                } else if (measuredLatency < 0) {
+                                                    Text(
+                                                        text = "تایم‌اوت",
+                                                        fontSize = if (isSmallScreen) 8.5.sp else 9.5.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFFEF5350)
+                                                    )
+                                                } else {
+                                                    Text(
+                                                        text = if (isPinging) "..." else "-- ms",
+                                                        fontSize = if (isSmallScreen) 8.5.sp else 9.5.sp,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = colors.textMuted
+                                                    )
+                                                }
+                                            }
+
+                                            // Measured download speed badge if tested
+                                            if (measuredSpeed != null && measuredSpeed > 0.0) {
+                                                val roundedSpeed = (measuredSpeed * 10).toInt() / 10.0
+                                                Box(
+                                                    modifier = Modifier
+                                                        .luxuryWell(shape = RoundedCornerShape(8.dp))
+                                                        .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Bolt,
+                                                            contentDescription = null,
+                                                            tint = Color(0xFFFFB300),
+                                                            modifier = Modifier.size(10.dp)
+                                                        )
+                                                        Text(
+                                                            text = "$roundedSpeed MB/s",
+                                                            fontSize = if (isSmallScreen) 8.5.sp else 9.5.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color(0xFFFFB300)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
                                     }
 
-                                    // Right: Remark Name + Panel Badge
+                                    // Right: Remark Name + Panel Badge + Protocol
                                     Column(
                                         horizontalAlignment = Alignment.End,
-                                        modifier = Modifier.weight(1f).padding(start = 8.dp)
+                                        modifier = Modifier.weight(1f).padding(start = 10.dp)
                                     ) {
                                         Text(
                                             text = remarkSafe,
-                                            fontSize = 12.5.sp,
+                                            fontSize = if (isSmallScreen) 12.sp else 13.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = if (isSelected) colors.skyBlue else colors.textPrimary,
                                             maxLines = 1,
@@ -576,30 +604,34 @@ fun ServerSelectionDialog(
 
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
-                                            val panelName = (node.panelName ?: "").ifBlank { "سرور ابری" }
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .background(colors.skyBlue.copy(alpha = 0.12f))
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                                            ) {
-                                                Text(
-                                                    text = panelName,
-                                                    fontSize = 9.5.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = colors.skyBlue
-                                                )
-                                            }
-
                                             val proto = (node.protocol ?: "VLESS").uppercase()
                                             val transport = (node.type ?: "TCP").uppercase()
                                             Text(
                                                 text = "$proto • $transport",
-                                                fontSize = 9.5.sp,
-                                                color = colors.textMuted
+                                                fontSize = if (isSmallScreen) 8.5.sp else 9.sp,
+                                                color = colors.textMuted,
+                                                maxLines = 1
                                             )
+
+                                            val panelName = (node.panelName ?: "").ifBlank { "سرور ابری" }
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f, fill = false)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(colors.skyBlue.copy(alpha = 0.12f))
+                                                    .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                                            ) {
+                                                Text(
+                                                    text = panelName,
+                                                    fontSize = if (isSmallScreen) 8.5.sp else 9.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = colors.skyBlue,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
                                         }
                                     }
                                 }

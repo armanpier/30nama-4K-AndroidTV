@@ -23,8 +23,9 @@ object PingTester {
     private const val TAG = "PingTester"
     private const val TEST_URL_PRIMARY = "https://cp.cloudflare.com/generate_204"
     private const val TEST_URL_FALLBACK = "https://www.gstatic.com/generate_204"
-    private const val SPEED_TEST_URL_PRIMARY = "https://speed.cloudflare.com/__down?bytes=5000000"
-    private const val SPEED_TEST_URL_FALLBACK = "https://speedtest.tele2.net/5MB.zip"
+    private const val SPEED_TEST_URL_PRIMARY = "https://speed.cloudflare.com/__down?bytes=1000000"
+    private const val SPEED_TEST_URL_FALLBACK = "https://speedtest.tele2.net/1MB.zip"
+    private const val SPEED_TEST_URL_LIGHTWEIGHT = "https://speed.cloudflare.com/__down?bytes=500000"
     private const val GEMINI_TEST_URL = "https://gemini.google.com"
     private const val GEMINI_API_TEST_URL = "https://generativelanguage.googleapis.com"
 
@@ -731,29 +732,40 @@ object PingTester {
         isGeminiOptimizationEnabled: Boolean = false,
         isVoiceCallOptimizationEnabled: Boolean = false,
         forceRefresh: Boolean = false,
-        timeoutPerNodeMs: Long = 12000L,
+        timeoutPerNodeMs: Long = 15000L,
         onNodeSpeedTested: ((VpnNode, Double) -> Unit)? = null
     ): VpnNode? = withContext(Dispatchers.IO) {
         if (candidates.isEmpty()) return@withContext null
 
-        Log.i(TAG, "Starting sequential download throughput benchmark (5MB) on ${candidates.size} nodes...")
-        AppLogger.logUser("📊 شروع تست سرعت دانلود ۵ مگابایت سرورها به صورت نوبتی در پس‌زمینه...")
+        Log.i(TAG, "Starting sequential download throughput benchmark on ${candidates.size} nodes...")
+        AppLogger.logUser("📊 شروع تست سرعت دانلود سرورها به صورت نوبتی در پس‌زمینه...")
 
         // candidate remark -> speed in MB/s
         val speedResults = mutableMapOf<String, Double>()
 
-        // Ensure activeNode is evaluated first as baseline
+        // Ensure activeNode is evaluated first as baseline, followed by candidate nodes (up to 30 nodes)
         val orderedCandidates = mutableListOf<VpnNode>()
         orderedCandidates.add(activeNode)
         for (c in candidates) {
-            if (c.remark != activeNode.remark && orderedCandidates.size < 5) {
-                orderedCandidates.add(c)
+            val isSame = (c.remark.isNotBlank() && c.remark == activeNode.remark) ||
+                    (c.server == activeNode.server && c.port == activeNode.port)
+            if (!isSame && orderedCandidates.size < 30) {
+                if (orderedCandidates.none { it.remark == c.remark || (it.server == c.server && it.port == c.port) }) {
+                    orderedCandidates.add(c)
+                }
             }
         }
 
         // Sequential one-by-one testing
         for ((index, node) in orderedCandidates.withIndex()) {
             if (!isActive) return@withContext null
+
+            // Skip nodes that timed out or are unreachable
+            if (node.latencyMs < 0) {
+                Log.i(TAG, "Speed test candidate [${node.remark}] skipped: latency timed out")
+                speedResults[node.remark] = 0.0
+                continue
+            }
 
             // 1. Check cached download speed first (reused if link is unchanged from panel and not force refreshed)
             if (!forceRefresh) {
@@ -769,7 +781,7 @@ object PingTester {
                 }
             }
 
-            AppLogger.logUser("⏳ [${index + 1}/${orderedCandidates.size}] در حال سنجش سرعت ۵ مگابایت [${node.remark}]...")
+            AppLogger.logUser("⏳ [${index + 1}/${orderedCandidates.size}] در حال سنجش سرعت دانلود [${node.remark}]...")
 
             if (isVoiceCallOptimizationEnabled && isVoiceCallRestrictedNode(node)) {
                 Log.w(TAG, "Speed test candidate [${node.remark}] skipped: voice call / UDP restricted")
@@ -802,22 +814,33 @@ object PingTester {
 
             if (configJson == null) continue
 
-            val durationMs = withTimeoutOrNull(timeoutPerNodeMs) {
-                try {
-                    val d1 = Libv2ray.measureOutboundDelay(configJson, SPEED_TEST_URL_PRIMARY)
-                    if (d1 > 0) return@withTimeoutOrNull d1
-                } catch (_: Exception) {}
+            val endpoints = listOf(
+                Pair(SPEED_TEST_URL_PRIMARY, 1.0),
+                Pair(SPEED_TEST_URL_FALLBACK, 1.0),
+                Pair(SPEED_TEST_URL_LIGHTWEIGHT, 0.5)
+            )
 
-                try {
-                    val d2 = Libv2ray.measureOutboundDelay(configJson, SPEED_TEST_URL_FALLBACK)
-                    if (d2 > 0) return@withTimeoutOrNull d2
-                } catch (_: Exception) {}
+            var resultPair: Pair<Long, Double>? = null
+            for ((url, payloadMB) in endpoints) {
+                if (!isActive) return@withContext null
+                val delay = withTimeoutOrNull(6000L) {
+                    try {
+                        val d = Libv2ray.measureOutboundDelay(configJson, url)
+                        if (d > 0) d else null
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+                if (delay != null && delay > 0) {
+                    resultPair = Pair(delay, payloadMB)
+                    break
+                }
+            }
 
-                -1L
-            } ?: -1L
-
-            if (durationMs > 0) {
-                val speedMBs = (5.0 / (durationMs / 1000.0))
+            if (resultPair != null && resultPair.first > 0) {
+                val durationMs = resultPair.first
+                val payloadMB = resultPair.second
+                val speedMBs = (payloadMB / (durationMs / 1000.0))
                 val roundedSpeed = (speedMBs * 10).toInt() / 10.0
                 node.downloadSpeedMBs = speedMBs
                 speedResults[node.remark] = speedMBs
