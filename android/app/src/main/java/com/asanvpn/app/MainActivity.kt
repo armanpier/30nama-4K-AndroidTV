@@ -584,13 +584,14 @@ class MainActivity : ComponentActivity() {
         val allNodes = nodesToPing ?: availableNodesState
         if (allNodes.isEmpty()) return
 
-        val candidatePool = allNodes.take(30)
+        val p1Nodes = allNodes.filter { (it.panelPriority ?: 1) == 1 }
+        val candidatePool = if (p1Nodes.isNotEmpty()) p1Nodes else allNodes.take(10)
 
         pingJob?.cancel()
         pingJob = lifecycleScope.launch {
             isPingingNodesState = true
             try {
-                val pingLimit = candidatePool.size.coerceAtMost(30)
+                val pingLimit = candidatePool.size.coerceAtMost(10)
                 PingTester.pingTopCandidateNodes(
                     nodes = candidatePool,
                     limit = pingLimit,
@@ -632,7 +633,10 @@ class MainActivity : ComponentActivity() {
 
         foregroundOptionChecksJob?.cancel()
         foregroundOptionChecksJob = lifecycleScope.launch(Dispatchers.IO) {
-            val candidatesToTest = nodes.take(30)
+            val p1Nodes = nodes.filter { (it.panelPriority ?: 1) == 1 }
+            val candidateTier = if (p1Nodes.isNotEmpty()) p1Nodes else nodes
+            val responsiveP1 = candidateTier.filter { it.latencyMs > 0 }.sortedBy { it.latencyMs }
+            val candidatesToTest = if (responsiveP1.isNotEmpty()) responsiveP1.take(5) else candidateTier.take(5)
 
             // 1. If Gemini Optimization is ON: re-verify candidate nodes
             if (prefs.isGeminiOptimizationEnabled) {
@@ -649,7 +653,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // 2. Measure throughput for candidate nodes so speed badges are captured for all relevant links
+            // 2. Measure throughput for candidate nodes so speed badges are captured for top 5 links
             val activeRemark = currentServerRemark
             val activeNode = nodes.firstOrNull {
                 it.remark.trim().equals(activeRemark.trim(), ignoreCase = true) ||
@@ -663,6 +667,8 @@ class MainActivity : ComponentActivity() {
                     isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
                     isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
                     forceRefresh = false,
+                    targetPayloadMB = prefs.speedTestPayloadMB,
+                    limit = 5,
                     onNodeSpeedTested = { testedNode, speed ->
                         lifecycleScope.launch(Dispatchers.Main) {
                             val isActiveNode = (testedNode.remark.trim().equals(currentServerRemark.trim(), ignoreCase = true)) ||
@@ -679,7 +685,67 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 )
-                if (prefs.isSpeedOptimizationEnabled && prefs.isAutoServerMode && fasterNode != null && isActive && connectionState == ConnectionState.CONNECTED) {
+
+                // Health check on Priority 1 nodes: if all 5 tested links have latency >= 2000ms OR speed < 0.5 MB/s
+                val allP1Unhealthy = candidatesToTest.isNotEmpty() && candidatesToTest.all { n ->
+                    val speed = n.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(n) ?: 0.0
+                    val lat = if (n.latencyMs > 0) n.latencyMs else 9999L
+                    lat >= 2000L || speed < 0.5
+                }
+
+                if (allP1Unhealthy) {
+                    AppLogger.logUser("⚠️ سرورهای اولویت ۱ دارای تأخیر بالا (>2000ms) یا سرعت پایین (<0.5 MB/s) هستند؛ در حال بررسی اولویت ۲...")
+                    val p2Nodes = nodes.filter { (it.panelPriority ?: 1) == 2 }
+                    if (p2Nodes.isNotEmpty()) {
+                        for (p2 in p2Nodes.take(5)) {
+                            if (p2.latencyMs <= 0) {
+                                val d = PingTester.measureRealDelay(p2, 3500L)
+                                p2.latencyMs = d
+                            }
+                        }
+                        val top5P2 = p2Nodes.filter { it.latencyMs > 0 }.sortedBy { it.latencyMs }.take(5).ifEmpty { p2Nodes.take(5) }
+                        val fasterP2 = PingTester.benchmarkCandidateThroughput(
+                            candidates = top5P2,
+                            activeNode = activeNode,
+                            isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
+                            isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
+                            forceRefresh = false,
+                            targetPayloadMB = prefs.speedTestPayloadMB,
+                            limit = 5,
+                            onNodeSpeedTested = { testedNode, speed ->
+                                lifecycleScope.launch(Dispatchers.Main) {
+                                    val isActiveNode = (testedNode.remark.trim().equals(currentServerRemark.trim(), ignoreCase = true)) ||
+                                            (currentServerRemark.isNotBlank() && (testedNode.remark.contains(currentServerRemark) || currentServerRemark.contains(testedNode.remark))) ||
+                                            (testedNode.server == activeNode.server && testedNode.port == activeNode.port)
+                                    if (isActiveNode) {
+                                        currentServerSpeedState = speed
+                                    }
+                                    availableNodesState = availableNodesState.map { n ->
+                                        val match = n.remark.trim().equals(testedNode.remark.trim(), ignoreCase = true) ||
+                                                (n.server == testedNode.server && n.port == testedNode.port)
+                                        if (match) n.copy(downloadSpeedMBs = speed) else n
+                                    }
+                                }
+                            }
+                        )
+                        if (prefs.isSpeedOptimizationEnabled && prefs.isAutoServerMode && fasterP2 != null && isActive && connectionState == ConnectionState.CONNECTED) {
+                            withContext(Dispatchers.Main) {
+                                AppLogger.logUser("🚀 سوییچ خودکار به سرور اولویت ۲ با عملکرد بهتر: [${fasterP2.remark}]")
+                                prefs.selectedServerRemark = fasterP2.remark
+                                currentServerRemark = fasterP2.remark
+                                if (fasterP2.latencyMs > 0) {
+                                    prefs.selectedServerPing = fasterP2.latencyMs
+                                    currentServerPing = fasterP2.latencyMs
+                                }
+                                currentServerSpeedState = fasterP2.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(fasterP2)
+                                val newConfig = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildConfig(fasterP2)
+                                prefs.activeV2RayConfig = newConfig
+                                switchVpnConfigInternal(newConfig)
+                                Toast.makeText(this@MainActivity, "سوییچ خودکار به سرور اولویت ۲: [${fasterP2.remark}]", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                } else if (prefs.isSpeedOptimizationEnabled && prefs.isAutoServerMode && fasterNode != null && isActive && connectionState == ConnectionState.CONNECTED) {
                     withContext(Dispatchers.Main) {
                         prefs.selectedServerRemark = fasterNode.remark
                         currentServerRemark = fasterNode.remark
@@ -1005,7 +1071,7 @@ class MainActivity : ComponentActivity() {
                                 val candidatesInTier = nodes
                                     .filter { (it.panelPriority ?: 1) == activeTier }
                                     .sortedBy { if (it.latencyMs > 0) it.latencyMs else 9999L }
-                                    .take(30)
+                                    .take(5)
 
                                 val candidateList = if (candidatesInTier.isNotEmpty()) candidatesInTier else listOf(activeNode)
 
@@ -1015,6 +1081,8 @@ class MainActivity : ComponentActivity() {
                                     isGeminiOptimizationEnabled = prefs.isGeminiOptimizationEnabled,
                                     isVoiceCallOptimizationEnabled = prefs.isVoiceCallOptimizationEnabled,
                                     forceRefresh = false,
+                                    targetPayloadMB = prefs.speedTestPayloadMB,
+                                    limit = 5,
                                     onNodeSpeedTested = { testedNode, speed ->
                                         lifecycleScope.launch(Dispatchers.Main) {
                                             val isActiveNode = (testedNode.remark.trim().equals(currentServerRemark.trim(), ignoreCase = true)) ||

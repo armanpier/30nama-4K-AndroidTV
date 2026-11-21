@@ -351,4 +351,38 @@ class SpeedOptimizationEmpiricalTest {
         assertEquals(0.4, speedSlow, 0.01)
         assertEquals(0.5, speed500Kb, 0.01)
     }
+
+    @Test
+    fun testHysteriaConfigBuilder() {
+        val hysteriaNode = VpnNode(
+            protocol = "hysteria",
+            remark = "Hysteria-Tunnel",
+            server = "188.121.110.232",
+            port = 28443,
+            uuid = "34428955a85b5849",
+            sni = "95.182.87.115"
+        )
+        val configStr = com.asanvpn.app.service.v2ray.V2RayConfigBuilder.buildTestConfig(hysteriaNode)
+        val json = com.google.gson.JsonParser.parseString(configStr).asJsonObject
+        val outbounds = json.getAsJsonArray("outbounds")
+        val proxyOutbound = outbounds[0].asJsonObject
+
+        assertEquals("hysteria", proxyOutbound.get("protocol").asString)
+        val settings = proxyOutbound.getAsJsonObject("settings")
+        assertEquals(2, settings.get("version").asInt)
+        assertEquals("188.121.110.232", settings.get("address").asString)
+        assertEquals(28443, settings.get("port").asInt)
+
+        val streamSettings = proxyOutbound.getAsJsonObject("streamSettings")
+        assertEquals("hysteria", streamSettings.get("network").asString)
+        assertEquals("tls", streamSettings.get("security").asString)
+
+        val hysteriaSettings = streamSettings.getAsJsonObject("hysteriaSettings")
+        assertEquals(2, hysteriaSettings.get("version").asInt)
+        assertEquals("34428955a85b5849", hysteriaSettings.get("auth").asString)
+
+        val tlsSettings = streamSettings.getAsJsonObject("tlsSettings")
+        assertEquals("95.182.87.115", tlsSettings.get("serverName").asString)
+        assertFalse(tlsSettings.has("allowInsecure"))
+    }
 }

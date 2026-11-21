@@ -352,6 +352,7 @@ def sync_3xui_sqlite(user_data):
                     "resetWeekday": 0,
                     "security": "",
                     "tgId": 0,
+                    "auth": new_sub_id,
                     "trafficReset": "never",
                     "trafficResetDay": 1
                 }
@@ -367,22 +368,22 @@ def sync_3xui_sqlite(user_data):
                             reset, reset_day, reset_weekday, reset_max, traffic_reset, traffic_reset_day,
                             created_at, updated_at, sync_orphaned_at
                         ) VALUES (
-                            ?, ?, ?, '', '', '', '', '',
+                            ?, ?, ?, '', ?, '', '', '',
                             '', '', '', '',
                             0, '', '', '', 0, 0,
                             ?, ?, ?, 0, '', '',
                             0, 0, 0, 0, 'never', 1,
                             ?, ?, 0
                         )
-                    ''', (new_email, new_sub_id, new_uuid, total_bytes, expiry_ms, is_active, now_ms, now_ms))
+                    ''', (new_email, new_sub_id, new_uuid, new_sub_id, total_bytes, expiry_ms, is_active, now_ms, now_ms))
                     created_cid = cur.lastrowid
-                    for inb_id in [1, 9]:
+                    for inb_id in [1, 9, 10]:
                         cur.execute('INSERT INTO client_inbounds (client_id, inbound_id, flow_override, created_at) VALUES (?, ?, ?, ?)',
                                     (created_cid, inb_id, '', now_ms))
                 except Exception as c_err:
                     logging.warning(f"[3X-UI Create] Error inserting into clients table: {c_err}")
 
-                cur.execute("SELECT id, settings FROM inbounds WHERE id IN (1, 9)")
+                cur.execute("SELECT id, settings FROM inbounds WHERE id IN (1, 9, 10)")
                 inbounds = cur.fetchall()
                 for inb_id, inb_settings_raw in inbounds:
                     if not inb_settings_raw:
@@ -514,6 +515,40 @@ def parse_raw_proxy_link(link: str, panel_id: str = "", panel_name: str = "", pr
                 "panel_name": panel_name,
                 "panel_priority": priority
             }
+        elif link.startswith("hysteria2://") or link.startswith("hy2://") or link.startswith("hysteria://"):
+            proto = "hysteria"
+            if link.startswith("hysteria2://"):
+                prefix_len = len("hysteria2://")
+            elif link.startswith("hy2://"):
+                prefix_len = len("hy2://")
+            else:
+                prefix_len = len("hysteria://")
+            rest = link[prefix_len:]
+            user_part, host_part = rest.split("@", 1) if "@" in rest else ("", rest)
+            host_port, query_part = host_part.split("?", 1) if "?" in host_part else (host_part, "")
+            host, port = host_port.split(":", 1) if ":" in host_port else (host_port, "443")
+            query, fragment = query_part.split("#", 1) if "#" in query_part else (query_part, "")
+            params = urllib.parse.parse_qs(query)
+            remark = urllib.parse.unquote(fragment) if fragment else "Hysteria Node"
+
+            sni_val = params.get("sni", [""])[0]
+            sec_val = params.get("security", ["tls"])[0]
+            return {
+                "protocol": "hysteria",
+                "remark": remark,
+                "server": host,
+                "port": int(port),
+                "uuid": user_part,
+                "password": user_part,
+                "type": "udp",
+                "security": sec_val,
+                "sni": sni_val,
+                "hostHeader": sni_val or host,
+                "raw_link": link,
+                "panel_id": panel_id,
+                "panel_name": panel_name,
+                "panel_priority": priority
+            }
     except Exception as e:
         logging.debug(f"Failed to parse proxy link: {e}")
     return None
@@ -538,7 +573,7 @@ def fetch_subscription_data(url: str, timeout: int = 8) -> dict:
 
             body = res.read().decode("utf-8", errors="ignore").strip()
             # If plain-text links are returned (e.g. GoGuard or unencoded subscriptions)
-            if body.startswith("vless://") or body.startswith("vmess://") or body.startswith("trojan://") or body.startswith("ss://"):
+            if body.startswith("vless://") or body.startswith("vmess://") or body.startswith("trojan://") or body.startswith("ss://") or body.startswith("hysteria2://") or body.startswith("hy2://") or body.startswith("hysteria://"):
                 lines = [l.strip() for l in body.splitlines() if l.strip()]
             else:
                 # Try base64 decoding

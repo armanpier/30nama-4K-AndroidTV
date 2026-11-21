@@ -249,8 +249,10 @@ object V2RayConfigBuilder {
 
     private fun buildProxyOutbound(node: VpnNode): JsonObject {
         val outbound = JsonObject()
+        val proto = node.protocol.lowercase()
+        val isHysteria = proto in listOf("hysteria", "hysteria2", "hy2")
         outbound.addProperty("tag", "proxy")
-        outbound.addProperty("protocol", node.protocol.lowercase())
+        outbound.addProperty("protocol", if (isHysteria) "hysteria" else proto)
 
         val rawParams = parseRawQueryParams(node.rawLink)
 
@@ -263,10 +265,10 @@ object V2RayConfigBuilder {
         val spx = rawParams["spx"] ?: node.spx
         val fp = rawParams["fp"] ?: node.fingerprint ?: "chrome"
         val rawSec = rawParams["security"] ?: node.security
-        val sec = if (!pbk.isNullOrBlank()) "reality" else (rawSec?.lowercase() ?: "none")
+        val sec = if (isHysteria) "tls" else if (!pbk.isNullOrBlank()) "reality" else (rawSec?.lowercase() ?: "none")
 
         val rawType = rawParams["type"] ?: node.type
-        val net = if (rawType.isNullOrEmpty()) "tcp" else rawType.lowercase()
+        val net = if (isHysteria) "hysteria" else if (rawType.isNullOrEmpty()) "tcp" else rawType.lowercase()
         val headerType = rawParams["headerType"] ?: node.headerType ?: "none"
         val rawSni = rawParams["sni"] ?: node.sni
         val rawHost = rawParams["host"] ?: node.hostHeader ?: rawSni ?: node.server
@@ -278,8 +280,20 @@ object V2RayConfigBuilder {
         streamSettings.addProperty("network", net)
         streamSettings.addProperty("security", sec)
 
-        when (node.protocol.lowercase()) {
-            "vless" -> {
+        when {
+            isHysteria -> {
+                settings.addProperty("version", 2)
+                settings.addProperty("address", node.server)
+                settings.addProperty("port", node.port)
+
+                val hysteriaSettings = JsonObject().apply {
+                    addProperty("version", 2)
+                    addProperty("auth", node.uuid ?: node.password ?: "")
+                    addProperty("udpIdleTimeout", 60)
+                }
+                streamSettings.add("hysteriaSettings", hysteriaSettings)
+            }
+            proto == "vless" -> {
                 val vnext = JsonArray()
                 val serverObj = JsonObject()
                 serverObj.addProperty("address", node.server)
@@ -298,7 +312,7 @@ object V2RayConfigBuilder {
                 vnext.add(serverObj)
                 settings.add("vnext", vnext)
             }
-            "vmess" -> {
+            proto == "vmess" -> {
                 val vnext = JsonArray()
                 val serverObj = JsonObject()
                 serverObj.addProperty("address", node.server)
@@ -314,7 +328,7 @@ object V2RayConfigBuilder {
                 vnext.add(serverObj)
                 settings.add("vnext", vnext)
             }
-            "trojan" -> {
+            proto == "trojan" -> {
                 val servers = JsonArray()
                 val serverObj = JsonObject()
                 serverObj.addProperty("address", node.server)
@@ -323,7 +337,7 @@ object V2RayConfigBuilder {
                 servers.add(serverObj)
                 settings.add("servers", servers)
             }
-            "shadowsocks" -> {
+            proto == "shadowsocks" -> {
                 val servers = JsonArray()
                 val serverObj = JsonObject()
                 serverObj.addProperty("address", node.server)
@@ -341,15 +355,17 @@ object V2RayConfigBuilder {
             val tls = JsonObject()
             val serverName = if (!rawSni.isNullOrBlank()) rawSni else node.server
             tls.addProperty("serverName", serverName)
-            tls.addProperty("allowInsecure", false)
-            val alpn = JsonArray()
-            val rawAlpn = rawParams["alpn"]?.split(",") ?: node.alpn
-            if (!rawAlpn.isNullOrEmpty()) {
-                rawAlpn.forEach { alpn.add(it.trim()) }
-            } else {
-                alpn.add("http/1.1")
+            if (!isHysteria) {
+                tls.addProperty("allowInsecure", false)
+                val alpn = JsonArray()
+                val rawAlpn = rawParams["alpn"]?.split(",") ?: node.alpn
+                if (!rawAlpn.isNullOrEmpty()) {
+                    rawAlpn.forEach { alpn.add(it.trim()) }
+                } else {
+                    alpn.add("http/1.1")
+                }
+                tls.add("alpn", alpn)
             }
-            tls.add("alpn", alpn)
             streamSettings.add("tlsSettings", tls)
         } else if (sec == "reality") {
             val reality = JsonObject()

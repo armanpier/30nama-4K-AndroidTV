@@ -31,6 +31,7 @@ import com.asanvpn.app.data.models.VpnNode
 import com.asanvpn.app.ui.theme.LuxuryTheme
 import com.asanvpn.app.ui.theme.luxuryCushion
 import com.asanvpn.app.ui.theme.luxuryWell
+import kotlinx.coroutines.launch
 
 @Composable
 fun ServerSelectionDialog(
@@ -51,6 +52,7 @@ fun ServerSelectionDialog(
     val isSmallScreen = screenHeight < 680.dp || screenWidth <= 365.dp
 
     var searchQuery by remember { mutableStateOf("") }
+    var showSpeedTestDialog by remember { mutableStateOf(false) }
 
     // Identify highest priority panel (lowest integer priority value)
     val topPriority = remember(availableNodes) {
@@ -357,6 +359,31 @@ fun ServerSelectionDialog(
                             fontSize = 10.5.sp,
                             color = colors.textMuted
                         )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(colors.skyBlue.copy(alpha = 0.14f))
+                                .clickable { showSpeedTestDialog = true }
+                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Speed,
+                                    contentDescription = "سنجش سرعت دستی",
+                                    tint = colors.skyBlue,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = "سنجش سرعت",
+                                    fontSize = if (isSmallScreen) 9.sp else 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.skyBlue
+                                )
+                            }
+                        }
                     }
                     Text(
                         text = "سرورهای منتخب (اولویت ۱)",
@@ -515,6 +542,7 @@ fun ServerSelectionDialog(
                                         }
 
                                         val measuredSpeed = node.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
+                                        val measuredUpload = node.uploadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getUploadSpeed(node)
 
                                         Column(
                                             verticalArrangement = Arrangement.spacedBy(2.5.dp),
@@ -568,7 +596,7 @@ fun ServerSelectionDialog(
                                                         horizontalArrangement = Arrangement.spacedBy(2.dp)
                                                     ) {
                                                         Icon(
-                                                            imageVector = Icons.Default.Bolt,
+                                                            imageVector = Icons.Default.ArrowDownward,
                                                             contentDescription = null,
                                                             tint = Color(0xFFFFB300),
                                                             modifier = Modifier.size(10.dp)
@@ -578,6 +606,34 @@ fun ServerSelectionDialog(
                                                             fontSize = if (isSmallScreen) 8.5.sp else 9.5.sp,
                                                             fontWeight = FontWeight.Bold,
                                                             color = Color(0xFFFFB300)
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            // Measured upload speed badge if tested
+                                            if (measuredUpload != null && measuredUpload > 0.0) {
+                                                val roundedUpload = (measuredUpload * 10).toInt() / 10.0
+                                                Box(
+                                                    modifier = Modifier
+                                                        .luxuryWell(shape = RoundedCornerShape(8.dp))
+                                                        .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.ArrowUpward,
+                                                            contentDescription = null,
+                                                            tint = colors.skyBlue,
+                                                            modifier = Modifier.size(10.dp)
+                                                        )
+                                                        Text(
+                                                            text = "$roundedUpload MB/s",
+                                                            fontSize = if (isSmallScreen) 8.5.sp else 9.5.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = colors.skyBlue
                                                         )
                                                     }
                                                 }
@@ -637,6 +693,316 @@ fun ServerSelectionDialog(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showSpeedTestDialog) {
+        ManualSpeedTestDialog(
+            candidateNodes = candidateNodes,
+            onDismiss = { showSpeedTestDialog = false },
+            onNodeUpdated = {
+                // UI automatically reflects updated metrics from cache and state
+            }
+        )
+    }
+}
+
+@Composable
+fun ManualSpeedTestDialog(
+    candidateNodes: List<VpnNode>,
+    onDismiss: () -> Unit,
+    onNodeUpdated: (VpnNode) -> Unit
+) {
+    val colors = LuxuryTheme.colors
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+    val screenWidth = configuration.screenWidthDp.dp
+    val isSmallScreen = screenHeight < 680.dp || screenWidth <= 365.dp
+
+    val payloadOptions = listOf(0.5, 1.0, 2.0, 5.0)
+    val payloadLabels = listOf("500 KB", "1 MB", "2 MB", "5 MB")
+    var selectedPayloadMB by remember { mutableStateOf(5.0) }
+
+    var isTesting by remember { mutableStateOf(false) }
+    var activeTestingIndex by remember { mutableStateOf(-1) }
+    var testingStage by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
+
+    var testList by remember(candidateNodes) {
+        mutableStateOf(candidateNodes.take(5))
+    }
+
+    Dialog(
+        onDismissRequest = { if (!isTesting) onDismiss() },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = !isTesting,
+            dismissOnClickOutside = !isTesting
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(if (isSmallScreen) 0.98f else 0.94f)
+                .wrapContentHeight()
+                .luxuryCushion(
+                    shape = RoundedCornerShape(if (isSmallScreen) 20.dp else 26.dp),
+                    elevation = 14.dp
+                )
+                .padding(if (isSmallScreen) 12.dp else 18.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .luxuryCushion(shape = CircleShape, elevation = 2.dp)
+                            .clickable(enabled = !isTesting) { onDismiss() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "بستن",
+                            tint = if (isTesting) colors.textMuted else colors.textSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "سنجش سرعت دستی لینک‌ها",
+                            fontSize = if (isSmallScreen) 14.sp else 16.sp,
+                            fontWeight = FontWeight.Black,
+                            color = colors.textPrimary
+                        )
+                        Text(
+                            text = "تست نوبتی دانلود و آپلود سرورهای برتر",
+                            fontSize = if (isSmallScreen) 9.5.sp else 10.5.sp,
+                            color = colors.skyBlue
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .luxuryWell(shape = CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Speed,
+                            contentDescription = null,
+                            tint = colors.skyBlue,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Payload Size Selection Chips
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "حجم فایل تست:",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textSecondary
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        payloadOptions.forEachIndexed { idx, sizeMB ->
+                            val isSelected = selectedPayloadMB == sizeMB
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) colors.skyBlue.copy(alpha = 0.2f) else colors.textMuted.copy(alpha = 0.08f))
+                                    .border(
+                                        width = if (isSelected) 1.dp else 0.dp,
+                                        color = if (isSelected) colors.skyBlue else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable(enabled = !isTesting) { selectedPayloadMB = sizeMB }
+                                    .padding(horizontal = 7.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = payloadLabels[idx],
+                                    fontSize = 10.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) colors.skyBlue else colors.textSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Candidate server cards
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    testList.forEachIndexed { index, node ->
+                        val isCurrentTesting = isTesting && activeTestingIndex == index
+                        val measuredDown = node.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
+                        val measuredUp = node.uploadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getUploadSpeed(node)
+                        val lat = if (node.latencyMs > 0) node.latencyMs else (com.asanvpn.app.data.NodeMetricsCache.getLatency(node) ?: 0L)
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .luxuryWell(shape = RoundedCornerShape(12.dp))
+                                .border(
+                                    width = if (isCurrentTesting) 1.dp else 0.dp,
+                                    color = if (isCurrentTesting) colors.amberWarning else Color.Transparent,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                // Left: Metrics badges & test status
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    if (isCurrentTesting) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(12.dp),
+                                            strokeWidth = 2.dp,
+                                            color = colors.amberWarning
+                                        )
+                                        Text(
+                                            text = testingStage,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.amberWarning
+                                        )
+                                    } else {
+                                        // Latency
+                                        if (lat > 0) {
+                                            Text(
+                                                text = "${lat}ms",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.jadeGreen
+                                            )
+                                        }
+                                        // Download
+                                        if (measuredDown != null && measuredDown > 0.0) {
+                                            val dRound = (measuredDown * 10).toInt() / 10.0
+                                            Text(
+                                                text = "↓ ${dRound} MB/s",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFFFB300)
+                                            )
+                                        }
+                                        // Upload
+                                        if (measuredUp != null && measuredUp > 0.0) {
+                                            val uRound = (measuredUp * 10).toInt() / 10.0
+                                            Text(
+                                                text = "↑ ${uRound} MB/s",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.skyBlue
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Right: Name & Protocol
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = node.remark,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "${node.protocol.uppercase()} • ${(node.panelName ?: "سرور ابری")}",
+                                        fontSize = 8.5.sp,
+                                        color = colors.textMuted
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Action Button: Start Speed Test
+                Button(
+                    onClick = {
+                        if (isTesting) {
+                            isTesting = false
+                        } else {
+                            coroutineScope.launch {
+                                isTesting = true
+                                for ((idx, node) in testList.withIndex()) {
+                                    if (!isTesting) break
+                                    activeTestingIndex = idx
+                                    testingStage = "دانلود..."
+                                    val down = com.asanvpn.app.service.PingTester.measureDownloadSpeed(node, selectedPayloadMB)
+                                    if (down != null) {
+                                        node.downloadSpeedMBs = down
+                                        testList = testList.map { if (it.remark == node.remark) it.copy(downloadSpeedMBs = down) else it }
+                                        onNodeUpdated(node)
+                                    }
+
+                                    testingStage = "آپلود..."
+                                    val up = com.asanvpn.app.service.PingTester.measureUploadSpeed(node, selectedPayloadMB)
+                                    if (up != null) {
+                                        node.uploadSpeedMBs = up
+                                        testList = testList.map { if (it.remark == node.remark) it.copy(uploadSpeedMBs = up) else it }
+                                        onNodeUpdated(node)
+                                    }
+                                }
+                                isTesting = false
+                                activeTestingIndex = -1
+                                testingStage = ""
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isTesting) colors.coralRed else colors.skyBlue,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isTesting) Icons.Default.Stop else Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = if (isTesting) "توقف سنجش سرعت" else "شروع تست سرعت (دانلود و آپلود)",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }

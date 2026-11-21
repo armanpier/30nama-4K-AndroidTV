@@ -14,6 +14,8 @@ data class CachedNodeMetric(
     var remark: String? = null,
     var speedMBs: Double? = null,
     var speedTestedAt: Long = 0L,
+    var uploadSpeedMBs: Double? = null,
+    var uploadTestedAt: Long = 0L,
     var isGeminiCompatible: Boolean? = null,
     var geminiLatencyMs: Long = -1L,
     var geminiTestedAt: Long = 0L,
@@ -122,6 +124,36 @@ object NodeMetricsCache {
         entry.remark = node.remark
         entry.speedMBs = speedMBs
         entry.speedTestedAt = System.currentTimeMillis()
+        persistToDisk()
+    }
+
+    fun getUploadSpeed(node: VpnNode): Double? {
+        ensureLoaded()
+        val sig = getSignature(node)
+        val entry = memoryCache[sig]
+        if (entry?.uploadSpeedMBs != null && entry.uploadSpeedMBs!! > 0.0) {
+            return entry.uploadSpeedMBs
+        }
+        if (node.server.isNotBlank() && node.port > 0) {
+            val fallback = memoryCache.values.firstOrNull {
+                it.server == node.server && it.port == node.port
+            }
+            if (fallback?.uploadSpeedMBs != null && fallback.uploadSpeedMBs!! > 0.0) {
+                return fallback.uploadSpeedMBs
+            }
+        }
+        return null
+    }
+
+    fun saveUploadSpeed(node: VpnNode, uploadMBs: Double) {
+        ensureLoaded()
+        val sig = getSignature(node)
+        val entry = memoryCache.getOrPut(sig) { CachedNodeMetric(linkSignature = sig) }
+        entry.server = node.server
+        entry.port = node.port
+        entry.remark = node.remark
+        entry.uploadSpeedMBs = uploadMBs
+        entry.uploadTestedAt = System.currentTimeMillis()
         persistToDisk()
     }
 

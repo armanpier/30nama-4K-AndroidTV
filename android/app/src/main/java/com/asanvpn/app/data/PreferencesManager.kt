@@ -173,6 +173,10 @@ class PreferencesManager(context: Context) {
         get() = prefs.getBoolean("is_auto_server_mode", true)
         set(value) = prefs.edit().putBoolean("is_auto_server_mode", value).apply()
 
+    var speedTestPayloadMB: Double
+        get() = prefs.getFloat("speed_test_payload_mb", 5.0f).toDouble()
+        set(value) = prefs.edit().putFloat("speed_test_payload_mb", value.toFloat()).apply()
+
     var nodeMetricsCacheJson: String?
         get() = prefs.getString(KEY_NODE_METRICS_CACHE, null)
         set(value) = prefs.edit().putString(KEY_NODE_METRICS_CACHE, value).apply()

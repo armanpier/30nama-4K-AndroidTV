@@ -12,6 +12,8 @@ import kotlinx.coroutines.sync.withPermit
 import libv2ray.Libv2ray
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.Collections
@@ -261,7 +263,9 @@ object PingTester {
             // Parallel TCP prescan for this tier to identify responsive endpoints
             val tcpResults = candidatePoolForTier.map { node ->
                 async {
-                    val tcp = testTcpLatency(node.server, node.port, tcpTimeout)
+                    val isUdpProto = node.protocol.lowercase() in listOf("hysteria", "hysteria2", "hy2") ||
+                            node.type.equals("udp", ignoreCase = true)
+                    val tcp = if (isUdpProto) 50L else testTcpLatency(node.server, node.port, tcpTimeout)
                     Pair(node, tcp)
                 }
             }.awaitAll()
@@ -483,7 +487,9 @@ object PingTester {
 
             val tcpResults = tierNodes.map { node ->
                 async {
-                    val tcp = testTcpLatency(node.server, node.port, tcpTimeout)
+                    val isUdpProto = node.protocol.lowercase() in listOf("hysteria", "hysteria2", "hy2") ||
+                            node.type.equals("udp", ignoreCase = true)
+                    val tcp = if (isUdpProto) 50L else testTcpLatency(node.server, node.port, tcpTimeout)
                     Pair(node, tcp)
                 }
             }.awaitAll()
@@ -718,10 +724,104 @@ object PingTester {
         } ?: -1L
     }
 
+    suspend fun measureDownloadSpeed(
+        node: VpnNode,
+        payloadMB: Double = 1.0,
+        timeoutMs: Long = 15000L
+    ): Double? = withContext(Dispatchers.IO) {
+        val configJson = try {
+            V2RayConfigBuilder.buildTestConfig(node)
+        } catch (_: Exception) {
+            return@withContext null
+        }
+
+        val bytes = (payloadMB * 1024 * 1024).toLong().coerceAtLeast(100_000L)
+        val endpoints = listOf(
+            "https://speed.cloudflare.com/__down?bytes=$bytes",
+            "https://speedtest.tele2.net/${payloadMB.toInt().coerceAtLeast(1)}MB.zip"
+        )
+
+        for (url in endpoints) {
+            if (!isActive) return@withContext null
+            val delay = withTimeoutOrNull(timeoutMs) {
+                try {
+                    val d = Libv2ray.measureOutboundDelay(configJson, url)
+                    if (d > 0) d else null
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            if (delay != null && delay > 0) {
+                val speedMBs = payloadMB / (delay / 1000.0)
+                node.downloadSpeedMBs = speedMBs
+                com.asanvpn.app.data.NodeMetricsCache.saveSpeed(node, speedMBs)
+                return@withContext speedMBs
+            }
+        }
+        null
+    }
+
+    suspend fun measureUploadSpeed(
+        node: VpnNode? = null,
+        payloadMB: Double = 1.0,
+        timeoutMs: Long = 15000L
+    ): Double? = withContext(Dispatchers.IO) {
+        val bytes = (payloadMB * 1024 * 1024).toInt().coerceAtLeast(100_000)
+        val data = ByteArray(bytes) { 0x58.toByte() }
+
+        val proxiesToTry = mutableListOf<java.net.Proxy>()
+        if (V2RayCoreManager.isRunning) {
+            proxiesToTry.add(java.net.Proxy(java.net.Proxy.Type.HTTP, InetSocketAddress("127.0.0.1", 10809)))
+            proxiesToTry.add(java.net.Proxy(java.net.Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", 10808)))
+        }
+        proxiesToTry.add(java.net.Proxy.NO_PROXY)
+
+        for (proxy in proxiesToTry) {
+            try {
+                val client = OkHttpClient.Builder()
+                    .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                    .writeTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                    .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                    .apply {
+                        if (proxy != java.net.Proxy.NO_PROXY) proxy(proxy)
+                    }
+                    .build()
+
+                val mediaType = "application/octet-stream".toMediaType()
+                val body = data.toRequestBody(mediaType)
+                val request = Request.Builder()
+                    .url("https://speed.cloudflare.com/__up")
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .header("Origin", "https://speed.cloudflare.com")
+                    .header("Referer", "https://speed.cloudflare.com/")
+                    .post(body)
+                    .build()
+
+                val t0 = System.currentTimeMillis()
+                client.newCall(request).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val durationMs = System.currentTimeMillis() - t0
+                        if (durationMs > 0) {
+                            val speedMBs = payloadMB / (durationMs / 1000.0)
+                            if (node != null) {
+                                node.uploadSpeedMBs = speedMBs
+                                com.asanvpn.app.data.NodeMetricsCache.saveUploadSpeed(node, speedMBs)
+                            }
+                            return@withContext speedMBs
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "measureUploadSpeed failed on proxy $proxy: ${e.message}")
+            }
+        }
+        null
+    }
+
     /**
      * Tests download throughput (MB/s) of candidate nodes in the background sequentially without disconnecting.
-     * Uses a lightweight 5 MB payload per server (tested strictly one-by-one).
-     * Takes up to 5 candidate nodes (including the currently active node).
+     * Uses a lightweight payload per server (tested strictly one-by-one).
+     * Takes up to [limit] candidate nodes (strictly 5 by default).
      * If Gemini mode is enabled, only candidate nodes passing Gemini verification are considered.
      * Returns a candidate node if it is significantly faster (at least 25% and >= 0.5 MB/s) than the active node,
      * or null if the active node is already best or testing cannot find a better candidate.
@@ -732,6 +832,8 @@ object PingTester {
         isGeminiOptimizationEnabled: Boolean = false,
         isVoiceCallOptimizationEnabled: Boolean = false,
         forceRefresh: Boolean = false,
+        targetPayloadMB: Double = 5.0,
+        limit: Int = 5,
         timeoutPerNodeMs: Long = 15000L,
         onNodeSpeedTested: ((VpnNode, Double) -> Unit)? = null
     ): VpnNode? = withContext(Dispatchers.IO) {
@@ -743,13 +845,13 @@ object PingTester {
         // candidate remark -> speed in MB/s
         val speedResults = mutableMapOf<String, Double>()
 
-        // Ensure activeNode is evaluated first as baseline, followed by candidate nodes (up to 30 nodes)
+        // Ensure activeNode is evaluated first as baseline, followed by candidate nodes (strictly up to limit nodes)
         val orderedCandidates = mutableListOf<VpnNode>()
         orderedCandidates.add(activeNode)
         for (c in candidates) {
             val isSame = (c.remark.isNotBlank() && c.remark == activeNode.remark) ||
                     (c.server == activeNode.server && c.port == activeNode.port)
-            if (!isSame && orderedCandidates.size < 30) {
+            if (!isSame && orderedCandidates.size < limit) {
                 if (orderedCandidates.none { it.remark == c.remark || (it.server == c.server && it.port == c.port) }) {
                     orderedCandidates.add(c)
                 }
@@ -814,9 +916,10 @@ object PingTester {
 
             if (configJson == null) continue
 
+            val bytes = (targetPayloadMB * 1024 * 1024).toLong().coerceAtLeast(200_000L)
             val endpoints = listOf(
+                Pair("https://speed.cloudflare.com/__down?bytes=$bytes", targetPayloadMB),
                 Pair(SPEED_TEST_URL_PRIMARY, 1.0),
-                Pair(SPEED_TEST_URL_FALLBACK, 1.0),
                 Pair(SPEED_TEST_URL_LIGHTWEIGHT, 0.5)
             )
 
