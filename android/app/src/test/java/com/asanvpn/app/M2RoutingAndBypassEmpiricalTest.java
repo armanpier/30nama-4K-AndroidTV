@@ -100,9 +100,9 @@ public class M2RoutingAndBypassEmpiricalTest {
 
         JsonObject routing = root.getAsJsonObject("routing");
 
-        // 1. Check domainStrategy
+        // 1. Check domainStrategy (AsIs matching v2rayNG to eliminate DNS query stalls on MCI/Irancell)
         String domainStrategy = routing.has("domainStrategy") ? routing.get("domainStrategy").getAsString() : null;
-        assertEquals("DomainStrategyExactMatch", "IPIfNonMatch", domainStrategy, "routing.domainStrategy must strictly equal 'IPIfNonMatch'");
+        assertEquals("DomainStrategyExactMatch", "AsIs", domainStrategy, "routing.domainStrategy must strictly equal 'AsIs'");
 
         // 2. Check rules array
         assertTrue("HasRulesArray", routing.has("rules") && routing.get("rules").isJsonArray(), "Routing must contain 'rules' array");
@@ -203,7 +203,7 @@ public class M2RoutingAndBypassEmpiricalTest {
             JsonArray rules = routing.getAsJsonArray("rules");
 
             String domainStrategy = routing.get("domainStrategy").getAsString();
-            assertEquals("Proto_" + node.getProtocol() + "_DomainStrategy", "IPIfNonMatch", domainStrategy,
+            assertEquals("Proto_" + node.getProtocol() + "_DomainStrategy", "AsIs", domainStrategy,
                     "domainStrategy invariant for protocol: " + node.getProtocol());
 
             JsonObject rule1 = rules.get(1).getAsJsonObject();
@@ -243,8 +243,8 @@ public class M2RoutingAndBypassEmpiricalTest {
             String configJson = V2RayConfigBuilder.INSTANCE.buildConfig(minimalNode);
             JsonObject root = JsonParser.parseString(configJson).getAsJsonObject();
             JsonObject routing = root.getAsJsonObject("routing");
-            assertEquals("MinimalNodeDomainStrategy", "IPIfNonMatch", routing.get("domainStrategy").getAsString(),
-                    "Minimal node generates valid IPIfNonMatch");
+            assertEquals("MinimalNodeDomainStrategy", "AsIs", routing.get("domainStrategy").getAsString(),
+                    "Minimal node generates valid AsIs");
             assertTrue("MinimalNodeRoutingRules", routing.getAsJsonArray("rules").size() >= 4,
                     "Minimal node generates complete routing rules");
         } catch (Exception e) {
@@ -262,8 +262,8 @@ public class M2RoutingAndBypassEmpiricalTest {
             String configJson = V2RayConfigBuilder.INSTANCE.buildConfig(extremeNode);
             JsonObject root = JsonParser.parseString(configJson).getAsJsonObject();
             JsonObject routing = root.getAsJsonObject("routing");
-            assertEquals("ExtremeNodeDomainStrategy", "IPIfNonMatch", routing.get("domainStrategy").getAsString(),
-                    "Extreme node preserves IPIfNonMatch");
+            assertEquals("ExtremeNodeDomainStrategy", "AsIs", routing.get("domainStrategy").getAsString(),
+                    "Extreme node preserves AsIs");
         } catch (Exception e) {
             assertTrue("ExtremeNodeException", false, "Extreme node threw unexpected exception: " + e.getMessage());
         }

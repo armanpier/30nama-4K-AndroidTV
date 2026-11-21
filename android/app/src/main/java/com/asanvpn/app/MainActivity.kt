@@ -187,6 +187,12 @@ class MainActivity : ComponentActivity() {
             refreshTopNodesPing()
         }
 
+        // Immediate fetch of fresh links and session validation from server on every startup
+        val initialPin = currentPinState ?: prefs.savedPin
+        if (!initialPin.isNullOrBlank()) {
+            validateUserSession(initialPin)
+        }
+
         // Automatic fast check for update on app startup
         lifecycleScope.launch {
             kotlinx.coroutines.delay(400L)
@@ -585,13 +591,13 @@ class MainActivity : ComponentActivity() {
         if (allNodes.isEmpty()) return
 
         val p1Nodes = allNodes.filter { (it.panelPriority ?: 1) == 1 }
-        val candidatePool = if (p1Nodes.isNotEmpty()) p1Nodes else allNodes.take(10)
+        val candidatePool = if (p1Nodes.isNotEmpty()) p1Nodes.take(5) else allNodes.take(5)
 
         pingJob?.cancel()
         pingJob = lifecycleScope.launch {
             isPingingNodesState = true
             try {
-                val pingLimit = candidatePool.size.coerceAtMost(10)
+                val pingLimit = candidatePool.size.coerceAtMost(5)
                 PingTester.pingTopCandidateNodes(
                     nodes = candidatePool,
                     limit = pingLimit,

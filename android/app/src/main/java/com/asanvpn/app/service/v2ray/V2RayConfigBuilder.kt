@@ -56,7 +56,6 @@ object V2RayConfigBuilder {
                     val destOverride = JsonArray().apply {
                         add("http")
                         add("tls")
-                        add("quic")
                     }
                     add("destOverride", destOverride)
                 })
@@ -79,7 +78,6 @@ object V2RayConfigBuilder {
                     val destOverride = JsonArray().apply {
                         add("http")
                         add("tls")
-                        add("quic")
                     }
                     add("destOverride", destOverride)
                 })
@@ -135,7 +133,7 @@ object V2RayConfigBuilder {
         })
         root.add("outbounds", outbounds)
 
-        // 4. DNS: Fast standard UDP resolvers routed through proxy (universal Android 7+ compatibility)
+        // 4. DNS: Fast standard UDP & DoH resolvers routed through proxy
         val dns = JsonObject().apply {
             addProperty("queryStrategy", "UseIPv4")
             val servers = JsonArray().apply {
@@ -146,9 +144,9 @@ object V2RayConfigBuilder {
         }
         root.add("dns", dns)
 
-        // 5. Routing: Iran split tunneling + general proxy
+        // 5. Routing: AsIs strategy matching v2rayNG (prevents blocking DNS queries on MCI/Irancell)
         val routing = JsonObject().apply {
-            addProperty("domainStrategy", "IPIfNonMatch")
+            addProperty("domainStrategy", "AsIs")
             val rules = JsonArray().apply {
                 // Rule 0: Hijack port 53 DNS queries to internal DNS engine (only from inbound tunnels)
                 add(JsonObject().apply {
