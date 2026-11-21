@@ -702,7 +702,13 @@ fun ServerSelectionDialog(
     if (showSpeedTestDialog) {
         ManualSpeedTestDialog(
             candidateNodes = candidateNodes,
+            currentSelectedRemark = currentSelectedRemark,
             onDismiss = { showSpeedTestDialog = false },
+            onSelectNode = { selectedNode ->
+                showSpeedTestDialog = false
+                onSelectNode(selectedNode)
+                onDismiss()
+            },
             onNodeUpdated = {
                 // UI automatically reflects updated metrics from cache and state
             }
@@ -713,7 +719,9 @@ fun ServerSelectionDialog(
 @Composable
 fun ManualSpeedTestDialog(
     candidateNodes: List<VpnNode>,
+    currentSelectedRemark: String?,
     onDismiss: () -> Unit,
+    onSelectNode: (VpnNode) -> Unit,
     onNodeUpdated: (VpnNode) -> Unit
 ) {
     val colors = LuxuryTheme.colors
@@ -856,6 +864,7 @@ fun ManualSpeedTestDialog(
                 ) {
                     testList.forEachIndexed { index, node ->
                         val isCurrentTesting = isTesting && activeTestingIndex == index
+                        val isSelected = node.remark == currentSelectedRemark
                         val measuredDown = node.downloadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getSpeed(node)
                         val measuredUp = node.uploadSpeedMBs ?: com.asanvpn.app.data.NodeMetricsCache.getUploadSpeed(node)
                         val lat = if (node.latencyMs > 0) node.latencyMs else (com.asanvpn.app.data.NodeMetricsCache.getLatency(node) ?: 0L)
@@ -865,22 +874,55 @@ fun ManualSpeedTestDialog(
                                 .fillMaxWidth()
                                 .luxuryWell(shape = RoundedCornerShape(12.dp))
                                 .border(
-                                    width = if (isCurrentTesting) 1.dp else 0.dp,
-                                    color = if (isCurrentTesting) colors.amberWarning else Color.Transparent,
+                                    width = when {
+                                        isCurrentTesting -> 1.5.dp
+                                        isSelected -> 1.5.dp
+                                        else -> 0.dp
+                                    },
+                                    color = when {
+                                        isCurrentTesting -> colors.amberWarning
+                                        isSelected -> colors.skyBlue
+                                        else -> Color.Transparent
+                                    },
                                     shape = RoundedCornerShape(12.dp)
                                 )
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .clickable {
+                                    onSelectNode(node)
+                                }
+                                .padding(horizontal = 10.dp, vertical = 7.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                // Left: Metrics badges & test status
+                                // Left: Radio/indicator & Metrics badges
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
+                                    // Custom Radio selection indicator
+                                    Box(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clip(CircleShape)
+                                            .border(
+                                                width = if (isSelected) 4.5.dp else 1.5.dp,
+                                                color = if (isSelected) colors.skyBlue else colors.textMuted.copy(alpha = 0.5f),
+                                                shape = CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isSelected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(5.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color.White)
+                                            )
+                                        }
+                                    }
+
                                     if (isCurrentTesting) {
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(12.dp),
@@ -932,7 +974,7 @@ fun ManualSpeedTestDialog(
                                         text = node.remark,
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = colors.textPrimary,
+                                        color = if (isSelected) colors.skyBlue else colors.textPrimary,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )

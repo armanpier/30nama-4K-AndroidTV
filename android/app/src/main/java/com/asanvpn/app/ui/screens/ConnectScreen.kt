@@ -1076,7 +1076,7 @@ fun ConnectScreen(
 
                 Spacer(modifier = Modifier.height(if (isSmallScreen) 4.dp else 8.dp))
 
-                // Status Title & Subtitle
+                // Status Title
                 Text(
                     text = statusBadgeText,
                     fontSize = if (isSmallScreen) 14.5.sp else 17.5.sp,
@@ -1085,16 +1085,18 @@ fun ConnectScreen(
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(3.dp))
+                if (!isConnected) {
+                    Spacer(modifier = Modifier.height(3.dp))
 
-                Text(
-                    text = if (isSmallScreen && !isConnected && !isConnecting) "جهت برقراری اتصال دکمه را لمس کنید" else statusSubText,
-                    fontSize = if (isSmallScreen) 9.sp else 10.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.textSecondary,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1
-                )
+                    Text(
+                        text = if (isSmallScreen && !isConnecting) "جهت برقراری اتصال دکمه را لمس کنید" else statusSubText,
+                        fontSize = if (isSmallScreen) 9.sp else 10.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textSecondary,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
+                    )
+                }
 
                 // Floating Duration Pill
                 AnimatedVisibility(visible = isConnected) {
